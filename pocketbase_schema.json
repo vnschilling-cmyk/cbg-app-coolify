@@ -1,0 +1,45 @@
+{
+  "collections": [
+    {
+      "name": "preachers",
+      "type": "base",
+      "schema": [
+        { "name": "name", "type": "text", "required": true },
+        { "name": "initials", "type": "text", "required": true },
+        { "name": "churchtools_id", "type": "text" },
+        { "name": "email", "type": "email" }
+      ]
+    },
+    {
+      "name": "events",
+      "type": "base",
+      "schema": [
+        { "name": "date", "type": "date", "required": true },
+        { "name": "type", "type": "select", "options": { "values": ["Mi", "Fr", "So_AM", "So_PM"] } },
+        { "name": "location", "type": "select", "options": { "values": ["BN", "Als"] } },
+        { "name": "special_info", "type": "text" },
+        { "name": "churchtools_id", "type": "text" }
+      ]
+    },
+    {
+      "name": "absences",
+      "type": "base",
+      "schema": [
+        { "name": "preacher", "type": "relation", "options": { "collectionId": "preachers", "maxSelect": 1 } },
+        { "name": "start_date", "type": "date", "required": true },
+        { "name": "end_date", "type": "date", "required": true },
+        { "name": "reason", "type": "text" }
+      ]
+    },
+    {
+      "name": "plans",
+      "type": "base",
+      "schema": [
+        { "name": "period_start", "type": "date", "required": true },
+        { "name": "period_end", "type": "date", "required": true },
+        { "name": "data", "type": "json" },
+        { "name": "status", "type": "select", "options": { "values": ["draft", "published", "archived"] } }
+      ]
+    }
+  ]
+}
