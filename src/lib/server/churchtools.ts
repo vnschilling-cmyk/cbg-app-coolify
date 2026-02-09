@@ -28,7 +28,7 @@ export class ChurchToolsClient {
         this.apiToken = apiToken;
     }
 
-    private async request(endpoint: string, options: RequestInit = {}) {
+    public async request(endpoint: string, options: RequestInit = {}) {
         const url = `${this.baseUrl}/api/${endpoint}`;
         const headers = {
             'Authorization': `Login ${this.apiToken}`,
@@ -64,10 +64,14 @@ export class ChurchToolsClient {
     }
 
     /**
-     * Fetch absences for a specific time range.
+     * Fetch absences. If groupId is provided, fetches absences for that specific group.
      */
-    async getAbsences(from: string, to: string): Promise<CTAbsence[]> {
-        const data = await this.request(`absences?from=${from}&to=${to}`);
+    async getAbsences(from: string, to: string, groupId?: string): Promise<CTAbsence[]> {
+        const endpoint = groupId
+            ? `groups/${groupId}/absences?from=${from}&to=${to}`
+            : `persons/absences?from=${from}&to=${to}`;
+
+        const data = await this.request(endpoint);
         return data.data || [];
     }
 

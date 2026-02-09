@@ -1,34 +1,42 @@
+import { ChurchToolsClient } from '../src/lib/server/churchtools.ts';
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 const baseUrl = process.env.CHURCHTOOLS_BASE_URL;
 const token = process.env.CHURCHTOOLS_TOKEN;
 
-async function debugFetch() {
-    if (!baseUrl || !token) return;
+async function debugHeaders() {
+    if (!baseUrl || !token) {
+        console.error('Missing config in .env');
+        return;
+    }
 
-    const headersList = [
-        { 'Authorization': `Login ${token}` },
-        { 'Authorization': `Bearer ${token}` },
-        { 'Authorization': `Token ${token}` },
-        { 'X-Auth-Token': token }
-    ];
+    const authTypes = ['Login', 'Bearer'];
 
-    for (const headers of headersList) {
-        console.log(`Testing with headers: ${Object.keys(headers)[0]}`);
+    for (const authType of authTypes) {
+        console.log(`\n--- Testing ${authType} header ---`);
         try {
-            const resp = await fetch(`${baseUrl}/api/whoami`, { headers });
-            const text = await resp.text();
-            console.log(`Status: ${resp.status}, Type: ${resp.headers.get('content-type')}`);
-            if (resp.ok && resp.headers.get('content-type')?.includes('application/json')) {
-                console.log('SUCCESS!');
-                console.log(text.substring(0, 200));
-                return;
+            const url = `${baseUrl}/api/v2/calendars`;
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `${authType} ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            console.log(`Status: ${response.status}`);
+            const contentType = response.headers.get('content-type');
+            if (contentType?.includes('application/json')) {
+                const data = await response.json();
+                console.log(`SUCCESS: Found ${data.data?.length || 0} calendars.`);
+            } else {
+                const text = await response.text();
+                console.log(`FAILED: Received HTML (${text.substring(0, 100)}...)`);
             }
         } catch (e) {
-            console.log(`Failed: ${e.message}`);
+            console.error(`Error with ${authType}: ${e.message}`);
         }
     }
 }
 
-debugFetch();
+debugHeaders();

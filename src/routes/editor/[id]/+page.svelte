@@ -1,32 +1,25 @@
 <script lang="ts">
-  import GridEditor from '$lib/components/GridEditor.svelte';
-  import { onMount } from 'svelte';
-  import { pb } from '$lib/pocketbase';
-  
-  let { data } = $props();
-  let loading = $state(true);
-  let plan = $state(null);
+  import GridEditor from "$lib/components/GridEditor.svelte";
 
-  onMount(async () => {
-    // In a real app, fetch plan by ID from Pocketbase
-    // For now, we simulate a loading state
-    setTimeout(() => {
-      loading = false;
-    }, 500);
-  });
+  let { data } = $props();
 </script>
 
 <svelte:head>
   <title>Editor | Predigerplan Pro</title>
 </svelte:head>
 
-{#if loading}
+{#if data.error}
   <div class="flex-1 flex items-center justify-center bg-slate-50">
-    <div class="flex flex-col items-center gap-4">
-      <div class="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-slate-500 font-medium animate-pulse">Lade Planungsdaten...</p>
+    <div class="flex flex-col items-center gap-4 text-center p-8">
+      <div class="text-red-500 text-5xl">⚠️</div>
+      <p class="text-slate-700 font-medium">Fehler beim Laden der Daten</p>
+      <p class="text-slate-500 text-sm">{data.error}</p>
     </div>
   </div>
 {:else}
-  <GridEditor />
+  <GridEditor
+    serverSlots={data.slots}
+    serverPreachers={data.preachers}
+    serverAbsences={data.absences}
+  />
 {/if}
