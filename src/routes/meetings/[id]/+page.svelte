@@ -204,28 +204,28 @@
 </script>
 
 <div
-    class="h-full flex flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden transition-colors duration-300"
+    class="h-full flex flex-col overflow-hidden transition-colors duration-300"
 >
     <!-- Meeting Header -->
     <div
-        class="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4"
+        class="flex-none bg-zinc-50/80 dark:bg-zinc-800/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-700 px-4 sm:px-6 py-4"
     >
         <div class="max-w-4xl mx-auto flex items-center justify-between gap-4">
             <div class="flex items-center gap-4 min-w-0">
                 <a
                     href="/meetings"
-                    class="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                    class="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
                     title="Zurück"
                 >
                     <ArrowLeft size={18} />
                 </a>
                 <div class="min-w-0">
                     <h1
-                        class="text-lg font-bold text-slate-900 dark:text-white truncate"
+                        class="text-lg font-bold text-zinc-900 dark:text-white truncate"
                     >
                         {data.meeting?.title || "Meeting"}
                     </h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
                         {agendaTopics.length} Themen • {allItems.length -
                             agendaTopics.length} Ergebnisse
                     </p>
@@ -245,7 +245,7 @@
                     onclick={toggleRecording}
                     class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all {isRecording
                         ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/25 animate-pulse'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}"
+                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700'}"
                 >
                     {#if isRecording}
                         <MicOff size={18} />
@@ -308,9 +308,9 @@
                 <div class="text-center py-16">
                     <ListChecks
                         size={48}
-                        class="mx-auto text-slate-300 dark:text-slate-600 mb-4"
+                        class="mx-auto text-zinc-300 dark:text-zinc-600 mb-4"
                     />
-                    <p class="text-sm text-slate-400 dark:text-slate-500">
+                    <p class="text-sm text-zinc-400 dark:text-zinc-500">
                         Noch keine Agenda-Themen. Füge oben das erste Thema
                         hinzu.
                     </p>
