@@ -1,8 +1,8 @@
 import PocketBase from 'pocketbase';
 import { writable } from 'svelte/store';
+import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
 
-// Set your PocketBase URL here
-export const pb = new PocketBase('http://127.0.0.1:8090');
+export const pb = new PocketBase(PUBLIC_POCKETBASE_URL || 'https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io');
 
 export const user = writable(pb.authStore.model);
 

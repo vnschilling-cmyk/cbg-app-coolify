@@ -1,0 +1,1 @@
+﻿VITE_POCKETBASE_URL=http://pocketbase-eks8ggs4k4000g0wswkw0804.195.201.231.49.nip.io

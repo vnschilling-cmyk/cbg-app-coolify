@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary-50: #f0f9ff;
   --color-primary-100: #e0f2fe;
@@ -14,8 +16,20 @@
 }
 
 @layer base {
+  html {
+    @apply transition-colors duration-300;
+  }
+  
+  html.dark {
+    background-color: #020617; /* bg-slate-950 */
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+    @apply bg-white text-slate-900 font-sans antialiased transition-colors duration-300;
+  }
+  
+  :global(.dark) body {
+    @apply bg-slate-950 text-slate-100;
   }
 }
 
@@ -27,7 +41,7 @@
     @apply bg-primary-600 text-white hover:bg-primary-700 shadow-sm hover:shadow-md;
   }
   .btn-secondary {
-    @apply bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-sm;
+    @apply bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm;
   }
 }
 
@@ -41,5 +55,24 @@
   }
   body {
     background: white !important;
+  }
+}
+/* Dark Scrollbar */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-950;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-800 rounded-full border-2 border-slate-950 transition-colors hover:bg-slate-700;
+  }
+  
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #1e293b #020617; /* slate-800 slate-950 */
   }
 }

@@ -1,0 +1,7 @@
+﻿PB_URL=https://pocketbase-nik-app-coolify.195.201.231.49.nip.io
+PB_EMAIL=admin@nik-app.de
+PB_PASSWORD="Muenze1980!#"
+NEXT_PUBLIC_POCKETBASE_URL=https://pocketbase-nik-app-coolify.195.201.231.49.nip.io
+
+# Google AI (Gemini) - Server-side only!
+GOOGLE_AI_API_KEY=AIzaSyDPqx5R30NedVupbKuhVjOPE3eblwNQfZ8

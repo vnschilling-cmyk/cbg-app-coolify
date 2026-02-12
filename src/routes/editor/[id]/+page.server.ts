@@ -3,8 +3,12 @@ import { CHURCHTOOLS_TOKEN, CHURCHTOOLS_BASE_URL, PREACHER_GROUP_ID } from '$env
 import type { PageServerLoad } from './$types';
 import { format, addMonths, startOfMonth, endOfMonth, isSaturday } from 'date-fns';
 
-export const load: PageServerLoad = async ({ params }) => {
-    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, CHURCHTOOLS_TOKEN);
+export const load: PageServerLoad = async ({ params, locals }) => {
+    // Get user from locals (populated by hooks if available)
+    const user = locals.user || locals.pb?.authStore?.model;
+    const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, userToken);
 
     // Define the date range (2 months)
     const startMonth = new Date(2026, 2, 1); // March 2026
@@ -50,13 +54,14 @@ export const load: PageServerLoad = async ({ params }) => {
 
                 return {
                     id: `${appointmentId}-${format(startDate, 'yyyy-MM-dd')}`,
-                    date: startDate.toISOString(),
+                    date: format(startDate, "yyyy-MM-dd'T'HH:mm:ss"), // No 'Z' to avoid UTC shift in browser
                     time: format(startDate, 'HH:mm'),
-                    label: apt.base?.title || apt.appointment?.base?.title || apt.caption || 'Termin',
-                    calendar: apt.base?.calendar?.name || apt.appointment?.base?.calendar?.name || 'Unbekannt',
+                    label: apt.base?.title || apt.appointment?.base?.title || apt.caption || 'Unbenannter Termin',
+                    calendar: apt.base?.calendar?.name || apt.appointment?.base?.calendar?.name || 'Unbekannter Kalender',
                     isSundaySecond: false // Will be calculated client-side
                 };
-            });
+            })
+            .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
         // Fetch group members for preachers (with limit=100 to get all)
         let preachers: any[] = [];
@@ -77,10 +82,6 @@ export const load: PageServerLoad = async ({ params }) => {
                 role: roleMap[m.groupTypeRoleId] || 'Teilnehmer',
                 comment: m.comment || ''
             }));
-            console.log(`Fetched ${preachers.length} preachers from CT`);
-            if (preachers.length > 0) {
-                console.log('Sample Preacher:', preachers[0]);
-            }
         } catch (e) {
             console.error('Failed to fetch group members:', e);
         }
@@ -96,19 +97,53 @@ export const load: PageServerLoad = async ({ params }) => {
                 endDate: a.endDate,
                 reason: a.absenceReason?.nameTranslated || ''
             }));
-
-            if (absences.length > 0) {
-                console.log(`Transformed ${absences.length} absences. Sample:`, absences[0]);
-            }
         } catch (e) {
             console.error('Failed to fetch absences:', e);
+        }
+
+        // Fetch events to get existing assignments
+        let assignments: Record<string, Record<string, string>> = {};
+        try {
+            const events = await client.getEventsWithServices(fromDate, toDate);
+
+            for (const event of events) {
+                // If the event has services, fetch details to get persons
+                // Note: The basic events list might already have some services depending on the API version,
+                // but usually we need a second call per event or an include parameter.
+                // For performance, let's see if we can get them from the event detail if we have few events.
+                // Assuming we want to show existing data for the preacher plan.
+
+                // Fetch event details to get services
+                const detailResponse = await client.request(`events/${event.id}`);
+                const services = detailResponse.data?.services || [];
+
+                const eventDate = new Date(event.startDate);
+                const dateStr = format(eventDate, 'yyyy-MM-dd');
+                const slotId = `${event.appointmentId}-${dateStr}`;
+
+                if (!assignments[slotId]) assignments[slotId] = {};
+
+                for (const service of services) {
+                    const person = service.person;
+                    if (person && person.domainAttributes) {
+                        const name = `${person.domainAttributes.firstName} ${person.domainAttributes.lastName}`;
+                        // Map ChurchTools service role to our grid codes if possible
+                        // For now, let's just mark who is assigned.
+                        // We'll need to match names with our preacher list.
+                        assignments[slotId][name] = 'X'; // Placeholder, will be refined if we find code mapping
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to fetch event assignments:', e);
         }
 
         return {
             slots,
             preachers,
             calendars,
-            absences, // Pass absences to frontend
+            absences,
+            assignments, // New field for pre-filled data
             fromDate,
             toDate
         };

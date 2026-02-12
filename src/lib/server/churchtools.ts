@@ -76,6 +76,14 @@ export class ChurchToolsClient {
     }
 
     /**
+     * Fetch services (assignments) for events in a specific time range.
+     */
+    async getEventsWithServices(from: string, to: string): Promise<any[]> {
+        const data = await this.request(`events?from=${from}&to=${to}`);
+        return data.data || [];
+    }
+
+    /**
      * Fetch persons within a specific group.
      */
     async getGroupMembers(groupId: string): Promise<any[]> {

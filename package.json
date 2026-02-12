@@ -27,6 +27,7 @@
 		"dotenv": "^17.2.4",
 		"lucide-svelte": "^0.563.0",
 		"pocketbase": "^0.26.8",
+		"svelte-dnd-action": "^0.9.69",
 		"tsx": "^4.21.0"
 	}
 }
