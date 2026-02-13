@@ -14,6 +14,7 @@
 
     import { pb } from "$lib/pocketbase";
     import { goto } from "$app/navigation";
+    import { toast, confirm } from "$lib/notifications.svelte";
 
     let { data } = $props();
 
@@ -42,7 +43,7 @@
             goto(`/editor/${newRecord.id}`);
         } catch (e) {
             console.error("Failed to create plan:", e);
-            alert("Fehler beim Erstellen des Plans.");
+            toast.error("Fehler beim Erstellen des Plans.");
         }
     }
 
@@ -117,8 +118,14 @@
                         <form
                             method="POST"
                             action="?/delete"
-                            use:enhance={() => {
-                                if (!confirm("Plan wirklich löschen?")) return;
+                            use:enhance={async ({ cancel }) => {
+                                const confirmed = await confirm(
+                                    "Plan wirklich löschen?",
+                                );
+                                if (!confirmed) {
+                                    cancel();
+                                    return;
+                                }
                                 return async ({ result }) => {
                                     if (result.type === "success") {
                                         plans = plans.filter(

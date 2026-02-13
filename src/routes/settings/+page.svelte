@@ -17,7 +17,8 @@
         Clock,
     } from "lucide-svelte";
     import ThemeSwitcher from "$lib/components/ThemeSwitcher.svelte";
-    import { invalidateAll } from "$app/navigation";
+    import { invalidateAll, goto } from "$app/navigation";
+    import { confirm } from "$lib/notifications.svelte";
 
     let { data } = $props();
 
@@ -110,7 +111,8 @@
     }
 
     async function deleteGroup(id: string) {
-        if (!confirm("Gruppe wirklich löschen?")) return;
+        const confirmed = await confirm("Gruppe wirklich löschen?");
+        if (!confirmed) return;
         try {
             await pb.collection("groups").delete(id);
             groups = groups.filter((g: any) => g.id !== id);
@@ -229,7 +231,8 @@
     }
 
     async function deleteRule(id: string) {
-        if (!confirm("Regel wirklich löschen?")) return;
+        const confirmed = await confirm("Regel wirklich löschen?");
+        if (!confirmed) return;
         try {
             await pb.collection("service_rules").delete(id);
             serviceRules = serviceRules.filter((r: any) => r.id !== id);

@@ -1,0 +1,62 @@
+{
+  "id": 90,
+  "personId": 43,
+  "group": {
+    "title": "Prediger",
+    "domainType": "group",
+    "domainIdentifier": "164",
+    "apiUrl": "https://cbggruenberg.church.tools/api/groups/164",
+    "frontendUrl": "https://cbggruenberg.church.tools/groups/164",
+    "imageUrl": "https://cbggruenberg.church.tools/images/390/85bb18c2c81a50f7cf7cd4072cdad83a4ef5f09951669e7d9d2d72cc6e32f967",
+    "icon": "users",
+    "color": {
+      "key": "sky",
+      "shade": null
+    },
+    "initials": "P",
+    "domainAttributes": {
+      "note": "",
+      "groupStatusId": 1,
+      "groupTypeId": 1,
+      "campusId": 0,
+      "visibility": "restricted",
+      "guid": "DA5E35FC-A1EC-4055-BA24-D61642A50A65"
+    },
+    "infos": [
+      "Gruppe"
+    ]
+  },
+  "person": {
+    "title": "Alexander Demler",
+    "domainType": "person",
+    "domainIdentifier": "43",
+    "apiUrl": "https://cbggruenberg.church.tools/api/persons/43",
+    "frontendUrl": "https://cbggruenberg.church.tools/?q=churchdb#PersonView/searchEntry:%2343/",
+    "imageUrl": "https://cbggruenberg.church.tools/images/73/3af4edd25f8cee91d3fc7500760bc6d62ca76447bf65675c734ca3917e9dc6b8",
+    "icon": "user",
+    "color": null,
+    "initials": "AD",
+    "domainAttributes": {
+      "firstName": "Alexander",
+      "lastName": "Demler",
+      "guid": "1204F543-86DD-4CDC-8372-61C56FD6CB5B",
+      "dateOfDeath": null,
+      "isArchived": false
+    },
+    "infos": []
+  },
+  "groupTypeRoleId": 9,
+  "roleChangedDate": "2023-06-02T09:45:08Z",
+  "groupMemberStatus": "active",
+  "statusChangedDate": "2023-04-30T22:00:00Z",
+  "memberStartDate": "2023-05-01",
+  "registeredBy": null,
+  "waitinglistPosition": null,
+  "comment": null,
+  "memberEndDate": null,
+  "@deprecated": {
+    "personId": "person.domainIdentifier"
+  },
+  "fields": [],
+  "personFields": []
+}

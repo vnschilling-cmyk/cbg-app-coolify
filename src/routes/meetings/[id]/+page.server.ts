@@ -17,7 +17,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
         let members: any[] = [];
         try {
+            // Filter members by the meeting's group to stay within group boundaries
+            const groupFilter = meeting.group ? `group = "${meeting.group}"` : "";
             members = await locals.pb.collection('members').getFullList({
+                filter: groupFilter,
                 sort: 'name',
             });
         } catch (e: any) {

@@ -17,7 +17,7 @@ function createThemeStore() {
 
         if (isDark) {
             root.classList.add('dark');
-            root.style.backgroundColor = '#020617';
+            root.style.backgroundColor = '#18181b';
         } else {
             root.classList.remove('dark');
             root.style.backgroundColor = '#ffffff';
@@ -36,7 +36,7 @@ function createThemeStore() {
                 if (currentTheme === 'system') {
                     if (e.matches) {
                         window.document.documentElement.classList.add('dark');
-                        window.document.documentElement.style.backgroundColor = '#020617';
+                        window.document.documentElement.style.backgroundColor = '#18181b';
                     } else {
                         window.document.documentElement.classList.remove('dark');
                         window.document.documentElement.style.backgroundColor = '#ffffff';

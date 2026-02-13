@@ -12,6 +12,7 @@
   } from "lucide-svelte";
 
   import { page } from "$app/stores";
+  import NotificationProvider from "$lib/components/NotificationProvider.svelte";
 
   let { children } = $props();
 
@@ -27,7 +28,7 @@
     <!-- Navigation (Hidden on print) -->
     <header
       id="main-header"
-      class="bg-zinc-50/80 dark:bg-zinc-800/80 backdrop-blur-md border-zinc-200 dark:border-zinc-700 print:hidden flex-none z-50 transition-colors duration-300 {$page.url.pathname.includes(
+      class="bg-zinc-50/80 dark:bg-zinc-800/80 backdrop-blur-md border-zinc-200 dark:border-zinc-700 print:hidden flex-none z-[200] transition-colors duration-300 {$page.url.pathname.includes(
         '/editor/',
       )
         ? ''
@@ -68,35 +69,33 @@
           {#if $page.url.pathname !== "/"}
             <a
               href="/"
-              title="Übersicht"
-              aria-label="Übersicht"
-              class="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+              title="Dashboard"
+              aria-label="Dashboard"
+              class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all shadow-sm hover:shadow-blue-500/20"
             >
-              <LayoutDashboard size={20} />
+              <LayoutDashboard size={18} />
             </a>
             <a
               href="/plans"
               title="Pläne"
               aria-label="Pläne"
-              class="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+              class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm hover:shadow-emerald-500/20"
             >
-              <Calendar size={20} />
+              <Calendar size={18} />
             </a>
             <a
               href="/meetings"
               title="Meetings"
               aria-label="Meetings"
-              class="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+              class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-amber-500 hover:text-white dark:hover:bg-amber-600 dark:hover:text-white transition-all shadow-sm hover:shadow-amber-500/20"
             >
-              <ClipboardList size={20} />
+              <ClipboardList size={18} />
             </a>
           {/if}
         </nav>
 
         <div class="flex items-center gap-4">
-          <div
-            class="flex items-center gap-2 pl-4 border-l border-zinc-200 dark:border-zinc-700"
-          >
+          <div class="flex items-center gap-2 pl-4">
             <!-- User Info Card -->
             <div
               class="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 rounded-2xl border border-zinc-100 dark:border-zinc-700/50 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -119,22 +118,20 @@
                 </p>
               </div>
 
-              <div
-                class="flex items-center gap-1 border-l border-zinc-200 dark:border-zinc-700 ml-1 pl-1"
-              >
+              <div class="flex items-center gap-1 ml-1 pl-1">
                 <a
                   href="/settings"
                   title="Einstellungen"
-                  class="p-1.5 text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors rounded-lg hover:bg-white dark:hover:bg-zinc-700 shadow-sm sm:shadow-none"
+                  class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-500 text-white hover:bg-slate-600 shadow-sm hover:shadow-slate-500/20 transition-all border border-transparent"
                 >
-                  <Settings size={16} />
+                  <Settings size={18} />
                 </a>
                 <button
                   onclick={logout}
                   title="Abmelden"
-                  class="p-1.5 text-zinc-400 hover:text-red-500 transition-colors rounded-lg hover:bg-white dark:hover:bg-zinc-700 shadow-sm sm:shadow-none"
+                  class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-500 text-white hover:bg-red-600 shadow-sm hover:shadow-red-500/20 transition-all border border-transparent"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={18} />
                 </button>
               </div>
             </div>
@@ -149,6 +146,8 @@
     {@render children()}
   </main>
 </div>
+
+<NotificationProvider />
 
 <style>
   :global(html) {

@@ -32,7 +32,7 @@ export const tags = [
         id: "info",
         label: "Info",
         icon: Info,
-        color: "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400",
+        color: "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400",
     },
     {
         id: "entscheidung",

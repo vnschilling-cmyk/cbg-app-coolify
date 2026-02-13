@@ -15,8 +15,11 @@ async function testAuth() {
         console.log('Testing whoami...');
         const data = await client.request('whoami');
         console.log('WHOAMI response:', JSON.stringify(data, null, 2));
-    } catch (e) {
+    } catch (e: any) {
         console.error('WHOAMI failed:', e.message);
+        if (e.cause) {
+            console.error('Cause:', e.cause);
+        }
     }
 }
 

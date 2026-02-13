@@ -18,7 +18,8 @@
         ChevronRight,
     } from "lucide-svelte";
     import { categories, tags } from "$lib/constants";
-    import { fade, slide } from "svelte/transition";
+    import { fade, slide, scale } from "svelte/transition";
+    import { clickOutside } from "$lib/actions";
     import DatePicker from "./DatePicker.svelte";
     import ConfirmationModal from "./ConfirmationModal.svelte";
 
@@ -76,7 +77,7 @@
         {
             id: "offen",
             label: "Offen",
-            color: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600",
+            color: "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-700/50 dark:text-zinc-400 dark:border-zinc-600",
             numColor: "bg-primary-600 shadow-primary-500/30",
         },
         {
@@ -153,10 +154,10 @@
             type: "beitrag",
             label: "Beitrag",
             icon: MessageSquare,
-            color: "bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300",
-            badgeColor: "bg-slate-500",
-            hoverColor: "hover:bg-slate-50 dark:hover:bg-slate-700/30",
-            borderColor: "border-slate-200 dark:border-slate-700",
+            color: "bg-zinc-100 dark:bg-zinc-700/50 text-zinc-700 dark:text-zinc-300",
+            badgeColor: "bg-zinc-500",
+            hoverColor: "hover:bg-zinc-50 dark:hover:bg-zinc-700/30",
+            borderColor: "border-zinc-200 dark:border-zinc-600",
         },
         {
             type: "beschluss",
@@ -429,7 +430,7 @@
 </script>
 
 <div
-    class="bg-white/90 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm hover:shadow-xl hover:shadow-primary-500/10 dark:hover:shadow-primary-900/20 overflow-visible relative group/card {showSpeakerMenu ||
+    class="bg-white/90 dark:bg-zinc-700/60 backdrop-blur-md rounded-2xl border border-zinc-200/60 dark:border-zinc-600/50 shadow-sm hover:shadow-xl hover:shadow-primary-500/10 dark:hover:shadow-primary-900/20 overflow-visible relative group/card {showSpeakerMenu ||
     showAddSpeakerMenu ||
     showStatusMenu
         ? 'z-50'
@@ -443,8 +444,8 @@
             : displayedStatus === 'verschoben'
               ? 'bg-amber-50/50 dark:bg-amber-900/10'
               : displayedStatus === 'offen'
-                ? 'bg-slate-100/50 dark:bg-slate-800/10'
-                : 'hover:bg-slate-50/50 dark:hover:bg-slate-700/20'} relative {showSpeakerMenu ||
+                ? 'bg-zinc-100/50 dark:bg-zinc-700/10'
+                : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-700/20'} relative {showSpeakerMenu ||
         showStatusMenu
             ? 'z-20'
             : 'z-auto'}"
@@ -473,7 +474,7 @@
                     <input
                         bind:value={editContent}
                         onkeydown={handleEditKeydown}
-                        class="flex-1 px-3 py-1.5 text-[15px] font-bold bg-white dark:bg-slate-900 border border-primary-300 dark:border-primary-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-slate-900 dark:text-white shadow-sm"
+                        class="flex-1 px-3 py-1.5 text-[15px] font-bold bg-white dark:bg-zinc-700 border border-primary-300 dark:border-primary-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-900 dark:text-white shadow-sm"
                         autofocus
                     />
                     <button
@@ -485,7 +486,7 @@
                     </button>
                     <button
                         onclick={cancelEdit}
-                        class="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                        class="p-1.5 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
                         title="Abbrechen"
                     >
                         <X size={18} />
@@ -499,7 +500,7 @@
                     title="Klicken zum Bearbeiten"
                 >
                     <h3
-                        class="text-[17px] font-bold text-slate-900 dark:text-white group-hover/title:text-primary-600 dark:group-hover/title:text-primary-400 transition-colors tracking-tight leading-snug"
+                        class="text-[17px] font-bold text-zinc-900 dark:text-white group-hover/title:text-primary-600 dark:group-hover/title:text-primary-400 transition-colors tracking-tight leading-snug"
                     >
                         {item.content}
                     </h3>
@@ -518,7 +519,7 @@
                                 (showCategoryMenu = !showCategoryMenu)}
                             class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm {cat
                                 ? cat.color
-                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 group/cat'}"
+                                : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500 group/cat'}"
                         >
                             {#if cat?.icon}
                                 <svelte:component this={cat.icon} size={11} />
@@ -528,19 +529,17 @@
 
                         {#if showCategoryMenu}
                             <div
-                                class="fixed inset-0 z-[100]"
-                                onclick={() => (showCategoryMenu = false)}
-                            ></div>
-                            <div
-                                class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-[101] py-2 overflow-hidden"
+                                class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
                                 in:fade={{ duration: 150 }}
+                                use:clickOutside={() =>
+                                    (showCategoryMenu = false)}
                             >
                                 <button
                                     onclick={() => updateTopicCategory("")}
-                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors {displayedCategory ===
+                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors {displayedCategory ===
                                     ''
                                         ? 'text-primary-600 font-bold opacity-100'
-                                        : 'text-slate-600 opacity-60'}"
+                                        : 'text-zinc-600 opacity-60'}"
                                 >
                                     Keine Kategorie
                                 </button>
@@ -548,10 +547,10 @@
                                     <button
                                         onclick={() =>
                                             updateTopicCategory(c.id)}
-                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 {displayedCategory ===
+                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 {displayedCategory ===
                                         c.id
                                             ? 'text-primary-600 font-bold bg-primary-50/30'
-                                            : 'text-slate-600'}"
+                                            : 'text-zinc-600'}"
                                     >
                                         <svelte:component
                                             this={c.icon}
@@ -573,7 +572,7 @@
                             onclick={() => (showTagMenu = !showTagMenu)}
                             class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm {t
                                 ? t.color
-                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'}"
+                                : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500'}"
                         >
                             {#if t?.icon}
                                 <svelte:component this={t.icon} size={11} />
@@ -583,29 +582,26 @@
 
                         {#if showTagMenu}
                             <div
-                                class="fixed inset-0 z-[100]"
-                                onclick={() => (showTagMenu = false)}
-                            ></div>
-                            <div
-                                class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-[101] py-2 overflow-hidden"
+                                class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
                                 in:fade={{ duration: 150 }}
+                                use:clickOutside={() => (showTagMenu = false)}
                             >
                                 <button
                                     onclick={() => updateTopicTag("")}
-                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors {displayedTag ===
+                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors {displayedTag ===
                                     ''
                                         ? 'text-primary-600 font-bold'
-                                        : 'text-slate-600'}"
+                                        : 'text-zinc-600'}"
                                 >
                                     Kein Tag
                                 </button>
                                 {#each tags as tag}
                                     <button
                                         onclick={() => updateTopicTag(tag.id)}
-                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 {displayedTag ===
+                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 {displayedTag ===
                                         tag.id
                                             ? 'text-primary-600 font-bold bg-primary-50/30'
-                                            : 'text-slate-600'}"
+                                            : 'text-zinc-600'}"
                                     >
                                         <svelte:component
                                             this={tag.icon}
@@ -626,7 +622,7 @@
 
         {#if children.length > 0 && !editing}
             <span
-                class="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 flex-shrink-0"
+                class="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-700/80 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-600 flex-shrink-0"
             >
                 <ChevronRight size={10} class="opacity-50" />
                 {children.length}
@@ -652,21 +648,18 @@
 
                 {#if showStatusMenu}
                     <div
-                        class="fixed inset-0 z-[100]"
-                        onclick={() => (showStatusMenu = false)}
-                    ></div>
-                    <div
-                        class="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-[101] py-2 overflow-hidden"
+                        class="absolute left-0 mt-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
                         in:fade={{ duration: 150 }}
+                        use:clickOutside={() => (showStatusMenu = false)}
                     >
                         {#each statuses as st}
                             <button
                                 onclick={() => updateTopicStatus(st.id)}
-                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-between {item.status ===
+                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {item.status ===
                                     st.id ||
                                 (!item.status && st.id === 'offen')
                                     ? 'text-primary-600 dark:text-primary-400'
-                                    : 'text-slate-600 dark:text-slate-400'}"
+                                    : 'text-zinc-600 dark:text-zinc-400'}"
                             >
                                 <span>{st.label}</span>
                                 {#if item.status === st.id || (!item.status && st.id === "offen")}
@@ -700,10 +693,10 @@
             <div class="relative ml-2 flex-shrink-0" id="speaker-dropdown">
                 <button
                     onclick={() => (showSpeakerMenu = !showSpeakerMenu)}
-                    class="flex items-center gap-2 px-2 py-1 bg-slate-50 dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg transition-all shadow-sm active:scale-95 group/btn"
+                    class="flex items-center gap-2 px-2 py-1 bg-zinc-50 dark:bg-zinc-700/50 hover:bg-white dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg transition-all shadow-sm active:scale-95 group/btn"
                 >
                     <div
-                        class="w-6 h-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] font-black text-primary-600 dark:text-primary-400 shadow-sm transition-all group-hover/btn:border-primary-500/50"
+                        class="w-6 h-6 rounded-lg bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 flex items-center justify-center text-[10px] font-black text-primary-600 dark:text-primary-400 shadow-sm transition-all group-hover/btn:border-primary-500/50"
                     >
                         {getInitials(
                             members.find((m) => m.id === displayedSpeaker)
@@ -712,7 +705,7 @@
                     </div>
                     <ChevronDown
                         size={12}
-                        class="text-slate-400 group-hover/btn:text-primary-500 transition-transform {showSpeakerMenu
+                        class="text-zinc-400 group-hover/btn:text-primary-500 transition-transform {showSpeakerMenu
                             ? 'rotate-180'
                             : ''}"
                     />
@@ -724,24 +717,21 @@
 
                 {#if showSpeakerMenu}
                     <div
-                        class="fixed inset-0 z-[100]"
-                        onclick={() => (showSpeakerMenu = false)}
-                    ></div>
-                    <div
-                        class="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl shadow-slate-900/20 z-[101] py-2 overflow-hidden"
+                        class="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl shadow-zinc-900/20 z-[101] py-2 overflow-hidden"
                         in:fade={{ duration: 150 }}
+                        use:clickOutside={() => (showSpeakerMenu = false)}
                     >
                         <div
-                            class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 dark:border-slate-700/50 mb-1"
+                            class="px-3 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-50 dark:border-zinc-600/50 mb-1"
                         >
                             Vortragenden wählen
                         </div>
                         <button
                             onclick={() => updateTopicSpeaker("")}
-                            class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-between {displayedSpeaker ===
+                            class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {displayedSpeaker ===
                             ''
                                 ? 'text-primary-600 dark:text-primary-400'
-                                : 'text-slate-600 dark:text-slate-400'}"
+                                : 'text-zinc-600 dark:text-zinc-400'}"
                         >
                             <span>Kein Vortragender</span>
                             {#if !displayedSpeaker}
@@ -751,10 +741,10 @@
                         {#each members as member}
                             <button
                                 onclick={() => updateTopicSpeaker(member.id)}
-                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-between {displayedSpeaker ===
+                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {displayedSpeaker ===
                                 member.id
                                     ? 'text-primary-600 dark:text-primary-400'
-                                    : 'text-slate-600 dark:text-slate-400'}"
+                                    : 'text-zinc-600 dark:text-zinc-400'}"
                             >
                                 <div class="flex flex-col">
                                     <span class="font-bold">{member.name}</span>
@@ -778,7 +768,7 @@
         <!-- Expand/Collapse Button (Far Right) -->
         <button
             onclick={() => (expanded = !expanded)}
-            class="ml-auto bg-slate-100 dark:bg-slate-700/50 p-1.5 rounded-xl text-slate-400 dark:text-slate-500 transition-all flex-shrink-0 {expanded
+            class="ml-auto bg-zinc-100 dark:bg-zinc-700/50 p-1.5 rounded-xl text-zinc-400 dark:text-zinc-500 transition-all flex-shrink-0 {expanded
                 ? 'rotate-0'
                 : '-rotate-90'} hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-600 dark:hover:text-primary-400 shadow-sm active:scale-90"
         >
@@ -789,7 +779,7 @@
     <!-- Expanded Content -->
     {#if expanded}
         <div
-            class="border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/20 dark:bg-slate-900/5 rounded-b-2xl"
+            class="border-t border-zinc-100 dark:border-zinc-600/50 bg-zinc-50/20 dark:bg-zinc-700/5 rounded-b-2xl"
             transition:slide
         >
             <!-- Sub-Items List -->
@@ -798,7 +788,7 @@
                     {#each children as child}
                         {@const typeInfo = getSubType(child.type)}
                         <div
-                            class="group/item flex items-start gap-4 p-4 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/30 transition-all hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800/30 relative"
+                            class="group/item flex items-start gap-4 p-4 rounded-2xl bg-white dark:bg-zinc-700/40 border border-zinc-100 dark:border-zinc-600/30 transition-all hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800/30 relative"
                         >
                             {#if editingChildId === child.id}
                                 <div class="flex-1 space-y-4">
@@ -812,14 +802,14 @@
                                                       .find((c) =>
                                                           c.startsWith('text-'),
                                                       )
-                                                : 'text-slate-400'}"
+                                                : 'text-zinc-400'}"
                                         >
                                             {typeInfo?.label || child.type} bearbeiten
                                         </span>
                                     </div>
                                     <textarea
                                         bind:value={editChildContent}
-                                        class="w-full px-4 py-3 text-sm bg-white dark:bg-slate-900 border border-primary-300 dark:border-primary-700 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 text-slate-800 dark:text-slate-200"
+                                        class="w-full px-4 py-3 text-sm bg-white dark:bg-zinc-700 border border-primary-300 dark:border-primary-700 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-800 dark:text-zinc-200"
                                         rows="2"
                                         autofocus
                                     ></textarea>
@@ -831,13 +821,13 @@
                                             >
                                                 <User
                                                     size={14}
-                                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
                                                 />
                                                 <button
                                                     onclick={() =>
                                                         (showEditChildSpeakerMenu =
                                                             !showEditChildSpeakerMenu)}
-                                                    class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-left font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
+                                                    class="w-full pl-9 pr-4 py-2 bg-zinc-50 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl text-left font-bold text-zinc-700 dark:text-zinc-200 flex items-center justify-between"
                                                 >
                                                     <span class="truncate">
                                                         {#if child.type === "beitrag"}
@@ -853,7 +843,7 @@
                                                     </span>
                                                     <ChevronDown
                                                         size={14}
-                                                        class="text-slate-400 {showEditChildSpeakerMenu
+                                                        class="text-zinc-400 {showEditChildSpeakerMenu
                                                             ? 'rotate-180'
                                                             : ''} transition-transform"
                                                     />
@@ -861,12 +851,9 @@
 
                                                 {#if showEditChildSpeakerMenu}
                                                     <div
-                                                        class="fixed inset-0 z-[110]"
-                                                        onclick={() =>
+                                                        class="absolute left-0 bottom-full mb-2 w-full bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[111] py-2 max-h-[250px] overflow-y-auto"
+                                                        use:clickOutside={() =>
                                                             (showEditChildSpeakerMenu = false)}
-                                                    ></div>
-                                                    <div
-                                                        class="absolute left-0 bottom-full mb-2 w-full bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-[111] py-2 max-h-[250px] overflow-y-auto"
                                                     >
                                                         {#if child.type === "beitrag"}
                                                             <button
@@ -875,10 +862,10 @@
                                                                         "";
                                                                     showEditChildSpeakerMenu = false;
                                                                 }}
-                                                                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 {editChildAssignee ===
+                                                                class="w-full text-left px-4 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-700 {editChildAssignee ===
                                                                 ''
                                                                     ? 'text-primary-600 font-bold'
-                                                                    : 'text-slate-600'}"
+                                                                    : 'text-zinc-600'}"
                                                             >
                                                                 Keine Auswahl
                                                             </button>
@@ -916,7 +903,7 @@
                                                                         }
                                                                     }
                                                                 }}
-                                                                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between {(
+                                                                class="w-full text-left px-4 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-700 flex items-center justify-between {(
                                                                     child.type ===
                                                                     'beitrag'
                                                                         ? editChildAssignee ===
@@ -926,7 +913,7 @@
                                                                           )
                                                                 )
                                                                     ? 'text-primary-600 font-bold bg-primary-50/30'
-                                                                    : 'text-slate-600'}"
+                                                                    : 'text-zinc-600'}"
                                                             >
                                                                 <span
                                                                     >{member.name}</span
@@ -940,12 +927,12 @@
                                                         {/each}
                                                         {#if child.type === "aufgabe"}
                                                             <div
-                                                                class="mt-2 px-2 border-t border-slate-100 dark:border-slate-700 pt-2"
+                                                                class="mt-2 px-2 border-t border-zinc-100 dark:border-zinc-600 pt-2"
                                                             >
                                                                 <button
                                                                     onclick={() =>
                                                                         (showEditChildSpeakerMenu = false)}
-                                                                    class="w-full py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase rounded-lg"
+                                                                    class="w-full py-1.5 bg-zinc-900 dark:bg-zinc-700 text-white text-[10px] font-black uppercase rounded-lg"
                                                                     >Fertig</button
                                                                 >
                                                             </div>
@@ -970,7 +957,7 @@
                                     <div class="flex gap-2 justify-end">
                                         <button
                                             onclick={cancelChildEdit}
-                                            class="px-4 py-2 text-xs font-bold text-slate-500 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-all font-bold"
+                                            class="px-4 py-2 text-xs font-bold text-zinc-500 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all font-bold"
                                         >
                                             Abbrechen
                                         </button>
@@ -992,7 +979,7 @@
                                 <!-- Type Badge -->
                                 <div
                                     class="mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm {typeInfo?.color ||
-                                        'bg-slate-100 dark:bg-slate-700 text-slate-500'}"
+                                        'bg-zinc-100 dark:bg-zinc-700 text-zinc-500'}"
                                 >
                                     {#if typeInfo?.icon}
                                         <svelte:component
@@ -1022,7 +1009,7 @@
                                                                       'text-',
                                                                   ),
                                                               )
-                                                        : 'text-slate-400'}"
+                                                        : 'text-zinc-400'}"
                                                 >
                                                     {typeInfo?.label ||
                                                         child.type}
@@ -1041,11 +1028,11 @@
                                                 {/if}
                                             </div>
                                             <p
-                                                class="text-[14px] text-slate-700 dark:text-slate-200 leading-relaxed font-medium"
+                                                class="text-[14px] text-zinc-700 dark:text-zinc-200 leading-relaxed font-medium"
                                             >
                                                 {#if child.type === "beitrag" && child.assignee}
                                                     <span
-                                                        class="font-black text-slate-900 dark:text-white mr-1.5"
+                                                        class="font-black text-zinc-900 dark:text-white mr-1.5"
                                                         >{child.assignee}:</span
                                                     >
                                                 {/if}
@@ -1058,7 +1045,7 @@
                                             <button
                                                 onclick={() =>
                                                     startEditingChild(child)}
-                                                class="p-2 text-slate-300 dark:text-slate-600 hover:text-primary-500 dark:hover:text-primary-400 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex-shrink-0"
+                                                class="p-2 text-zinc-300 dark:text-zinc-600 hover:text-primary-500 dark:hover:text-primary-400 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex-shrink-0"
                                                 title="Bearbeiten"
                                             >
                                                 <Pencil size={14} />
@@ -1066,7 +1053,7 @@
                                             <button
                                                 onclick={() =>
                                                     requestDeleteItem(child.id)}
-                                                class="p-2 text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex-shrink-0"
+                                                class="p-2 text-zinc-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex-shrink-0"
                                                 title="Löschen"
                                             >
                                                 <Trash2 size={14} />
@@ -1078,7 +1065,7 @@
                                         <div class="flex flex-wrap gap-2 mt-2">
                                             {#each child.assignee.split(", ") as assignee}
                                                 <div
-                                                    class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 rounded-lg"
+                                                    class="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700/50 px-2.5 py-1 rounded-lg"
                                                 >
                                                     <User size={10} />
                                                     <span>{assignee}</span>
@@ -1096,12 +1083,12 @@
             <!-- Add Sub-Item Buttons -->
             {#if !showAddForm}
                 <div
-                    class="px-5 py-4 flex items-center gap-2 flex-wrap border-t border-slate-100/50 dark:border-slate-700/30 bg-slate-50/50 dark:bg-slate-900/10 rounded-b-2xl"
+                    class="px-5 py-4 flex items-center gap-2 flex-wrap border-t border-zinc-100/50 dark:border-zinc-600/30 bg-zinc-50/50 dark:bg-zinc-700/10 rounded-b-2xl"
                 >
                     {#each subTypes as st}
                         <button
                             onclick={() => startAdd(st.type)}
-                            class="flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold rounded-xl border-2 transition-all {st.borderColor} {st.color} hover:shadow-lg hover:shadow-slate-500/10 active:scale-95 group/add"
+                            class="flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold rounded-xl border-2 transition-all {st.borderColor} {st.color} hover:shadow-lg hover:shadow-zinc-500/10 active:scale-95 group/add"
                         >
                             <Plus
                                 size={14}
@@ -1114,18 +1101,18 @@
                     <!-- Topic Actions (Edit/Delete) -->
                     {#if !editing}
                         <div
-                            class="ml-auto flex items-center gap-1.5 pl-3 border-l border-slate-200 dark:border-slate-700/50"
+                            class="ml-auto flex items-center gap-1.5 pl-3 border-l border-zinc-200 dark:border-zinc-600/50"
                         >
                             <button
                                 onclick={startEditing}
-                                class="p-2 text-slate-400 dark:text-slate-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-all shadow-sm active:scale-95"
+                                class="p-2 text-zinc-400 dark:text-zinc-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-all shadow-sm active:scale-95"
                                 title="Thema bearbeiten"
                             >
                                 <Pencil size={14} />
                             </button>
                             <button
                                 onclick={() => ondelete?.(item.id)}
-                                class="p-2 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all shadow-sm active:scale-95"
+                                class="p-2 text-zinc-400 dark:text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all shadow-sm active:scale-95"
                                 title="Thema löschen"
                             >
                                 <Trash2 size={14} />
@@ -1137,7 +1124,7 @@
                 <!-- Inline Add Form -->
                 {@const activeType = subTypes.find((t) => t.type === addType)}
                 <div
-                    class="px-5 py-5 border-t border-slate-100 dark:border-slate-700/30 space-y-4 bg-slate-50/30 dark:bg-slate-900/20 rounded-b-2xl"
+                    class="px-5 py-5 border-t border-zinc-100 dark:border-zinc-600/30 space-y-4 bg-zinc-50/30 dark:bg-zinc-700/20 rounded-b-2xl"
                     in:fade={{ duration: 200 }}
                 >
                     <!-- Type Selector Pills -->
@@ -1148,8 +1135,8 @@
                                 class="flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold rounded-xl transition-all {addType ===
                                 st.type
                                     ? st.color +
-                                      ' ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-slate-900 shadow-md'
-                                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}"
+                                      ' ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-zinc-900 shadow-md'
+                                    : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600'}"
                             >
                                 <svelte:component this={st.icon} size={13} />
                                 {st.label}
@@ -1163,7 +1150,7 @@
                             onkeydown={handleKeydown}
                             placeholder="{activeType?.label ||
                                 'Eintrag'} eingeben..."
-                            class="flex-1 px-4 py-3 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-slate-800 dark:text-slate-200 placeholder:text-slate-400 min-h-[100px]"
+                            class="flex-1 px-4 py-3 text-sm bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 min-h-[100px]"
                             rows="3"
                             autofocus
                         ></textarea>
@@ -1174,13 +1161,13 @@
                             <div class="flex-1 min-w-[200px] relative">
                                 <User
                                     size={14}
-                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
                                 />
                                 <button
                                     onclick={() =>
                                         (showAddSpeakerMenu =
                                             !showAddSpeakerMenu)}
-                                    class="w-full pl-9 pr-4 py-2.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 text-slate-800 dark:text-slate-200 flex items-center justify-between group/addspeaker"
+                                    class="w-full pl-9 pr-4 py-2.5 text-xs font-bold bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-800 dark:text-zinc-200 flex items-center justify-between group/addspeaker"
                                 >
                                     <span class="truncate">
                                         {#if addType === "beitrag"}
@@ -1194,7 +1181,7 @@
                                     </span>
                                     <ChevronDown
                                         size={14}
-                                        class="text-slate-400 group-hover/addspeaker:text-primary-500 transition-transform {showAddSpeakerMenu
+                                        class="text-zinc-400 group-hover/addspeaker:text-primary-500 transition-transform {showAddSpeakerMenu
                                             ? 'rotate-180'
                                             : ''}"
                                     />
@@ -1207,7 +1194,7 @@
                                             (showAddSpeakerMenu = false)}
                                     ></div>
                                     <div
-                                        class="absolute left-0 bottom-full mb-2 w-full bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-[101] py-2 overflow-hidden max-h-[250px] overflow-y-auto"
+                                        class="absolute left-0 bottom-full mb-2 w-full bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden max-h-[250px] overflow-y-auto"
                                         in:fade={{ duration: 150 }}
                                     >
                                         {#if addType === "beitrag"}
@@ -1216,10 +1203,10 @@
                                                     newAssignee = "";
                                                     showAddSpeakerMenu = false;
                                                 }}
-                                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-between {newAssignee ===
+                                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {newAssignee ===
                                                 ''
                                                     ? 'text-primary-600 dark:text-primary-400'
-                                                    : 'text-slate-600 dark:text-slate-400'}"
+                                                    : 'text-zinc-600 dark:text-zinc-400'}"
                                             >
                                                 <span>Keine Auswahl</span>
                                                 {#if !newAssignee}
@@ -1255,7 +1242,7 @@
                                                         }
                                                     }
                                                 }}
-                                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-between {(
+                                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {(
                                                     addType === 'beitrag'
                                                         ? newAssignee ===
                                                           member.name
@@ -1264,7 +1251,7 @@
                                                           )
                                                 )
                                                     ? 'text-primary-600 dark:text-primary-400'
-                                                    : 'text-slate-600 dark:text-slate-400'}"
+                                                    : 'text-zinc-600 dark:text-zinc-400'}"
                                             >
                                                 <div class="flex flex-col">
                                                     <span class="font-bold"
@@ -1285,12 +1272,12 @@
 
                                         {#if addType === "aufgabe"}
                                             <div
-                                                class="mt-2 px-2 pb-1 border-t border-slate-100 dark:border-slate-700 pt-2"
+                                                class="mt-2 px-2 pb-1 border-t border-zinc-100 dark:border-zinc-600 pt-2"
                                             >
                                                 <button
                                                     onclick={() =>
                                                         (showAddSpeakerMenu = false)}
-                                                    class="w-full py-2 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-primary-600 transition-colors"
+                                                    class="w-full py-2 bg-zinc-900 dark:bg-zinc-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-primary-600 transition-colors"
                                                 >
                                                     Fertig
                                                 </button>
@@ -1305,7 +1292,7 @@
                             <div class="relative">
                                 <CalendarDays
                                     size={14}
-                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
                                 />
                                 <DatePicker
                                     value={newDeadline}
@@ -1335,7 +1322,7 @@
                                 newAssignees = [];
                                 newDeadline = "";
                             }}
-                            class="px-6 py-2.5 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-bold"
+                            class="px-6 py-2.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all font-bold"
                         >
                             Abbrechen
                         </button>

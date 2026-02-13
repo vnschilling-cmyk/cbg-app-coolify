@@ -135,13 +135,13 @@
 <div class="relative inline-block">
     <button
         onclick={() => (showPicker = !showPicker)}
-        class="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-primary-500 dark:hover:border-primary-400 transition-all shadow-sm active:scale-95 group"
+        class="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 rounded-xl hover:border-primary-500 dark:hover:border-primary-400 transition-all shadow-sm active:scale-95 group"
     >
         <CalendarDays
             size={14}
-            class="text-slate-400 group-hover:text-primary-500"
+            class="text-zinc-400 group-hover:text-primary-500"
         />
-        <span class="text-xs font-bold text-slate-700 dark:text-slate-200">
+        <span class="text-xs font-bold text-zinc-700 dark:text-zinc-200">
             {displayDate}
         </span>
     </button>
@@ -155,7 +155,7 @@
 
         <!-- Popover -->
         <div
-            class="absolute top-full mt-3 left-0 sm:left-auto sm:right-0 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-[120] p-4 select-none overflow-hidden"
+            class="absolute top-full mt-3 left-0 sm:left-auto sm:right-0 w-72 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-xl border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-[120] p-4 select-none overflow-hidden"
             in:scale={{ duration: 200, start: 0.95 }}
             out:fade={{ duration: 150 }}
         >
@@ -163,13 +163,13 @@
             <div class="flex items-center justify-between mb-4">
                 <button
                     onclick={prevMonth}
-                    class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-colors"
+                    class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-500 transition-colors"
                 >
                     <ChevronLeft size={18} />
                 </button>
 
                 <div
-                    class="text-sm font-black text-slate-800 dark:text-white tracking-tight"
+                    class="text-sm font-black text-zinc-800 dark:text-white tracking-tight"
                 >
                     {monthNames[viewDate.getMonth()]}
                     {viewDate.getFullYear()}
@@ -177,7 +177,7 @@
 
                 <button
                     onclick={nextMonth}
-                    class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-colors"
+                    class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-500 transition-colors"
                 >
                     <ChevronRight size={18} />
                 </button>
@@ -187,7 +187,7 @@
             <div class="grid grid-cols-7 mb-2">
                 {#each weekDays as day}
                     <div
-                        class="text-[10px] font-bold text-slate-400 dark:text-slate-500 text-center uppercase tracking-widest"
+                        class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 text-center uppercase tracking-widest"
                     >
                         {day}
                     </div>
@@ -201,8 +201,8 @@
                         onclick={() => selectDate(d)}
                         class="aspect-square flex items-center justify-center text-xs font-bold rounded-xl transition-all
                             {d.currentMonth
-                            ? 'text-slate-700 dark:text-slate-200 hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-600'
-                            : 'text-slate-300 dark:text-slate-600'}
+                            ? 'text-zinc-700 dark:text-zinc-200 hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-600'
+                            : 'text-zinc-300 dark:text-zinc-600'}
                             {isSelected(d)
                             ? '!bg-primary-600 !text-white shadow-lg shadow-primary-500/30'
                             : ''}
@@ -217,7 +217,7 @@
 
             <!-- Footer Tools -->
             <div
-                class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center px-1"
+                class="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-700 flex justify-between items-center px-1"
             >
                 <button
                     onclick={() =>
@@ -235,7 +235,7 @@
                         onchange("");
                         showPicker = false;
                     }}
-                    class="text-[10px] font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
+                    class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 hover:text-red-500 transition-colors"
                 >
                     Löschen
                 </button>

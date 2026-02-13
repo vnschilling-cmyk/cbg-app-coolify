@@ -132,11 +132,11 @@
 </script>
 
 <div
-    class="bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+    class="bg-white dark:bg-zinc-800/80 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden"
 >
     <!-- Header -->
     <div
-        class="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-700/50"
+        class="flex items-center justify-between px-5 py-3 border-b border-zinc-100 dark:border-zinc-700/50"
     >
         <div class="flex items-center gap-2.5">
             <div
@@ -145,7 +145,7 @@
                 <UserCheck size={15} />
             </div>
             <h3
-                class="text-sm font-bold text-slate-900 dark:text-white tracking-wide uppercase"
+                class="text-sm font-bold text-zinc-900 dark:text-white tracking-wide uppercase"
             >
                 Anwesenheit
             </h3>
@@ -154,7 +154,7 @@
             class="text-xs font-semibold px-2.5 py-1 rounded-full {presentCount ===
             members.length
                 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}"
+                : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'}"
         >
             {presentCount}/{members.length}
         </span>
@@ -168,7 +168,7 @@
                 onclick={() => toggleAttendance(member.id)}
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 {present
                     ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-sm'
-                    : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 line-through'}"
+                    : 'bg-zinc-50 dark:bg-zinc-700/50 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700 line-through'}"
                 title={present
                     ? `${member.name} ist anwesend`
                     : `${member.name} ist abwesend`}
@@ -186,7 +186,7 @@
         {/each}
 
         {#if members.length === 0}
-            <p class="text-xs text-slate-400 dark:text-slate-500 py-1">
+            <p class="text-xs text-zinc-400 dark:text-zinc-500 py-1">
                 Keine Mitglieder angelegt. Verwalte Mitglieder auf der
                 Meetings-Übersichtsseite.
             </p>

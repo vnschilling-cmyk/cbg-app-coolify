@@ -59,7 +59,7 @@ export class ChurchToolsClient {
     async getEvents(from: string, to: string): Promise<CTEvent[]> {
         // Example endpoint for fetching calendar events
         // Note: Actual ChurchTools API might differ slightly based on version/setup
-        const data = await this.request(`calendar/events?from=${from}&to=${to}`);
+        const data = await this.request(`calendar/events?from=${from}&to=${to}&limit=100`);
         return data.data || [];
     }
 
@@ -68,8 +68,8 @@ export class ChurchToolsClient {
      */
     async getAbsences(from: string, to: string, groupId?: string): Promise<CTAbsence[]> {
         const endpoint = groupId
-            ? `groups/${groupId}/absences?from=${from}&to=${to}`
-            : `persons/absences?from=${from}&to=${to}`;
+            ? `groups/${groupId}/absences?from=${from}&to=${to}&limit=100`
+            : `persons/absences?from=${from}&to=${to}&limit=100`;
 
         const data = await this.request(endpoint);
         return data.data || [];
@@ -79,7 +79,7 @@ export class ChurchToolsClient {
      * Fetch services (assignments) for events in a specific time range.
      */
     async getEventsWithServices(from: string, to: string): Promise<any[]> {
-        const data = await this.request(`events?from=${from}&to=${to}`);
+        const data = await this.request(`events?from=${from}&to=${to}&limit=100`);
         return data.data || [];
     }
 
@@ -87,9 +87,49 @@ export class ChurchToolsClient {
      * Fetch persons within a specific group.
      */
     async getGroupMembers(groupId: string): Promise<any[]> {
-        const data = await this.request(`groups/${groupId}/members`);
+        const data = await this.request(`groups/${groupId}/members?limit=100`);
         // Typically ChurchTools returns an array of member objects which contain person details
         return data.data || [];
+    }
+
+    /**
+     * Fetch all available services.
+     */
+    async getServices(): Promise<any[]> {
+        const data = await this.request('services');
+        return data.data || [];
+    }
+
+    /**
+     * Fetch bookings (assignments) for a specific event.
+     */
+    async getEventBookings(eventId: string | number): Promise<any[]> {
+        const data = await this.request(`events/${eventId}/bookings`);
+        return data.data || [];
+    }
+
+    /**
+     * Create or update a service assignment (booking).
+     * Status IDs: 1 = requested, 2 = confirmed, 3 = rejected
+     */
+    async setAssignment(eventId: string | number, serviceId: string | number, personId: string | number, statusId: number = 2) {
+        return await this.request(`events/${eventId}/bookings`, {
+            method: 'POST',
+            body: JSON.stringify({
+                personId,
+                serviceId,
+                statusId
+            })
+        });
+    }
+
+    /**
+     * Delete a service assignment.
+     */
+    async deleteAssignment(eventId: string | number, bookingId: string | number) {
+        return await this.request(`events/${eventId}/bookings/${bookingId}`, {
+            method: 'DELETE'
+        });
     }
 
     /**

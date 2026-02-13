@@ -65,7 +65,7 @@
 {#if open}
     {@const Icon = config.icon}
     <div
-        class="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+        class="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm"
         in:fade={{ duration: 200 }}
         onkeydown={handleKeydown}
     >
@@ -74,7 +74,7 @@
         <div class="fixed inset-0" onclick={onClose}></div>
 
         <div
-            class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800"
+            class="relative w-full max-w-sm bg-white dark:bg-zinc-800 rounded-3xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700"
             in:scale={{ duration: 300, start: 0.95 }}
         >
             <div class="p-6">
@@ -89,12 +89,12 @@
                     <!-- Content -->
                     <div class="space-y-2">
                         <h2
-                            class="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight"
+                            class="text-xl font-black text-zinc-900 dark:text-white tracking-tight leading-tight"
                         >
                             {title}
                         </h2>
                         <p
-                            class="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed px-2"
+                            class="text-sm font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed px-2"
                         >
                             {message}
                         </p>
@@ -105,7 +105,7 @@
                 <div class="mt-8 grid grid-cols-2 gap-3">
                     <button
                         onclick={onClose}
-                        class="px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                        class="px-5 py-3 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-all"
                     >
                         {cancelLabel}
                     </button>
@@ -121,7 +121,7 @@
             <!-- Absolute Close Button (Top Right) -->
             <button
                 onclick={onClose}
-                class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                class="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
             >
                 <X size={18} />
             </button>
