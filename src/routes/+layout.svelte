@@ -37,7 +37,10 @@
       <div
         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between"
       >
-        <div class="flex items-center gap-2">
+        <a
+          href="/"
+          class="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
           <img
             src="/logo-light.png"
             alt="Logo"
@@ -55,7 +58,7 @@
               διάκονος
             </h1>
           </div>
-        </div>
+        </a>
 
         <!-- Spacer to push nav to right -->
         <div class="flex-1"></div>
@@ -64,35 +67,6 @@
         <div id="header-controls" class="flex items-center gap-4">
           <!-- Will be populated by pages -->
         </div>
-
-        <nav class="flex items-center gap-6 mx-4">
-          {#if $page.url.pathname !== "/"}
-            <a
-              href="/"
-              title="Dashboard"
-              aria-label="Dashboard"
-              class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all shadow-sm hover:shadow-blue-500/20"
-            >
-              <LayoutDashboard size={18} />
-            </a>
-            <a
-              href="/plans"
-              title="Pläne"
-              aria-label="Pläne"
-              class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm hover:shadow-emerald-500/20"
-            >
-              <Calendar size={18} />
-            </a>
-            <a
-              href="/meetings"
-              title="Meetings"
-              aria-label="Meetings"
-              class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-amber-500 hover:text-white dark:hover:bg-amber-600 dark:hover:text-white transition-all shadow-sm hover:shadow-amber-500/20"
-            >
-              <ClipboardList size={18} />
-            </a>
-          {/if}
-        </nav>
 
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-2 pl-4">

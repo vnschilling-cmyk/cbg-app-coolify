@@ -5,7 +5,6 @@
     Calendar,
     Save,
     Download,
-    Printer,
     ChevronLeft,
     ChevronRight,
     RefreshCw,
@@ -17,6 +16,7 @@
     Plus,
     PlusCircle,
     Clock,
+    Star,
     Bold,
     Italic,
     Type,
@@ -94,6 +94,7 @@
 
   let hoveredSlotIdx = $state<number | null>(null);
   let hoveredPreacherIdx = $state<number | null>(null);
+  let hoveredSpecialServiceId = $state<string | null>(null);
   let deletedSlotIds = $state<string[]>([]);
   let showLegend = $state(false);
   let exportResults = $state<{
@@ -108,6 +109,8 @@
   let showManualSlotEntry = $state(false);
   let newSlotDate = $state(format(new Date(), "yyyy-MM-dd"));
   let newSlotTime = $state("10:00");
+  let specialServices = $state<Record<string, string>>({});
+  let editingSpecialService = $state<string | null>(null);
 
   // Formatting state
   let formatting = $state({
@@ -136,14 +139,54 @@
     if (!loaded && serverFormatting) {
       Object.assign(formatting, serverFormatting);
     }
+
+    // Load special services
+    if (typeof localStorage !== "undefined" && planId) {
+      const savedSpecial = localStorage.getItem(`specialServices_${planId}`);
+      if (savedSpecial) {
+        try {
+          specialServices = JSON.parse(savedSpecial);
+        } catch (e) {
+          console.error("Failed to parse specialServices from localStorage", e);
+        }
+      }
+    }
   });
 
   // Save to localStorage when formatting changes
   $effect(() => {
     if (typeof localStorage !== "undefined" && planId) {
       localStorage.setItem(`formatting_${planId}`, JSON.stringify(formatting));
+      localStorage.setItem(
+        `specialServices_${planId}`,
+        JSON.stringify(specialServices),
+      );
     }
   });
+
+  function checkOverflow(node: HTMLElement, text: string) {
+    function update() {
+      const isOverflowing = node.scrollWidth > node.clientWidth;
+      if (isOverflowing) {
+        node.classList.add("liveticker-content");
+      } else {
+        node.classList.remove("liveticker-content");
+      }
+    }
+
+    update();
+    // Re-check on text change or resize
+    window.addEventListener("resize", update);
+
+    return {
+      update() {
+        update();
+      },
+      destroy() {
+        window.removeEventListener("resize", update);
+      },
+    };
+  }
 
   const FONT_FAMILIES = [
     { label: "Sans", value: "Inter" },
@@ -170,6 +213,17 @@
   // Constants
   const SERVICE_TYPES = [
     {
+      code: "🍷",
+      label: "Abendmahl",
+      color: "bg-rose-900 text-white",
+      isIcon: true,
+    },
+    {
+      code: "V",
+      label: "Verteilen",
+      color: "bg-rose-400 text-white",
+    },
+    {
       code: "L",
       label: "Leitung",
       color: "bg-blue-600 text-white",
@@ -185,21 +239,6 @@
       color: "bg-violet-600 text-white",
     },
     {
-      code: "BS",
-      label: "Bibelstunde",
-      color: "bg-fuchsia-600 text-white",
-    },
-    {
-      code: "GS",
-      label: "Gebetstunde",
-      color: "bg-amber-600 text-white",
-    },
-    {
-      code: "V",
-      label: "Verteilen",
-      color: "bg-teal-500 text-white",
-    },
-    {
       code: "BN",
       label: "Bad Neustadt",
       color: "bg-lime-600 text-white",
@@ -210,20 +249,14 @@
       color: "bg-indigo-500 text-white",
     },
     {
-      code: "Anf",
-      label: "Anfang",
-      color: "bg-cyan-500 text-white",
+      code: "BS",
+      label: "Bibelstunde",
+      color: "bg-fuchsia-600 text-white",
     },
     {
-      code: "Schl",
-      label: "Schluss",
-      color: "bg-orange-500 text-white",
-    },
-    {
-      code: "🍷",
-      label: "Abendmahl",
-      color: "bg-rose-900 text-white",
-      isIcon: true,
+      code: "GS",
+      label: "Gebetstunde",
+      color: "bg-amber-600 text-white",
     },
   ];
 
@@ -753,7 +786,7 @@
         return isMorning ? ["L", "1", "2", "BN"] : ["L", "1", "2"];
       } else if (nthSunday === 3) {
         if (isMorning) return ["L", "1", "2"];
-        if (isEvening16) return ["Anf", "Schl"];
+        if (isEvening16) return ["1", "2"];
         return ["L", "1", "2"];
       } else {
         return ["L", "1", "2"];
@@ -860,8 +893,12 @@
   function getServiceStyle(code: string) {
     if (code === "-")
       return "bg-zinc-100 dark:bg-zinc-700/50 text-zinc-400 dark:text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors";
+
+    // Auto-map legacy codes to new ones
+    const mappedCode = code === "Anf" ? "1" : code === "Schl" ? "2" : code;
+
     return (
-      SERVICE_TYPES.find((s) => s.code === code)?.color ||
+      SERVICE_TYPES.find((s) => s.code === mappedCode)?.color ||
       "bg-white dark:bg-zinc-700"
     );
   }
@@ -890,6 +927,7 @@
       const formData = new FormData();
       formData.append("data", JSON.stringify(gridData));
       formData.append("formatting", JSON.stringify(formatting));
+      formData.append("specialServices", JSON.stringify(specialServices));
 
       const response = await fetch("?/save", {
         method: "POST",
@@ -1039,15 +1077,6 @@
     </div>
 
     <!-- Actions -->
-    <a
-      href="/print/1"
-      target="_blank"
-      class="flex items-center justify-center w-9 h-9 rounded-xl bg-violet-500 text-white hover:bg-violet-600 shadow-sm hover:shadow-violet-500/20 transition-all border border-transparent"
-      title="Druckansicht"
-      aria-label="Druckansicht"
-    >
-      <Printer size={18} />
-    </a>
 
     <button
       onclick={() => (showExport = true)}
@@ -1284,7 +1313,7 @@
   >
     <div class="flex-1 overflow-auto custom-scrollbar">
       <div
-        class="min-w-fit px-8 pb-8 pt-4 flex justify-center items-stretch gap-12"
+        class="min-w-fit px-8 pb-8 pt-4 flex justify-center items-stretch gap-2"
       >
         <div
           class="inline-block align-top shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-600"
@@ -1404,7 +1433,7 @@
 
                       <!-- Column Header Tools -->
                       <div
-                        class="absolute -top-1 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-[110]"
+                        class="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-[110]"
                       >
                         <!-- Add Slot Button -->
                         <button
@@ -1418,6 +1447,22 @@
                           title="Manuellen Termin hinzufügen"
                         >
                           <Plus size={16} />
+                        </button>
+
+                        <!-- Star Toggle Button -->
+                        <button
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            if (specialServices[slot.id]) {
+                              delete specialServices[slot.id];
+                            } else {
+                              specialServices[slot.id] = "Neuer Eintrag";
+                            }
+                          }}
+                          class="w-7 h-7 flex items-center justify-center rounded-full bg-amber-600 text-white hover:bg-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:scale-110 active:scale-90 transition-all z-[112]"
+                          title="Besonderheit hinzufügen/entfernen"
+                        >
+                          <Star size={16} class="fill-white" />
                         </button>
 
                         <!-- Delete Column Button -->
@@ -1451,7 +1496,7 @@
                   <td
                     class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 text-zinc-900 dark:text-zinc-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] whitespace-nowrap h-7 w-[200px] min-w-[200px] transition-all {hoveredPreacherIdx ===
                     absoluteRowIdx
-                      ? 'bg-amber-500/10 dark:bg-amber-900/30 !border-l-4 !border-l-amber-500 !pl-2 shadow-inner'
+                      ? '!bg-amber-500/10 dark:!bg-amber-500/20 shadow-[inset_4px_0_0_0_#f59e0b] z-[100]'
                       : (pIdx % 2 === 1
                           ? 'bg-zinc-50/95 dark:bg-zinc-700/95'
                           : 'bg-white/95 dark:bg-zinc-700/95') +
@@ -1524,7 +1569,7 @@
                   <td
                     class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 text-zinc-900 dark:text-zinc-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] whitespace-nowrap h-7 w-[200px] min-w-[200px] transition-all {hoveredPreacherIdx ===
                     absoluteRowIdx
-                      ? 'bg-amber-500/10 dark:bg-amber-900/30 !border-l-4 !border-l-amber-500 !pl-2 shadow-inner'
+                      ? '!bg-amber-500/10 dark:!bg-amber-500/20 shadow-[inset_4px_0_0_0_#f59e0b] z-[100]'
                       : (pIdx % 2 === 1
                           ? 'bg-zinc-50/95 dark:bg-zinc-700/95'
                           : 'bg-white/95 dark:bg-zinc-700/95') +
@@ -1582,6 +1627,61 @@
                   {/each}
                 </tr>
               {/each}
+
+              <!-- Individual Besonderheiten Rows -->
+              {#each Object.entries(specialServices) as [sid, text], idx}
+                {@const s = slots.find((sl) => sl.id === sid)}
+                {#if s}
+                  <tr
+                    class="group transition-colors border-t border-amber-500/10"
+                    onmouseenter={() => (hoveredSpecialServiceId = sid)}
+                    onmouseleave={() => (hoveredSpecialServiceId = null)}
+                  >
+                    <td
+                      class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] transition-all whitespace-nowrap h-7 w-[200px] min-w-[200px] {hoveredSpecialServiceId ===
+                      sid
+                        ? '!bg-amber-500/10 dark:!bg-amber-500/20 text-amber-600 dark:text-amber-500 shadow-[inset_4px_0_0_0_#f59e0b] z-[100]'
+                        : 'bg-white dark:bg-zinc-700 text-amber-600 dark:text-amber-500 backdrop-blur-sm'}"
+                    >
+                      <div class="flex items-center gap-2">
+                        <Star size={12} class="fill-current shrink-0" />
+                        <span
+                          class="text-[11px] font-bold truncate"
+                          style={getFormattingStyle("names")}
+                        >
+                          {text}
+                        </span>
+                      </div>
+                    </td>
+                    {#each slots as slot, sIdx}
+                      <td
+                        class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all
+                            {getDayHighlightClass(
+                          new Date(slot.date),
+                          slot.time,
+                        )}
+                            {hoveredSlotIdx === sIdx &&
+                        hoveredSpecialServiceId === sid
+                          ? '!bg-amber-500/20 dark:!bg-amber-500/30 !ring-2 !ring-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-10 relative'
+                          : hoveredSlotIdx === sIdx ||
+                              hoveredSpecialServiceId === sid
+                            ? '!bg-amber-500/10 dark:!bg-amber-900/10'
+                            : ''}"
+                        onmouseenter={() => (hoveredSlotIdx = sIdx)}
+                        onmouseleave={() => (hoveredSlotIdx = null)}
+                      >
+                        {#if slot.id === sid}
+                          <div
+                            class="w-6 h-6 mx-auto flex items-center justify-center rounded-lg bg-amber-500 text-white shadow-sm transition-all hover:scale-110"
+                          >
+                            <Star size={12} class="fill-white" />
+                          </div>
+                        {/if}
+                      </td>
+                    {/each}
+                  </tr>
+                {/if}
+              {/each}
             </tbody>
           </table>
         </div>
@@ -1601,7 +1701,7 @@
             <div class="flex flex-col gap-2">
               {#each SERVICE_TYPES as type}
                 <div
-                  class="group flex items-center gap-2 p-1 rounded-xl hover:bg-white dark:hover:bg-zinc-700 border border-transparent hover:border-zinc-100 dark:hover:border-zinc-700 bg-white dark:bg-zinc-700 shadow-sm"
+                  class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all"
                 >
                   <div
                     class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-transform group-hover:scale-110 {type.color}"
@@ -1616,6 +1716,87 @@
                   </div>
                 </div>
               {/each}
+            </div>
+          </div>
+
+          <!-- Besonderheiten Box -->
+          <div
+            class="p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 bg-white dark:bg-zinc-700 h-full flex flex-col"
+          >
+            <h3
+              class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 mb-2 px-1"
+            >
+              Besonderheiten
+            </h3>
+            <div
+              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
+            >
+              {#each Object.entries(specialServices) as [sid, val]}
+                {@const s = slots.find((sl) => sl.id === sid)}
+                {#if s}
+                  <div
+                    class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
+                    onclick={() => (editingSpecialService = sid)}
+                  >
+                    <div
+                      class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-amber-500 text-white shadow-sm transition-transform group-hover:scale-110 z-10"
+                    >
+                      <Star size={12} class="fill-white" />
+                    </div>
+                    <div
+                      class="flex flex-col flex-1 min-w-0 overflow-hidden relative"
+                    >
+                      {#if editingSpecialService === sid}
+                        <input
+                          type="text"
+                          bind:value={specialServices[sid]}
+                          placeholder="Besonderheit..."
+                          class="bg-transparent border-none focus:ring-0 text-[11px] text-zinc-800 dark:text-zinc-200 p-0 h-4 w-full placeholder:text-zinc-400"
+                          style={getFormattingStyle("names")}
+                          autoFocus
+                          onblur={() => (editingSpecialService = null)}
+                          onkeydown={(e) => {
+                            if (e.key === "Enter") editingSpecialService = null;
+                            e.stopPropagation();
+                          }}
+                        />
+                      {:else}
+                        <div
+                          class="liveticker-container w-full h-4 relative flex items-center"
+                        >
+                          <span
+                            use:checkOverflow={val}
+                            class="text-[11px] text-zinc-800 dark:text-zinc-200"
+                            style={getFormattingStyle("names")}
+                          >
+                            {val || "Besonderheit..."}
+                          </span>
+                        </div>
+                      {/if}
+                    </div>
+                    <button
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        delete specialServices[sid];
+                      }}
+                      class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all z-10"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                {/if}
+              {/each}
+              {#if Object.keys(specialServices).length === 0}
+                <div
+                  class="flex flex-col items-center justify-center py-4 opacity-30"
+                >
+                  <Star size={24} class="text-zinc-400 mb-2" />
+                  <span
+                    class="text-[10px] uppercase font-black tracking-widest text-zinc-400"
+                    >Keine Einträge</span
+                  >
+                </div>
+              {/if}
             </div>
           </div>
         </div>
@@ -1651,7 +1832,7 @@
           <div class="flex flex-col gap-3">
             {#each SERVICE_TYPES as type}
               <div
-                class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                class="group flex items-center gap-3 p-1.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all"
               >
                 <div
                   class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold {type.color}"
@@ -1666,6 +1847,78 @@
                 </div>
               </div>
             {/each}
+          </div>
+
+          <div class="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-600">
+            <h3
+              class="text-xs font-black uppercase tracking-[0.2em] text-zinc-900 dark:text-white mb-4"
+            >
+              Besonderheiten
+            </h3>
+            <div class="flex flex-col gap-3">
+              {#each Object.entries(specialServices) as [sid, val]}
+                {@const s = slots.find((sl) => sl.id === sid)}
+                {#if s}
+                  <div
+                    class="group flex items-center gap-3 p-1.5 rounded-2xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
+                    onclick={() => (editingSpecialService = sid)}
+                  >
+                    <div
+                      class="w-8 h-8 shrink-0 rounded-lg bg-amber-500 flex items-center justify-center shadow-sm z-10"
+                    >
+                      <Star size={16} class="text-white fill-white" />
+                    </div>
+                    <div
+                      class="flex flex-col flex-1 min-w-0 overflow-hidden relative"
+                    >
+                      {#if editingSpecialService === sid}
+                        <input
+                          type="text"
+                          bind:value={specialServices[sid]}
+                          placeholder="Beschreibung..."
+                          class="bg-transparent border-none focus:ring-0 text-[12px] text-zinc-800 dark:text-zinc-100 p-0 h-5 w-full"
+                          style={getFormattingStyle("names")}
+                          autoFocus
+                          onblur={() => (editingSpecialService = null)}
+                          onkeydown={(e) => {
+                            if (e.key === "Enter") editingSpecialService = null;
+                            e.stopPropagation();
+                          }}
+                        />
+                      {:else}
+                        <div
+                          class="liveticker-container w-full h-5 relative flex items-center"
+                        >
+                          <span
+                            use:checkOverflow={val}
+                            class="text-[12px] text-zinc-800 dark:text-zinc-100"
+                            style={getFormattingStyle("names")}
+                          >
+                            {val || "Beschreibung..."}
+                          </span>
+                        </div>
+                      {/if}
+                    </div>
+                    <button
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        delete specialServices[sid];
+                      }}
+                      class="p-2 text-zinc-400 hover:text-red-500 transition-colors z-10"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                {/if}
+              {/each}
+              {#if Object.keys(specialServices).length === 0}
+                <p
+                  class="text-[10px] uppercase font-black tracking-widest text-zinc-400 italic text-center py-4"
+                >
+                  Keine Einträge
+                </p>
+              {/if}
+            </div>
           </div>
         </div>
       </div>
@@ -1915,8 +2168,37 @@
   }
 
   /* Transition for table shadows */
+
   tr td.sticky,
   tr th.sticky {
     transition: box-shadow 0.2s;
+  }
+
+  .liveticker-container span {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    transition: all 0.3s ease;
+  }
+
+  .liveticker-container span:global(.liveticker-content) {
+    animation: marquee 15s linear infinite;
+    padding-left: 100%;
+    text-overflow: clip; /* Clip instead of ellipsis */
+  }
+
+  .liveticker-container:hover span:global(.liveticker-content) {
+    animation-play-state: paused;
+  }
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
   }
 </style>
