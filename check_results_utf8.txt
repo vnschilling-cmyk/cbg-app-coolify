@@ -1,0 +1,1400 @@
+﻿
+> cbg-app-coolify@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify
+Getting Svelte diagnostics...
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32mvite.config.ts[39m:6:1
+[31mError[39m: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`. 
+[36mconst noProxy = '127.0.0.1,localhost,10.49.213.105';
+[35mprocess[36m.env.NO_PROXY = noProxy;
+process.env.no_proxy = noProxy;[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32mvite.config.ts[39m:7:1
+[31mError[39m: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`. 
+[36mprocess.env.NO_PROXY = noProxy;
+[35mprocess[36m.env.no_proxy = noProxy;[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\routes\api\debug-pb\+server.ts[39m:28:20
+[31mError[39m: Cannot find module 'fs' or its corresponding type declarations. 
+[36m            results.push({ url, status: 'FAILED', error: e.message });
+            import([35m'fs'[36m).then(fs => {
+                fs.appendFileSync('pb_debug_results.log', JSON.stringify(errorDetail, null, 2) + '\n---\n');[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AddTopicModal.svelte[39m:81:5
+[33mWarn[39m: `<div>` with a keydown handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m{#if open}
+    [35m<div
+        class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm"
+        in:fade={{ duration: 200 }}
+        onkeydown={handleKeydown}
+    >
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="fixed inset-0" onclick={resetAndClose}></div>
+
+        <div
+            class="relative w-full max-w-lg bg-white dark:bg-zinc-700 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-600"
+            in:scale={{ duration: 300, start: 0.95 }}
+        >
+            <!-- Header -->
+            <div
+                class="px-6 py-5 border-b border-zinc-100 dark:border-zinc-600 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-700/50"
+            >
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400"
+                    >
+                        <PlusCircle size={22} />
+                    </div>
+                    <div>
+                        <h2
+                            class="text-lg font-black text-zinc-900 dark:text-white tracking-tight"
+                        >
+                            Neues Thema
+                        </h2>
+                        <p
+                            class="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider"
+                        >
+                            Agenda-Punkt hinzuf├╝gen
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onclick={resetAndClose}
+                    class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
+                >
+                    <X size={20} />
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-6">
+                <!-- Title Input -->
+                <div class="space-y-2">
+                    <label
+                        for="topic-title"
+                        class="text-[11px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1"
+                    >
+                        Titel des Themas
+                    </label>
+                    <input
+                        id="topic-title"
+                        bind:value={title}
+                        placeholder="Was soll besprochen werden?"
+                        class="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-2xl text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-lg"
+                        autofocus
+                    />
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <!-- Speaker Selection -->
+                    <div class="space-y-2">
+                        <label
+                            class="text-[11px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1"
+                        >
+                            Vortragender
+                        </label>
+                        <div class="relative">
+                            <button
+                                onclick={() =>
+                                    (showSpeakerDropdown =
+                                        !showSpeakerDropdown)}
+                                class="w-full flex items-center gap-3 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:border-primary-500/50 transition-all shadow-sm active:scale-[0.98]"
+                            >
+                                <User size={16} class="text-zinc-400" />
+                                <span class="flex-1 text-left">
+                                    {members.find((m) => m.id === speaker)
+                                        ?.name || "Keiner"}
+                                </span>
+                                <ChevronDown
+                                    size={16}
+                                    class="text-zinc-400 transition-transform {showSpeakerDropdown
+                                        ? 'rotate-180'
+                                        : ''}"
+                                />
+                            </button>
+
+                            {#if showSpeakerDropdown}
+                                <div
+                                    class="absolute left-0 top-full mt-2 w-full bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-xl z-20 max-h-60 overflow-y-auto"
+                                    in:fade={{ duration: 150 }}
+                                    use:clickOutside={() =>
+                                        (showSpeakerDropdown = false)}
+                                >
+                                    <button
+                                        onclick={() => {
+                                            speaker = "";
+                                            showSpeakerDropdown = false;
+                                        }}
+                                        class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {!speaker
+                                            ? 'text-primary-600 dark:text-primary-400 bg-primary-50/30'
+                                            : 'text-zinc-600 dark:text-zinc-400'}"
+                                    >
+                                        <span>Keiner</span>
+                                        {#if !speaker}
+                                            <Check size={14} />
+                                        {/if}
+                                    </button>
+                                    {#each members as member}
+                                        <button
+                                            onclick={() => {
+                                                speaker = member.id;
+                                                showSpeakerDropdown = false;
+                                            }}
+                                            class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {speaker ===
+                                            member.id
+                                                ? 'text-primary-600 dark:text-primary-400 bg-primary-50/30'
+                                                : 'text-zinc-600 dark:text-zinc-400'}"
+                                        >
+                                            <span>{member.name}</span>
+                                            {#if speaker === member.id}
+                                                <Check size={14} />
+                                            {/if}
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+
+                    <!-- Category Chips -->
+                    <div class="space-y-2">
+                        <span
+                            class="text-[11px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1"
+                        >
+                            Kategorie
+                        </span>
+                        <div class="flex flex-wrap gap-2">
+                            {#each categories as cat}
+                                {@const Icon = cat.icon}
+                                <button
+                                    onclick={() =>
+                                        (category =
+                                            category === cat.id ? "" : cat.id)}
+                                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 {category ===
+                                    cat.id
+                                        ? cat.color +
+                                          ' border-current shadow-md'
+                                        : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500'}"
+                                >
+                                    <Icon size={12} />
+                                    {cat.label}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- Tag Chips -->
+                    <div class="space-y-2 sm:col-span-2">
+                        <span
+                            class="text-[11px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1"
+                        >
+                            Tag / Markierung
+                        </span>
+                        <div class="flex flex-wrap gap-2">
+                            {#each tags as t}
+                                {@const TagIconFinal = t.icon}
+                                <button
+                                    onclick={() =>
+                                        (tag = tag === t.id ? "" : t.id)}
+                                    class="flex items-center gap-2 px-4 py-2 rounded-xl border text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 {tag ===
+                                    t.id
+                                        ? t.color + ' border-current shadow-md'
+                                        : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500'}"
+                                >
+                                    <TagIconFinal size={14} />
+                                    {t.label}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                </div>
+
+                {#if errorMsg}
+                    <div
+                        class="flex items-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-xs text-red-600 dark:text-red-400"
+                        in:fade
+                    >
+                        <AlertCircle size={14} />
+                        {errorMsg}
+                    </div>
+                {/if}
+            </div>
+
+            <!-- Footer -->
+            <div
+                class="px-6 py-5 bg-zinc-50 dark:bg-zinc-700/50 border-t border-zinc-100 dark:border-zinc-600 flex items-center justify-end gap-3"
+            >
+                <button
+                    onclick={resetAndClose}
+                    class="px-5 py-2.5 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
+                >
+                    Abbrechen
+                </button>
+                <button
+                    onclick={handleSubmit}
+                    disabled={adding || !title.trim()}
+                    class="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white text-sm font-black uppercase tracking-wider rounded-xl hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-500/25 active:scale-95"
+                >
+                    {#if adding}
+                        <div
+                            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                        ></div>
+                    {:else}
+                        <Check size={18} />
+                    {/if}
+                    Thema erstellen
+                </button>
+            </div>
+        </div>
+    </div>[36m
+{/if}[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AddTopicModal.svelte[39m:140:25
+[33mWarn[39m: Avoid using autofocus
+https://svelte.dev/e/a11y_autofocus (svelte)
+[36m                        class="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-2xl text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-lg"
+                        [35mautofocus[36m
+                    />[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AddTopicModal.svelte[39m:147:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                    <div class="space-y-2">
+                        [35m<label
+                            class="text-[11px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1"
+                        >
+                            Vortragender
+                        </label>[36m
+                        <div class="relative">[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\DatePicker.svelte[39m:14:27
+[33mWarn[39m: This reference only captures the initial value of `value`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let showPicker = $state(false);
+    let viewDate = $state([35mvalue[36m ? new Date(value) : new Date());[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\DatePicker.svelte[39m:14:44
+[33mWarn[39m: This reference only captures the initial value of `value`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let showPicker = $state(false);
+    let viewDate = $state(value ? new Date([35mvalue[36m) : new Date());[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\DatePicker.svelte[39m:151:9
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m        <!-- Backdrop -->
+        [35m<div
+            class="fixed inset-0 z-[110]"
+            onclick={() => (showPicker = false)}
+        ></div>[36m[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\DatePicker.svelte[39m:151:9
+[33mWarn[39m: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m        <!-- Backdrop -->
+        [35m<div
+            class="fixed inset-0 z-[110]"
+            onclick={() => (showPicker = false)}
+        ></div>[36m[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\ConfirmationModal.svelte[39m:67:5
+[33mWarn[39m: `<div>` with a keydown handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m    {@const Icon = config.icon}
+    [35m<div
+        class="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm"
+        in:fade={{ duration: 200 }}
+        onkeydown={handleKeydown}
+    >
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="fixed inset-0" onclick={onClose}></div>
+
+        <div
+            class="relative w-full max-w-sm bg-white dark:bg-zinc-800 rounded-3xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700"
+            in:scale={{ duration: 300, start: 0.95 }}
+        >
+            <div class="p-6">
+                <div class="flex flex-col items-center text-center space-y-4">
+                    <!-- Icon -->
+                    <div
+                        class="w-16 h-16 rounded-2xl {config.iconBg} flex items-center justify-center {config.iconColor}"
+                    >
+                        <Icon size={32} />
+                    </div>
+
+                    <!-- Content -->
+                    <div class="space-y-2">
+                        <h2
+                            class="text-xl font-black text-zinc-900 dark:text-white tracking-tight leading-tight"
+                        >
+                            {title}
+                        </h2>
+                        <p
+                            class="text-sm font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed px-2"
+                        >
+                            {message}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Footer / Actions -->
+                <div class="mt-8 grid grid-cols-2 gap-3">
+                    <button
+                        onclick={onClose}
+                        class="px-5 py-3 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-all"
+                    >
+                        {cancelLabel}
+                    </button>
+                    <button
+                        onclick={onConfirm}
+                        class="px-5 py-3 {config.btnBg} text-white text-sm font-black uppercase tracking-wider rounded-2xl transition-all shadow-lg {config.shadow} active:scale-95"
+                    >
+                        {confirmLabel}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Absolute Close Button (Top Right) -->
+            <button
+                onclick={onClose}
+                class="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
+            >
+                <X size={18} />
+            </button>
+        </div>
+    </div>[36m
+{/if}[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:60:28
+[33mWarn[39m: This reference only captures the initial value of `item`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    // Auto-collapse if status is 'besprochen' or 'verschoben', otherwise expand
+    let expanded = $state(![35mitem[36m.status || item.status === "offen");
+    let showAddForm = $state(false);[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:60:43
+[33mWarn[39m: This reference only captures the initial value of `item`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    // Auto-collapse if status is 'besprochen' or 'verschoben', otherwise expand
+    let expanded = $state(!item.status || [35mitem[36m.status === "offen");
+    let showAddForm = $state(false);[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:102:34
+[33mWarn[39m: This reference only captures the initial value of `item`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m
+    let displayedStatus = $state([35mitem[36m.status || "offen");
+    let displayedDeadline = $state(item.deadline || "");[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:103:36
+[33mWarn[39m: This reference only captures the initial value of `item`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let displayedStatus = $state(item.status || "offen");
+    let displayedDeadline = $state([35mitem[36m.deadline || "");
+    let displayedSpeaker = $state(item.assignee || "");[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:104:35
+[33mWarn[39m: This reference only captures the initial value of `item`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let displayedDeadline = $state(item.deadline || "");
+    let displayedSpeaker = $state([35mitem[36m.assignee || "");
+    let displayedCategory = $state(item.category || "");[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:105:36
+[33mWarn[39m: This reference only captures the initial value of `item`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let displayedSpeaker = $state(item.assignee || "");
+    let displayedCategory = $state([35mitem[36m.category || "");
+    let displayedTag = $state(item.tag || "");[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:106:31
+[33mWarn[39m: This reference only captures the initial value of `item`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let displayedCategory = $state(item.category || "");
+    let displayedTag = $state([35mitem[36m.tag || "");[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:477:25
+[33mWarn[39m: Avoid using autofocus
+https://svelte.dev/e/a11y_autofocus (svelte)
+[36m                        class="flex-1 px-3 py-1.5 text-[15px] font-bold bg-white dark:bg-zinc-700 border border-primary-300 dark:border-primary-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-900 dark:text-white shadow-sm"
+                        [35mautofocus[36m
+                    />[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:524:33
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                            {#if cat?.icon}
+                                [35m<svelte:component this={cat.icon} size={11} />[36m
+                            {/if}[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:554:41
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                    >
+                                        [35m<svelte:component
+                                            this={c.icon}
+                                            size={14}
+                                        />[36m
+                                        <span>{c.label}</span>[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:577:33
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                            {#if t?.icon}
+                                [35m<svelte:component this={t.icon} size={11} />[36m
+                            {/if}[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:605:41
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                    >
+                                        [35m<svelte:component
+                                            this={tag.icon}
+                                            size={14}
+                                        />[36m
+                                        <span>{tag.label}</span>[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:813:41
+[33mWarn[39m: Avoid using autofocus
+https://svelte.dev/e/a11y_autofocus (svelte)
+[36m                                        rows="2"
+                                        [35mautofocus[36m
+                                    ></textarea>[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:984:41
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                    {#if typeInfo?.icon}
+                                        [35m<svelte:component
+                                            this={typeInfo.icon}
+                                            size={15}
+                                        />[36m
+                                    {/if}[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:1140:33
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ÔÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                            >
+                                [35m<svelte:component this={st.icon} size={13} />[36m
+                                {st.label}[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:1154:29
+[33mWarn[39m: Avoid using autofocus
+https://svelte.dev/e/a11y_autofocus (svelte)
+[36m                            rows="3"
+                            [35mautofocus[36m
+                        ></textarea>[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:1190:37
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m                                {#if showAddSpeakerMenu}
+                                    [35m<div
+                                        class="fixed inset-0 z-[100]"
+                                        onclick={() =>
+                                            (showAddSpeakerMenu = false)}
+                                    ></div>[36m
+                                    <div[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AgendaItem.svelte[39m:1190:37
+[33mWarn[39m: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m                                {#if showAddSpeakerMenu}
+                                    [35m<div
+                                        class="fixed inset-0 z-[100]"
+                                        onclick={() =>
+                                            (showAddSpeakerMenu = false)}
+                                    ></div>[36m
+                                    <div[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\AttendancePanel.svelte[39m:27:9
+[33mWarn[39m: This reference only captures the initial value of `attendance`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let localAttendance = $state<Attendance[]>(
+        [35mattendance[36m.map((a) => ({ ...a })),
+    );[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\GridEditor.svelte[39m:1002:1
+[33mWarn[39m: `<div>` with a mouseleave handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m
+[35m<div
+  onmouseleave={() => {
+    hoveredSlotIdx = null;
+    hoveredPreacherIdx = null;
+  }}
+  class="flex-1 h-full flex flex-col p-0 bg-white dark:bg-zinc-700 overflow-hidden transition-colors duration-300"
+>
+  <!-- Toolbar - will be portaled to header -->
+  <div bind:this={toolbarRef} class="flex items-center gap-4 no-print">
+    <!-- Month Navigation -->
+    <!-- Month Navigation -->
+    <div class="flex items-center gap-2">
+      <button
+        onclick={prevMonth}
+        class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-500 text-white hover:bg-zinc-600 hover:shadow-zinc-500/20 transition-all shadow-sm"
+        title="Vorheriger Monat"
+        aria-label="Vorheriger Monat"
+      >
+        <ChevronLeft size={18} />
+      </button>
+      <div
+        class="px-2 py-1 text-sm font-bold text-zinc-800 dark:text-zinc-200 min-w-[140px] text-center"
+      >
+        {format(selectedMonth, "MMMM", { locale: de })} - {format(
+          addMonths(selectedMonth, 1),
+          "MMMM yyyy",
+          { locale: de },
+        )}
+      </div>
+      <button
+        onclick={nextMonth}
+        class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-500 text-white hover:bg-zinc-600 hover:shadow-zinc-500/20 transition-all shadow-sm"
+        title="N├ñchster Monat"
+        aria-label="N├ñchster Monat"
+      >
+        <ChevronRight size={18} />
+      </button>
+    </div>
+
+    <!-- Actions -->
+    <a
+      href="/print/1"
+      target="_blank"
+      class="flex items-center justify-center w-9 h-9 rounded-xl bg-violet-500 text-white hover:bg-violet-600 shadow-sm hover:shadow-violet-500/20 transition-all border border-transparent"
+      title="Druckansicht"
+      aria-label="Druckansicht"
+    >
+      <Printer size={18} />
+    </a>
+
+    <button
+      onclick={() => (showExport = true)}
+      class="flex items-center justify-center w-9 h-9 rounded-xl bg-orange-500 text-white hover:bg-orange-600 shadow-sm hover:shadow-orange-500/20 transition-all border border-transparent"
+      title="Als PDF Exportieren"
+      aria-label="Als PDF Exportieren"
+    >
+      <FileText size={18} />
+    </button>
+
+    <button
+      onclick={syncData}
+      disabled={syncing}
+      class="flex items-center justify-center w-9 h-9 rounded-xl bg-cyan-500 text-white hover:bg-cyan-600 shadow-sm hover:shadow-cyan-500/20 transition-all border border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+      title="Von ChurchTools synchronisieren"
+      aria-label="Von ChurchTools synchronisieren"
+    >
+      <RefreshCw size={18} class={syncing ? "animate-spin" : ""} />
+    </button>
+
+    <button
+      onclick={savePlan}
+      disabled={saving}
+      class="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:shadow-blue-500/20 disabled:opacity-50 transition-all border border-transparent"
+      title={saving ? "Wird gespeichert..." : "Plan speichern"}
+      aria-label={saving ? "Wird gespeichert..." : "Plan speichern"}
+    >
+      {#if saving}
+        <div
+          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+        ></div>
+      {:else}
+        <Save size={18} />
+      {/if}
+    </button>
+
+    <button
+      onclick={exportToChurchTools}
+      disabled={exporting}
+      class="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm hover:shadow-emerald-500/20 disabled:opacity-50 transition-all border border-transparent"
+      title={exporting
+        ? "Wird exportiert..."
+        : "Nach ChurchTools exportieren (Push)"}
+      aria-label={exporting
+        ? "Wird exportiert..."
+        : "Nach ChurchTools exportieren (Push)"}
+    >
+      {#if exporting}
+        <div
+          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+        ></div>
+      {:else}
+        <Share size={18} />
+      {/if}
+    </button>
+
+    <!-- Formatting Toggle -->
+    <div class="relative">
+      <button
+        onclick={() => (showFormatting = !showFormatting)}
+        class="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-fuchsia-500 hover:text-white dark:hover:bg-fuchsia-600 dark:hover:text-white transition-all shadow-sm hover:shadow-fuchsia-500/20 border border-transparent {showFormatting
+          ? '!bg-fuchsia-500 !text-white ring-2 ring-fuchsia-200 dark:ring-fuchsia-900'
+          : ''}"
+        title="Formatierung anpassen"
+        aria-label="Formatierung anpassen"
+      >
+        <Settings2 size={18} />
+      </button>
+
+      {#if showFormatting}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="fixed inset-0 z-[150] no-print"
+          onclick={() => (showFormatting = false)}
+        ></div>
+        <div
+          class="absolute top-11 right-0 w-80 bg-white dark:bg-zinc-700 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-600 p-4 z-[200] animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <h3
+              class="font-black text-[10px] uppercase tracking-widest text-zinc-400 dark:text-zinc-500"
+            >
+              Tabellen-Formatierung
+            </h3>
+            <button
+              onclick={() => (showFormatting = false)}
+              class="text-zinc-400 hover:text-zinc-900 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div class="space-y-6">
+            {#each ["names", "entries", "dates", "months"] as const as key}
+              {@const label = {
+                names: "Namen & Legende",
+                entries: "Diensteintr├ñge",
+                dates: "Datum & Uhrzeit",
+                months: "Monate",
+              }[key]}
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span
+                    class="text-xs font-bold text-zinc-700 dark:text-zinc-200"
+                    >{label}</span
+                  >
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="flex gap-1">
+                    <button
+                      onclick={() =>
+                        (formatting[key].bold = !formatting[key].bold)}
+                      class="flex-1 h-8 rounded-lg border text-xs font-bold transition-all {formatting[
+                        key
+                      ].bold
+                        ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100'
+                        : 'bg-white text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-600 hover:bg-zinc-50'}"
+                    >
+                      F
+                    </button>
+                    <button
+                      onclick={() =>
+                        (formatting[key].italic = !formatting[key].italic)}
+                      class="flex-1 h-8 rounded-lg border text-xs italic transition-all {formatting[
+                        key
+                      ].italic
+                        ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100'
+                        : 'bg-white text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-600 hover:bg-zinc-50'}"
+                    >
+                      I
+                    </button>
+                  </div>
+                  <div
+                    class="flex gap-1 items-center bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-600 px-2"
+                  >
+                    <Type size={12} class="text-zinc-400" />
+                    <input
+                      type="number"
+                      bind:value={formatting[key].fontSize}
+                      min="8"
+                      max="32"
+                      class="w-full bg-transparent border-none text-[11px] font-bold focus:ring-0 p-0 text-right"
+                    />
+                    <span class="text-[9px] text-zinc-400 font-bold ml-0.5"
+                      >PX</span
+                    >
+                  </div>
+                </div>
+                <!-- Custom Font Selector -->
+                <div class="relative">
+                  <button
+                    onclick={() =>
+                      (activeFontSelector =
+                        activeFontSelector === key ? null : key)}
+                    class="w-full h-8 flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-[11px] font-bold focus:ring-2 focus:ring-primary-500 px-2 transition-all"
+                    aria-label="Schriftart w├ñhlen"
+                    aria-expanded={activeFontSelector === key}
+                  >
+                    <span style="font-family: {formatting[key].fontFamily}">
+                      {FONT_FAMILIES.find(
+                        (f) => f.value === formatting[key].fontFamily,
+                      )?.label || formatting[key].fontFamily}
+                    </span>
+                    <ChevronRight
+                      size={12}
+                      class="transition-transform text-zinc-400 {activeFontSelector ===
+                      key
+                        ? 'rotate-90'
+                        : ''}"
+                    />
+                  </button>
+
+                  {#if activeFontSelector === key}
+                    <button
+                      class="fixed inset-0 z-40 bg-black/5 dark:bg-black/20"
+                      onclick={() => (activeFontSelector = null)}
+                      aria-label="Men├╝ schlie├ƒen"
+                    ></button>
+                    <div
+                      class="absolute bottom-10 left-0 w-full max-h-48 overflow-y-auto rounded-xl bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 shadow-xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 p-1"
+                      role="listbox"
+                    >
+                      {#each FONT_FAMILIES as font}
+                        <button
+                          onclick={() => {
+                            formatting[key].fontFamily = font.value;
+                            activeFontSelector = null;
+                          }}
+                          class="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors {formatting[
+                            key
+                          ].fontFamily === font.value
+                            ? 'bg-zinc-100 dark:bg-zinc-800 text-primary-600 font-bold'
+                            : 'text-zinc-600 dark:text-zinc-300'}"
+                          style="font-family: {font.value}"
+                          role="option"
+                          aria-selected={formatting[key].fontFamily ===
+                            font.value}
+                        >
+                          {font.label}
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Legend Toggle (Mobile only) -->
+    <button
+      onclick={() => (showLegend = !showLegend)}
+      class="lg:hidden flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500 text-white hover:bg-amber-600 shadow-sm hover:shadow-amber-500/20 transition-all border border-transparent"
+      title="Legende anzeigen"
+      aria-label="Legende anzeigen"
+    >
+      <div class="p-1 rounded bg-white/20">
+        <div class="grid grid-cols-2 gap-0.5">
+          <div class="w-1.5 h-1.5 rounded-sm bg-white"></div>
+          <div class="w-1.5 h-1.5 rounded-sm bg-white"></div>
+          <div class="w-1.5 h-1.5 rounded-sm bg-white"></div>
+          <div class="w-1.5 h-1.5 rounded-sm bg-white"></div>
+        </div>
+      </div>
+    </button>
+  </div>
+
+  <!-- Grid Card Container -->
+  <div
+    class="flex-1 flex overflow-hidden border-t border-b border-zinc-200 dark:border-zinc-600 relative transition-colors duration-300"
+  >
+    <div class="flex-1 overflow-auto custom-scrollbar">
+      <div
+        class="min-w-fit px-8 pb-8 pt-4 flex justify-center items-stretch gap-12"
+      >
+        <div
+          class="inline-block align-top shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-600"
+          role="presentation"
+          onmouseleave={() => {
+            hoveredSlotIdx = null;
+            hoveredPreacherIdx = null;
+          }}
+        >
+          <table class="table-fixed border-separate border-spacing-0">
+            <colgroup>
+              <col class="w-[200px]" />
+              {#each slots as _}
+                <col class="w-7" />
+              {/each}
+            </colgroup>
+            <thead>
+              <!-- Row 1: Months -->
+              <tr class="h-9">
+                <th
+                  class="sticky top-0 left-0 z-[120] bg-zinc-100 dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-1 text-center w-[200px] min-w-[200px] shadow-[4px_4px_8px_-4px_rgba(0,0,0,0.1)] transition-colors duration-300"
+                >
+                  <div class="flex items-center justify-center">
+                    <span
+                      class="uppercase tracking-[0.3em] text-zinc-900 dark:text-white"
+                      style={getFormattingStyle("months")}
+                    >
+                      {selectedMonth?.getFullYear()}
+                    </span>
+                  </div>
+                </th>
+                {#each [...new Set(slots.map( (s) => s.date.getMonth(), ))] as mIdx}
+                  {@const monthDate = slots.find(
+                    (s) => s.date.getMonth() === mIdx,
+                  )?.date}
+                  {@const monthSlots = slots.filter(
+                    (s) => s.date.getMonth() === mIdx,
+                  )}
+                  <th
+                    colspan={monthSlots.length}
+                    class="sticky top-0 z-[100] bg-zinc-100 dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-2 text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors duration-300"
+                  >
+                    <span
+                      class="uppercase tracking-[0.3em] text-zinc-900 dark:text-white"
+                      style={getFormattingStyle("months")}
+                    >
+                      {monthDate
+                        ? format(monthDate, "MMMM", { locale: de })
+                        : ""}
+                    </span>
+                  </th>
+                {/each}
+              </tr>
+              <!-- Row 2: Times -->
+              <tr class="h-10">
+                <th
+                  rowspan="2"
+                  class="sticky top-[36px] left-0 z-[120] bg-white dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-2 transition-colors duration-300"
+                >
+                  <div class="flex items-center justify-center h-full">
+                    <img
+                      src="/logo-light.png"
+                      alt="Logo"
+                      class="h-16 w-auto dark:hidden"
+                    />
+                    <img
+                      src="/logo-dark.png"
+                      alt="Logo"
+                      class="h-16 w-auto hidden dark:block"
+                    />
+                  </div>
+                </th>
+                {#each slots as slot, sIdx}
+                  <th
+                    class="sticky top-[36px] z-[100] transition-all border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)]
+                    {getDayHighlightClass(new Date(slot.date), slot.time)}
+                    {slot.isSundaySecond ? 'border-l-0' : ''} 
+                    {hoveredSlotIdx === sIdx
+                      ? '!bg-amber-500/10 dark:!bg-amber-500/20 shadow-[inset_0_4px_0_0_#f59e0b]'
+                      : ''}"
+                    onmouseenter={() => (hoveredSlotIdx = sIdx)}
+                    onmouseleave={() => (hoveredSlotIdx = null)}
+                  >
+                    <div class="relative w-full h-12">
+                      <div
+                        class="absolute top-2 left-1/2 -translate-x-1/2 tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-900 dark:text-zinc-100"
+                        style={getFormattingStyle("dates")}
+                      >
+                        {slot.time}
+                      </div>
+                    </div>
+                  </th>
+                {/each}
+              </tr>
+              <!-- Row 3: Dates -->
+              <tr class="h-14">
+                {#each slots as slot, sIdx}
+                  <th
+                    class="sticky top-[76px] z-[100] transition-colors border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] group {slot.isSundaySecond
+                      ? 'border-l-0'
+                      : ''} 
+                    {getDayHighlightClass(new Date(slot.date), slot.time)}
+                      {hoveredSlotIdx === sIdx
+                      ? '!bg-amber-500/10 dark:!bg-amber-500/20'
+                      : ''}"
+                    onmouseenter={() => (hoveredSlotIdx = sIdx)}
+                    onmouseleave={() => (hoveredSlotIdx = null)}
+                    title={getHolidayName(new Date(slot.date)) || ""}
+                  >
+                    <div class="relative w-full h-14">
+                      <div
+                        class="absolute bottom-3 left-1/2 -translate-x-1/2 tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-900 dark:text-zinc-100"
+                        style={getFormattingStyle("dates")}
+                      >
+                        {format(slot.date, "dd. eee", { locale: de })}
+                      </div>
+
+                      <!-- Column Header Tools -->
+                      <div
+                        class="absolute -top-1 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-[110]"
+                      >
+                        <!-- Add Slot Button -->
+                        <button
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            newSlotDate = format(slot.date, "yyyy-MM-dd");
+                            newSlotTime = slot.time;
+                            showManualSlotEntry = true;
+                          }}
+                          class="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-[0_4px_12px_rgba(5,150,105,0.4)] hover:scale-110 active:scale-90 transition-all z-[111]"
+                          title="Manuellen Termin hinzuf├╝gen"
+                        >
+                          <Plus size={16} />
+                        </button>
+
+                        <!-- Delete Column Button -->
+                        <button
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            removeSlot(slot.id);
+                          }}
+                          class="w-7 h-7 flex items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-500 shadow-[0_4px_12px_rgba(220,38,38,0.4)] hover:scale-110 active:scale-90 transition-all z-[111]"
+                          title="Spalte l├Âschen"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-zinc-700">
+              {#each group1 as p, pIdx}
+                {@const preacherName = `${p.firstName} ${p.lastName}`}
+                {@const absoluteRowIdx = pIdx}
+                <tr
+                  class="group transition-colors {pIdx % 2 === 1
+                    ? 'bg-zinc-50/40 dark:bg-zinc-700/20'
+                    : ''}"
+                  onmouseenter={() => (hoveredPreacherIdx = absoluteRowIdx)}
+                  onmouseleave={() => (hoveredPreacherIdx = null)}
+                >
+                  <td
+                    class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 text-zinc-900 dark:text-zinc-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] whitespace-nowrap h-7 w-[200px] min-w-[200px] transition-all {hoveredPreacherIdx ===
+                    absoluteRowIdx
+                      ? 'bg-amber-500/10 dark:bg-amber-900/30 !border-l-4 !border-l-amber-500 !pl-2 shadow-inner'
+                      : (pIdx % 2 === 1
+                          ? 'bg-zinc-50/95 dark:bg-zinc-700/95'
+                          : 'bg-white/95 dark:bg-zinc-700/95') +
+                        ' backdrop-blur-sm'}"
+                  >
+                    <span style={getFormattingStyle("names")}>
+                      {preacherName}
+                    </span>
+                  </td>
+                  {#each slots as slot, sIdx}
+                    {@const code = gridData[slot.id]?.[preacherName] || ""}
+                    <td
+                      class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
+                        {code === '-' ? 'cursor-not-allowed' : 'cursor-pointer'}
+                        {getDayHighlightClass(new Date(slot.date), slot.time)}
+                        {validationState[slot.id]?.has(preacherName)
+                        ? '!bg-red-100 dark:!bg-red-900/30 !ring-inset !ring-1 !ring-red-500'
+                        : ''}
+                        {hoveredPreacherIdx === absoluteRowIdx &&
+                      hoveredSlotIdx === sIdx
+                        ? '!bg-amber-500/20 dark:!bg-amber-500/30 !ring-2 !ring-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-10 relative'
+                        : hoveredPreacherIdx === absoluteRowIdx ||
+                            hoveredSlotIdx === sIdx
+                          ? code === '-'
+                            ? '!bg-zinc-100/30 dark:!bg-zinc-700/30'
+                            : '!bg-zinc-200/50 dark:!bg-zinc-700/50'
+                          : ''}"
+                      title={code === "-" ? "Abwesend (ChurchTools)" : ""}
+                      onclick={() => toggleService(preacherName, slot.id)}
+                      oncontextmenu={(e) => {
+                        e.preventDefault();
+                        if (gridData[slot.id]?.[preacherName]) {
+                          gridData[slot.id][preacherName] = "";
+                        }
+                      }}
+                      onmouseenter={() => {
+                        hoveredSlotIdx = sIdx;
+                        hoveredPreacherIdx = absoluteRowIdx;
+                      }}
+                      onmouseleave={() => {
+                        hoveredSlotIdx = null;
+                        hoveredPreacherIdx = null;
+                      }}
+                    >
+                      {#if code}
+                        <div
+                          class="w-6 h-6 mx-auto flex items-center justify-center transition-all active:scale-95 rounded-lg {getServiceStyle(
+                            code,
+                          )}"
+                          style={getFormattingStyle("entries")}
+                        >
+                          {code}
+                        </div>
+                      {/if}
+                    </td>
+                  {/each}
+                </tr>
+              {/each}
+
+              {#each group2 as p, pIdx}
+                {@const preacherName = `${p.firstName} ${p.lastName}`}
+                {@const absoluteRowIdx = group1.length + pIdx}
+                <tr
+                  class="group transition-colors {pIdx % 2 === 1
+                    ? 'bg-zinc-50/40 dark:bg-zinc-700/20'
+                    : ''}"
+                  onmouseenter={() => (hoveredPreacherIdx = absoluteRowIdx)}
+                  onmouseleave={() => (hoveredPreacherIdx = null)}
+                >
+                  <td
+                    class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 text-zinc-900 dark:text-zinc-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] whitespace-nowrap h-7 w-[200px] min-w-[200px] transition-all {hoveredPreacherIdx ===
+                    absoluteRowIdx
+                      ? 'bg-amber-500/10 dark:bg-amber-900/30 !border-l-4 !border-l-amber-500 !pl-2 shadow-inner'
+                      : (pIdx % 2 === 1
+                          ? 'bg-zinc-50/95 dark:bg-zinc-700/95'
+                          : 'bg-white/95 dark:bg-zinc-700/95') +
+                        ' backdrop-blur-sm'}"
+                  >
+                    <span style={getFormattingStyle("names")}>
+                      {preacherName}
+                    </span>
+                  </td>
+                  {#each slots as slot, sIdx}
+                    {@const code = gridData[slot.id]?.[preacherName] || ""}
+                    <td
+                      class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
+                        {code === '-' ? 'cursor-not-allowed' : 'cursor-pointer'}
+                        {getDayHighlightClass(new Date(slot.date), slot.time)}
+                        {validationState[slot.id]?.has(preacherName)
+                        ? '!bg-red-100 dark:!bg-red-900/30 !ring-inset !ring-1 !ring-red-500'
+                        : ''}
+                        {hoveredPreacherIdx === absoluteRowIdx &&
+                      hoveredSlotIdx === sIdx
+                        ? '!bg-amber-500/20 dark:!bg-amber-500/30 !ring-2 !ring-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-10 relative'
+                        : hoveredPreacherIdx === absoluteRowIdx ||
+                            hoveredSlotIdx === sIdx
+                          ? code === '-'
+                            ? '!bg-zinc-100/30 dark:!bg-zinc-700/30'
+                            : '!bg-zinc-200/50 dark:!bg-zinc-700/50'
+                          : ''}"
+                      title={code === "-" ? "Abwesend (ChurchTools)" : ""}
+                      onclick={() => toggleService(preacherName, slot.id)}
+                      oncontextmenu={(e) => {
+                        e.preventDefault();
+                        if (gridData[slot.id]?.[preacherName]) {
+                          gridData[slot.id][preacherName] = "";
+                        }
+                      }}
+                      onmouseenter={() => {
+                        hoveredSlotIdx = sIdx;
+                        hoveredPreacherIdx = absoluteRowIdx;
+                      }}
+                      onmouseleave={() => {
+                        hoveredSlotIdx = null;
+                        hoveredPreacherIdx = null;
+                      }}
+                    >
+                      {#if code}
+                        <div
+                          class="w-8 h-6 flex items-center justify-center font-bold text-[16px] transition-all active:scale-95 rounded-lg {getServiceStyle(
+                            code,
+                          )}"
+                        >
+                          {code}
+                        </div>
+                      {/if}
+                    </td>
+                  {/each}
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Right Side Legend (Desktop) -->
+        <div
+          class="hidden lg:flex w-56 flex-shrink-0 no-print flex flex-col gap-3"
+        >
+          <div
+            class="p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 bg-white dark:bg-zinc-700 h-full"
+          >
+            <h3
+              class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 mb-2 px-1"
+            >
+              Legende & Hilfe
+            </h3>
+            <div class="flex flex-col gap-2">
+              {#each SERVICE_TYPES as type}
+                <div
+                  class="group flex items-center gap-2 p-1 rounded-xl hover:bg-white dark:hover:bg-zinc-700 border border-transparent hover:border-zinc-100 dark:hover:border-zinc-700 bg-white dark:bg-zinc-700 shadow-sm"
+                >
+                  <div
+                    class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-transform group-hover:scale-110 {type.color}"
+                  >
+                    {type.code}
+                  </div>
+                  <div class="flex flex-col">
+                    <span
+                      class="leading-none text-[11px] text-zinc-800 dark:text-zinc-200"
+                      style={getFormattingStyle("names")}>{type.label}</span
+                    >
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Legend Drawer Overlay -->
+    {#if showLegend}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="lg:hidden fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[200] no-print"
+        onclick={() => (showLegend = false)}
+      >
+        <div
+          class="absolute right-0 top-0 bottom-0 w-64 bg-white dark:bg-zinc-700 shadow-2xl flex flex-col p-6 overflow-y-auto"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <div class="flex items-center justify-between mb-8">
+            <h3
+              class="text-xs font-black uppercase tracking-[0.2em] text-zinc-900 dark:text-white"
+            >
+              Legende
+            </h3>
+            <button
+              onclick={() => (showLegend = false)}
+              class="p-2 text-zinc-400 hover:text-zinc-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-3">
+            {#each SERVICE_TYPES as type}
+              <div
+                class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+              >
+                <div
+                  class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold {type.color}"
+                >
+                  {type.code}
+                </div>
+                <div class="flex flex-col">
+                  <span
+                    class="text-[12px] font-bold text-zinc-800 dark:text-zinc-100"
+                    >{type.label}</span
+                  >
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <!-- Export Results Modal -->
+  {#if showExportModal}
+    <div
+      class="fixed inset-0 bg-zinc-900/60 backdrop-blur-md z-[1000] flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-zinc-700 w-full max-w-2xl rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-600 overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in duration-200"
+      >
+        <div
+          class="px-6 py-5 border-b border-zinc-100 dark:border-zinc-600 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-700/50"
+        >
+          <div class="flex items-center gap-3">
+            <div
+              class="p-2 rounded-xl {exportResults?.success
+                ? 'bg-emerald-500/10 text-emerald-600'
+                : 'bg-red-500/10 text-red-600'}"
+            >
+              <Share size={20} />
+            </div>
+            <div>
+              <h3 class="font-bold text-zinc-900 dark:text-white">
+                ChurchTools Export Log
+              </h3>
+              <p
+                class="text-[10px] text-zinc-400 uppercase tracking-widest font-black"
+              >
+                {exportResults?.success
+                  ? "Abgeschlossen"
+                  : "Fehler aufgetreten"}
+              </p>
+            </div>
+          </div>
+          <button
+            onclick={() => (showExportModal = false)}
+            class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl transition-colors text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div
+          class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-zinc-700/50"
+        >
+          {#if exportResults}
+            <div
+              class="mb-4 p-4 rounded-2xl {exportResults.success
+                ? 'bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/50'
+                : 'bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/50'}"
+            >
+              <p
+                class="text-sm font-bold {exportResults.success
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-red-700 dark:text-red-400'}"
+              >
+                {exportResults.message}
+              </p>
+            </div>
+
+            <div class="space-y-1.5 font-mono text-[11px]">
+              {#each exportResults.results || [] as log}
+                <div
+                  class="p-3 rounded-xl border border-zinc-100 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-700/50 flex gap-3"
+                >
+                  {#if log.startsWith("OK")}
+                    <span class="text-emerald-500 font-bold shrink-0">DONE</span
+                    >
+                  {:else if log.startsWith("ERROR")}
+                    <span class="text-red-500 font-bold shrink-0">FAIL</span>
+                  {:else}
+                    <span class="text-amber-500 font-bold shrink-0">SKIP</span>
+                  {/if}
+                  <span class="text-zinc-600 dark:text-zinc-400"
+                    >{log.split(": ").slice(1).join(": ") || log}</span
+                  >
+                </div>
+              {/each}
+              {#if !exportResults.results?.length}
+                <p class="text-zinc-400 italic text-center py-8">
+                  Keine Log-Eintr├ñge vorhanden.
+                </p>
+              {/if}
+            </div>
+          {/if}
+        </div>
+
+        <div
+          class="p-4 bg-zinc-50/50 dark:bg-zinc-700/50 border-t border-zinc-100 dark:border-zinc-600 flex justify-end"
+        >
+          <button
+            onclick={() => (showExportModal = false)}
+            class="px-6 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all"
+          >
+            Schlie├ƒen
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showManualSlotEntry}
+    <div
+      class="fixed inset-0 bg-zinc-900/60 backdrop-blur-md z-[1000] flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-zinc-800 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-zinc-200 dark:border-zinc-700 overflow-hidden animate-in zoom-in-95 fade-in duration-300"
+      >
+        <div class="p-8">
+          <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-4">
+              <div
+                class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400"
+              >
+                <PlusCircle size={28} />
+              </div>
+              <h3 class="text-xl font-black text-zinc-900 dark:text-white">
+                Manueller Termin
+              </h3>
+            </div>
+            <button
+              onclick={() => (showManualSlotEntry = false)}
+              class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl transition-colors text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div class="space-y-6">
+            <div class="space-y-2">
+              <label
+                class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400"
+                for="date-picker">Datum</label
+              >
+              <div id="date-picker">
+                <DatePicker
+                  value={newSlotDate}
+                  onchange={(val) => (newSlotDate = val)}
+                />
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label
+                class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400"
+                for="time-input">Uhrzeit</label
+              >
+              <div
+                class="flex items-center gap-3 px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl focus-within:border-primary-500 transition-all"
+              >
+                <Clock size={18} class="text-zinc-400" />
+                <input
+                  id="time-input"
+                  type="time"
+                  bind:value={newSlotTime}
+                  class="bg-transparent border-none focus:ring-0 text-sm font-bold text-zinc-800 dark:text-zinc-200 w-full"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="p-6 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-3"
+        >
+          <button
+            onclick={() => (showManualSlotEntry = false)}
+            class="px-6 py-3 text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+          >
+            Abbrechen
+          </button>
+          <button
+            onclick={() => {
+              const [y, m, d] = newSlotDate.split("-").map(Number);
+              const date = new Date(y, m - 1, d, 12, 0, 0);
+              const newId = `manual-${Date.now()}`;
+              const newSlot: Slot = {
+                id: newId,
+                date,
+                time: newSlotTime,
+                label: "Manueller Termin",
+              };
+              manualSlots = [...manualSlots, newSlot];
+              if (!gridData[newId]) gridData[newId] = {};
+              showManualSlotEntry = false;
+            }}
+            class="px-8 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg"
+          >
+            Hinzuf├╝gen
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+</div>[36m[39m
+
+c:\Users\vschilling\Desktop\Neuer Ordner\cbg-app-coolify\[32msrc\lib\components\GridEditor.svelte[39m:1880:3
+[33mWarn[39m: Unknown at rule @reference (css)
+[36m<style>
+  [35m@reference[36m "../../app.css";[39m
+
+====================================
+[31msvelte-check found 3 errors and 29 warnings in 8 files
+[39m

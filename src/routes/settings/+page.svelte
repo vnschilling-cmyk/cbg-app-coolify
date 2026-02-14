@@ -129,29 +129,39 @@
         preachers = data.preachers || [];
     });
     const SERVICE_TYPES = [
-        { code: "L", label: "Leitung", color: "bg-blue-500 text-white" },
+        {
+            code: "🍷",
+            label: "Abendmahl",
+            color: "bg-rose-900 text-white",
+        },
+        { code: "V", label: "Verteilen", color: "bg-rose-400 text-white" },
+        { code: "L", label: "Leitung", color: "bg-blue-600 text-white" },
         {
             code: "1",
             label: "Predigt (10-15m)",
-            color: "bg-emerald-500 text-white",
+            color: "bg-emerald-600 text-white",
         },
         {
             code: "2",
             label: "Predigt (30-40m)",
-            color: "bg-purple-500 text-white",
+            color: "bg-violet-600 text-white",
         },
-        { code: "BS", label: "Bibelstunde", color: "bg-pink-500 text-white" },
+        {
+            code: "BN",
+            label: "Bad Neustadt",
+            color: "bg-lime-600 text-white",
+        },
+        { code: "Als", label: "Alsfeld", color: "bg-indigo-500 text-white" },
+        {
+            code: "BS",
+            label: "Bibelstunde",
+            color: "bg-fuchsia-600 text-white",
+        },
         {
             code: "GS",
-            label: "Gebetsstunde",
-            color: "bg-orange-500 text-white",
+            label: "Gebetstunde",
+            color: "bg-amber-600 text-white",
         },
-        { code: "V", label: "Verteilen", color: "bg-cyan-500 text-white" },
-        { code: "BN", label: "Bad Neustadt", color: "bg-lime-500 text-white" },
-        { code: "Als", label: "Alsfeld", color: "bg-teal-500 text-white" },
-        { code: "Anf", label: "Anfang", color: "bg-sky-500 text-white" },
-        { code: "Schl", label: "Schluss", color: "bg-indigo-500 text-white" },
-        { code: "🍷", label: "Abendmahl", color: "bg-rose-500 text-white" },
     ];
 
     async function togglePermission(preacherId: string, serviceCode: string) {
@@ -1016,7 +1026,10 @@
                         <button
                             onclick={addRule}
                             disabled={addingRule || newRuleAllowed.length === 0}
-                            class="btn btn-primary w-full py-4 flex items-center justify-center gap-2"
+                            class="w-full py-4 flex items-center justify-center gap-2 rounded-2xl font-bold transition-all shadow-lg hover:shadow-amber-500/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none {newRuleAllowed.length >
+                            0
+                                ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30'
+                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'}"
                         >
                             {#if addingRule}
                                 <Loader2 size={20} class="animate-spin" />

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { pb } from "$lib/pocketbase";
+    import { toast } from "$lib/notifications.svelte";
     import {
         ChevronDown,
         Vote,
@@ -279,9 +280,7 @@
             displayedDeadline = item.deadline || "";
             const msg = err?.response?.message || err?.message || String(err);
             const detail = JSON.stringify(err?.response?.data || {});
-            alert(
-                `Status-Update fehlgeschlagen: ${msg}\nDetails: ${detail}\n\nHinweis: Hast du die Änderungen in PocketBase mit dem "Save changes" Button (unten rechts) bestätigt?`,
-            );
+            toast.error(`Status-Update fehlgeschlagen: ${msg}`);
             console.error("Failed to update topic status:", err, err?.response);
         }
     }
@@ -323,7 +322,7 @@
         } catch (err: any) {
             displayedDeadline = item.deadline || ""; // Revert
             const msg = err?.response?.message || err?.message || String(err);
-            alert(`Datum-Update fehlgeschlagen: ${msg}`);
+            toast.error(`Datum-Update fehlgeschlagen: ${msg}`);
             console.error("Failed to update topic deadline:", err);
         }
     }
@@ -338,7 +337,7 @@
         } catch (err: any) {
             displayedSpeaker = item.assignee || ""; // Revert
             const msg = err?.response?.message || err?.message || String(err);
-            alert(`Sprecher-Update fehlgeschlagen: ${msg}`);
+            toast.error(`Sprecher-Update fehlgeschlagen: ${msg}`);
             console.error("Failed to update topic speaker:", err);
         }
     }
@@ -414,7 +413,7 @@
             editingChildId = null;
         } catch (err) {
             console.error("Failed to update child item:", err);
-            alert("Fehler beim Speichern der Änderung.");
+            toast.error("Fehler beim Speichern der Änderung.");
         } finally {
             savingChild = false;
         }
