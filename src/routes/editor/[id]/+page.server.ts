@@ -68,14 +68,25 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             })
             .map((apt: any) => {
                 // The API returns nested structure: apt.calculated.startDate or apt.base.startDate
-                const startDate = new Date(apt.calculated?.startDate || apt.base?.startDate || apt.startDate);
+                const rawStartDate: string = apt.calculated?.startDate || apt.base?.startDate || apt.startDate || '';
                 // ID is under apt.base.id or apt.appointment.base.id
                 const appointmentId = apt.base?.id || apt.appointment?.base?.id || apt.id;
 
+                // Extract date and time DIRECTLY from the string to avoid UTC timezone conversion.
+                // ChurchTools returns e.g. "2026-05-03T10:00:00+02:00" (CEST local time).
+                // Using new Date() would convert to UTC (08:00), showing 2h too early on a UTC server.
+                const dateMatch = rawStartDate.match(/^(\d{4}-\d{2}-\d{2})/);
+                const timeMatch = rawStartDate.match(/T(\d{2}:\d{2})/);
+                const dateStr = dateMatch ? dateMatch[1] : format(new Date(rawStartDate), 'yyyy-MM-dd');
+                const timeStr = timeMatch ? timeMatch[1] : '00:00';
+
+                // Still need a Date object for the filter (Saturday check) - use noon to be safe
+                const startDate = new Date(`${dateStr}T12:00:00`);
+
                 return {
-                    id: `${appointmentId}-${format(startDate, 'yyyy-MM-dd')}`,
-                    date: format(startDate, 'yyyy-MM-dd'), // Simplified to just date
-                    time: format(startDate, 'HH:mm'),
+                    id: `${appointmentId}-${dateStr}`,
+                    date: dateStr,
+                    time: timeStr,
                     label: apt.base?.title || apt.appointment?.base?.title || apt.caption || 'Unbenannter Termin',
                     calendar: apt.base?.calendar?.name || apt.appointment?.base?.calendar?.name || 'Unbekannter Kalender',
                     isSundaySecond: false // Will be calculated client-side
