@@ -741,6 +741,7 @@
   // Sorted and unified special services for the sidebar
   let sortedSpecialServices = $derived.by(() => {
     return Object.entries(specialServices)
+      .filter(([_, val]) => val && val.trim() !== "") // Filter out empty entries
       .map(([sid, val]) => {
         const s = slots.find(sl => sl.id === sid) || 
                  serverSlots.find(sl => sl.id === sid);
@@ -1528,7 +1529,10 @@
                           onclick={(e) => {
                             e.stopPropagation();
                             if (specialServices[slot.id]) {
-                              delete specialServices[slot.id];
+                              deletedAutomatedIds.add(slot.id);
+                              const next = { ...specialServices };
+                              delete next[slot.id];
+                              specialServices = next;
                             } else {
                               specialServices[slot.id] = "Neuer Eintrag";
                             }
@@ -1703,7 +1707,7 @@
               {/each}
 
               <!-- Individual Besonderheiten Rows -->
-              {#each Object.entries(specialServices) as [sid, text], idx}
+              {#each Object.entries(specialServices).filter(([_, t]) => t && t.trim() !== "") as [sid, text], idx}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
                   <tr
@@ -1849,8 +1853,11 @@
                   <button
                     onclick={(e) => {
                       e.stopPropagation();
-                      delete specialServices[sid];
                       deletedAutomatedIds.add(sid);
+                      // Remove property and trigger reactivity
+                      const next = { ...specialServices };
+                      delete next[sid];
+                      specialServices = next;
                     }}
                     class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all z-10"
                   >
