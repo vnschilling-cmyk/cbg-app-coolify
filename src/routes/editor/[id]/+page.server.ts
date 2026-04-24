@@ -2,6 +2,7 @@ import { ChurchToolsClient } from '$lib/server/churchtools';
 import { CHURCHTOOLS_TOKEN, CHURCHTOOLS_BASE_URL, PREACHER_GROUP_ID } from '$env/static/private';
 import type { PageServerLoad, Actions } from './$types';
 import { format, addMonths, startOfMonth, endOfMonth, isSaturday } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -66,9 +67,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 const appointmentId = apt.base?.id || apt.appointment?.base?.id || apt.id;
 
                 return {
-                    id: `${appointmentId}-${format(startDate, 'yyyy-MM-dd')}`,
-                    date: format(startDate, 'yyyy-MM-dd'), // Simplified to just date
-                    time: format(startDate, 'HH:mm'),
+                    id: `${appointmentId}-${formatInTimeZone(startDate, 'Europe/Berlin', 'yyyy-MM-dd')}`,
+                    date: formatInTimeZone(startDate, 'Europe/Berlin', 'yyyy-MM-dd'), // Simplified to just date
+                    time: formatInTimeZone(startDate, 'Europe/Berlin', 'HH:mm'),
                     label: apt.base?.title || apt.appointment?.base?.title || apt.caption || 'Unbenannter Termin',
                     calendar: apt.base?.calendar?.name || apt.appointment?.base?.calendar?.name || 'Unbekannter Kalender',
                     isSundaySecond: false // Will be calculated client-side
@@ -148,7 +149,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 const services = event.eventServices || [];
 
                 const eventDate = new Date(event.startDate);
-                const dateStr = format(eventDate, 'yyyy-MM-dd');
+                const dateStr = formatInTimeZone(eventDate, 'Europe/Berlin', 'yyyy-MM-dd');
                 const slotId = `${event.appointmentId}-${dateStr}`;
 
                 if (!assignments[slotId]) assignments[slotId] = {};

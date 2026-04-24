@@ -272,6 +272,16 @@
       label: "Gebetstunde",
       color: "bg-amber-600 text-white",
     },
+    {
+      code: "Anf",
+      label: "Anfang (Sondergem.)",
+      color: "bg-orange-500 text-white",
+    },
+    {
+      code: "Schl",
+      label: "Schluss (Sondergem.)",
+      color: "bg-orange-600 text-white",
+    },
   ];
 
   // Transform server preachers or use fallback - using $derived for reactivity
@@ -1497,8 +1507,8 @@
                   </th>
                 {/each}
               </tr>
-              <!-- Row 2: Times -->
-              <tr class="h-10">
+              <!-- Row 2: Labels and Times -->
+              <tr class="h-32">
                 <th
                   rowspan="2"
                   class="sticky top-[36px] left-0 z-[120] bg-white dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-2 transition-colors duration-300"
@@ -1527,9 +1537,15 @@
                     onmouseenter={() => (hoveredSlotIdx = sIdx)}
                     onmouseleave={() => (hoveredSlotIdx = null)}
                   >
-                    <div class="relative w-full h-12">
+                    <div class="relative w-full h-full flex flex-col justify-end pb-2 pt-2 gap-2 overflow-hidden">
                       <div
-                        class="absolute top-2 left-1/2 -translate-x-1/2 tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-900 dark:text-zinc-100"
+                        class="tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-400 dark:text-zinc-500 font-bold opacity-40 mx-auto"
+                        style="font-size: 8px;"
+                      >
+                        {slot.label}
+                      </div>
+                      <div
+                        class="tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-900 dark:text-zinc-100 mx-auto"
                         style={getFormattingStyle("dates")}
                       >
                         {slot.time}
@@ -1559,13 +1575,6 @@
                         style={getFormattingStyle("dates")}
                       >
                         {format(slot.date, "dd. eee", { locale: de })}
-                      </div>
-
-                      <div
-                        class="absolute bottom-16 left-1/2 -translate-x-1/2 tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-400 dark:text-zinc-500 font-bold opacity-40"
-                        style="font-size: 8px;"
-                      >
-                        {slot.label}
                       </div>
 
                       <!-- Column Header Tools -->
