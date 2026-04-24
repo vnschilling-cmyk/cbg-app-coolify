@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import { pb } from "$lib/pocketbase";
     import { toast } from "$lib/notifications.svelte";
     import {
@@ -17,6 +18,8 @@
         X,
         MessageSquare,
         ChevronRight,
+        Flame,
+        BookOpen,
     } from "lucide-svelte";
     import { categories, tags } from "$lib/constants";
     import { fade, slide, scale } from "svelte/transition";
@@ -48,16 +51,35 @@
         item: ProtocolItem;
         children: ProtocolItem[];
         meetingId: string;
-        topicNumber: number;
+        topicNumber?: number;
         members: Member[];
         ondelete?: (id: string) => void;
+        isVirtual?: boolean;
+        onChangeSpeaker?: (speakerId: string) => Promise<void>;
+        allowedSubTypes?: string[];
+        bibleText?: string;
+        onUpdateBibleText?: (text: string) => Promise<void>;
+        showPrayerInput?: boolean;
     }
 
-    let { item, children, meetingId, topicNumber, members, ondelete }: Props =
-        $props();
+    let {
+        item,
+        children,
+        meetingId,
+        topicNumber,
+        members,
+        ondelete,
+        isVirtual = false,
+        onChangeSpeaker,
+        allowedSubTypes,
+        bibleText,
+        onUpdateBibleText,
+        showPrayerInput = false,
+    }: Props = $props();
 
     // Auto-collapse if status is 'besprochen' or 'verschoben', otherwise expand
-    let expanded = $state(!item.status || item.status === "offen");
+    let expanded = $state(true);
+
     let showAddForm = $state(false);
     let addType = $state<string>("beitrag");
     let newContent = $state("");
@@ -99,13 +121,22 @@
         return statuses.find((s) => s.id === id) || statuses[0];
     }
 
-    let displayedStatus = $state(item.status || "offen");
-    let displayedDeadline = $state(item.deadline || "");
-    let displayedSpeaker = $state(item.assignee || "");
-    let displayedCategory = $state(item.category || "");
-    let displayedTag = $state(item.tag || "");
+    let displayedStatus = $state("offen");
+    let displayedDeadline = $state("");
+    let displayedSpeaker = $state("");
+    let displayedCategory = $state("");
+    let displayedTag = $state("");
 
-    // Keep state in sync with props from server
+    onMount(() => {
+        displayedStatus = item.status || "offen";
+        displayedDeadline = item.deadline || "";
+        displayedSpeaker = item.assignee || "";
+        displayedCategory = item.category || "";
+        displayedTag = item.tag || "";
+        expanded = !item.status || item.status === "offen";
+    });
+
+    // Keep local state in sync with prop changes (e.g. from PB Realtime or after saving)
     $effect(() => {
         displayedStatus = item.status || "offen";
         displayedDeadline = item.deadline || "";
@@ -178,6 +209,15 @@
             hoverColor: "hover:bg-blue-50 dark:hover:bg-blue-900/20",
             borderColor: "border-blue-200 dark:border-blue-800",
         },
+        {
+            type: "prayer",
+            label: "Gebet",
+            icon: Flame,
+            color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+            badgeColor: "bg-orange-500",
+            hoverColor: "hover:bg-orange-50 dark:hover:bg-orange-900/20",
+            borderColor: "border-orange-200 dark:border-orange-800",
+        },
     ];
 
     function getSubType(type: string) {
@@ -233,9 +273,25 @@
                 meeting_id: meetingId,
                 type: addType,
                 content: newContent.trim(),
-                parent_id: item.id,
-                sort_order: children.length,
             };
+
+            if (isVirtual) {
+                // For virtual items (Introduction), we add top-level items sorted manually
+                // We assume these are 'prayer' items usually, or 'beitrag'
+                // We just append them to the end of the children list (which are top-level items in reality)
+                // Since they are top-level, they don't have a parent_id
+
+                // Find max sort_order among children to append
+                const maxSortOrder = children.reduce(
+                    (max, c) => Math.max(max, c.sort_order),
+                    -1,
+                );
+                data.sort_order = maxSortOrder + 1;
+            } else {
+                // Standard sub-item
+                data.parent_id = item.id;
+                data.sort_order = children.length;
+            }
 
             // Discussion points and tasks can have a speaker/assignee
             if (addType === "beitrag") {
@@ -288,12 +344,15 @@
     async function updateTopicCategory(categoryId: string) {
         try {
             displayedCategory = categoryId;
+            const value = categoryId || null;
             await pb
                 .collection("protocol_items")
-                .update(item.id, { category: categoryId });
+                .update(item.id, { category: value });
             showCategoryMenu = false;
-        } catch (err) {
+        } catch (err: any) {
             displayedCategory = item.category || "";
+            const msg = err?.response?.message || err?.message || String(err);
+            toast.error(`Kategorie-Update fehlgeschlagen: ${msg}`);
             console.error("Failed to update topic category:", err);
         }
     }
@@ -301,12 +360,15 @@
     async function updateTopicTag(tagId: string) {
         try {
             displayedTag = tagId;
+            const value = tagId || null;
             await pb
                 .collection("protocol_items")
-                .update(item.id, { tag: tagId });
+                .update(item.id, { tag: value });
             showTagMenu = false;
-        } catch (err) {
+        } catch (err: any) {
             displayedTag = item.tag || "";
+            const msg = err?.response?.message || err?.message || String(err);
+            toast.error(`Tag-Update fehlgeschlagen: ${msg}`);
             console.error("Failed to update topic tag:", err);
         }
     }
@@ -330,6 +392,13 @@
     async function updateTopicSpeaker(speaker: string) {
         try {
             displayedSpeaker = speaker; // Optimistic
+
+            if (onChangeSpeaker) {
+                await onChangeSpeaker(speaker);
+                showSpeakerMenu = false;
+                return;
+            }
+
             await pb
                 .collection("protocol_items")
                 .update(item.id, { assignee: speaker || "" });
@@ -436,7 +505,7 @@
         : 'z-10'}"
 >
     <div
-        class="flex items-center gap-3 px-5 py-5 group transition-colors rounded-t-2xl {expanded
+        class="flex flex-col lg:flex-row lg:items-center gap-4 px-5 py-5 group transition-colors rounded-t-2xl {expanded
             ? ''
             : 'rounded-b-2xl'} {displayedStatus === 'besprochen'
             ? 'bg-emerald-50/50 dark:bg-emerald-900/10'
@@ -449,330 +518,369 @@
             ? 'z-20'
             : 'z-auto'}"
     >
-        <div
-            class="drag-handle opacity-20 group-hover:opacity-60 transition-opacity cursor-grab active:cursor-grabbing hover:text-primary-500 p-1 -ml-1"
-        >
-            <GripVertical size={18} />
-        </div>
-
-        <!-- Topic Number -->
-        <span
-            class="flex items-center justify-center w-8 h-8 rounded-xl {statusInfo.numColor} text-white text-xs font-bold flex-shrink-0 shadow-lg transition-colors duration-500"
-        >
-            {topicNumber}
-        </span>
-
-        <div class="flex-1 min-w-0 ml-1 flex flex-col gap-2">
-            <!-- First Row: Title -->
-            {#if editing}
-                <!-- Inline Edit Input -->
-                <div
-                    class="flex items-center gap-2"
-                    in:fade={{ duration: 150 }}
-                >
-                    <input
-                        bind:value={editContent}
-                        onkeydown={handleEditKeydown}
-                        class="flex-1 px-3 py-1.5 text-[15px] font-bold bg-white dark:bg-zinc-700 border border-primary-300 dark:border-primary-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-900 dark:text-white shadow-sm"
-                        autofocus
-                    />
-                    <button
-                        onclick={saveEdit}
-                        class="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
-                        title="Speichern"
-                    >
-                        <Check size={18} />
-                    </button>
-                    <button
-                        onclick={cancelEdit}
-                        class="p-1.5 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-                        title="Abbrechen"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-            {:else}
-                <!-- Display Title -->
-                <button
-                    onclick={startEditing}
-                    class="text-left w-full group/title"
-                    title="Klicken zum Bearbeiten"
-                >
-                    <h3
-                        class="text-[17px] font-bold text-zinc-900 dark:text-white group-hover/title:text-primary-600 dark:group-hover/title:text-primary-400 transition-colors tracking-tight leading-snug"
-                    >
-                        {item.content}
-                    </h3>
-                </button>
-            {/if}
-
-            <!-- Second Row: Meta Chips -->
-            {#if !editing}
-                {@const cat = getCategory(displayedCategory)}
-                {@const t = getTag(displayedTag)}
-                <div class="flex flex-wrap items-center gap-2 mt-1">
-                    <!-- Category Chip -->
-                    <div class="relative">
-                        <button
-                            onclick={() =>
-                                (showCategoryMenu = !showCategoryMenu)}
-                            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm {cat
-                                ? cat.color
-                                : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500 group/cat'}"
-                        >
-                            {#if cat?.icon}
-                                <svelte:component this={cat.icon} size={11} />
-                            {/if}
-                            {cat?.label || "Kategorie"}
-                        </button>
-
-                        {#if showCategoryMenu}
-                            <div
-                                class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
-                                in:fade={{ duration: 150 }}
-                                use:clickOutside={() =>
-                                    (showCategoryMenu = false)}
-                            >
-                                <button
-                                    onclick={() => updateTopicCategory("")}
-                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors {displayedCategory ===
-                                    ''
-                                        ? 'text-primary-600 font-bold opacity-100'
-                                        : 'text-zinc-600 opacity-60'}"
-                                >
-                                    Keine Kategorie
-                                </button>
-                                {#each categories as c}
-                                    <button
-                                        onclick={() =>
-                                            updateTopicCategory(c.id)}
-                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 {displayedCategory ===
-                                        c.id
-                                            ? 'text-primary-600 font-bold bg-primary-50/30'
-                                            : 'text-zinc-600'}"
-                                    >
-                                        <svelte:component
-                                            this={c.icon}
-                                            size={14}
-                                        />
-                                        <span>{c.label}</span>
-                                        {#if displayedCategory === c.id}
-                                            <Check size={14} class="ml-auto" />
-                                        {/if}
-                                    </button>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
-
-                    <!-- Tag Chip -->
-                    <div class="relative">
-                        <button
-                            onclick={() => (showTagMenu = !showTagMenu)}
-                            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm {t
-                                ? t.color
-                                : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500'}"
-                        >
-                            {#if t?.icon}
-                                <svelte:component this={t.icon} size={11} />
-                            {/if}
-                            {t?.label || "Tag"}
-                        </button>
-
-                        {#if showTagMenu}
-                            <div
-                                class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
-                                in:fade={{ duration: 150 }}
-                                use:clickOutside={() => (showTagMenu = false)}
-                            >
-                                <button
-                                    onclick={() => updateTopicTag("")}
-                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors {displayedTag ===
-                                    ''
-                                        ? 'text-primary-600 font-bold'
-                                        : 'text-zinc-600'}"
-                                >
-                                    Kein Tag
-                                </button>
-                                {#each tags as tag}
-                                    <button
-                                        onclick={() => updateTopicTag(tag.id)}
-                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 {displayedTag ===
-                                        tag.id
-                                            ? 'text-primary-600 font-bold bg-primary-50/30'
-                                            : 'text-zinc-600'}"
-                                    >
-                                        <svelte:component
-                                            this={tag.icon}
-                                            size={14}
-                                        />
-                                        <span>{tag.label}</span>
-                                        {#if displayedTag === tag.id}
-                                            <Check size={14} class="ml-auto" />
-                                        {/if}
-                                    </button>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
-                </div>
-            {/if}
-        </div>
-
-        {#if children.length > 0 && !editing}
-            <span
-                class="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-700/80 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-600 flex-shrink-0"
+        <div class="flex items-start lg:items-center gap-3 flex-1 min-w-0">
+            <div
+                class="drag-handle opacity-20 group-hover:opacity-60 transition-opacity cursor-grab active:cursor-grabbing hover:text-primary-500 p-1 -ml-1 mt-0.5 lg:mt-0 {isVirtual
+                    ? 'invisible pointer-events-none'
+                    : ''}"
             >
-                <ChevronRight size={10} class="opacity-50" />
-                {children.length}
-                {children.length === 1 ? "Eintrag" : "Einträge"}
-            </span>
-        {/if}
+                <GripVertical size={18} />
+            </div>
 
-        <!-- Status Selection -->
-        {#if !editing}
-            <div class="relative ml-2 flex-shrink-0">
-                <button
-                    onclick={() => (showStatusMenu = !showStatusMenu)}
-                    class="flex items-center gap-2 px-3 py-1.5 {statusInfo.color} border rounded-xl transition-all shadow-sm active:scale-95 text-[11px] font-bold uppercase tracking-wider"
+            <!-- Topic Number -->
+            {#if !isVirtual && topicNumber !== undefined}
+                <span
+                    class="flex items-center justify-center w-8 h-8 rounded-xl {statusInfo.numColor} text-white text-xs font-bold flex-shrink-0 shadow-lg transition-colors duration-500 mt-0.5 lg:mt-0"
                 >
-                    {statusInfo.label}
-                    <ChevronDown
-                        size={12}
-                        class="transition-transform {showStatusMenu
-                            ? 'rotate-180'
-                            : ''}"
-                    />
-                </button>
+                    {topicNumber}
+                </span>
+            {:else if isVirtual}
+                <span
+                    class="flex items-center justify-center w-8 h-8 rounded-xl bg-orange-500 shadow-orange-500/30 text-white text-xs font-bold flex-shrink-0 shadow-lg transition-colors duration-500 mt-0.5 lg:mt-0"
+                >
+                    <Flame size={16} />
+                </span>
+            {/if}
 
-                {#if showStatusMenu}
+            <div class="flex-1 min-w-0 ml-1 flex flex-col gap-1.5">
+                <!-- First Row: Title -->
+                {#if editing}
+                    <!-- Inline Edit Input -->
                     <div
-                        class="absolute left-0 mt-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
+                        class="flex items-center gap-2"
                         in:fade={{ duration: 150 }}
-                        use:clickOutside={() => (showStatusMenu = false)}
                     >
-                        {#each statuses as st}
+                        <input
+                            bind:value={editContent}
+                            onkeydown={handleEditKeydown}
+                            class="flex-1 px-3 py-1.5 text-[15px] font-bold bg-white dark:bg-zinc-700 border border-primary-300 dark:border-primary-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-900 dark:text-white shadow-sm"
+                        />
+                        <button
+                            onclick={saveEdit}
+                            class="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                            title="Speichern"
+                        >
+                            <Check size={18} />
+                        </button>
+                        <button
+                            onclick={cancelEdit}
+                            class="p-1.5 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                            title="Abbrechen"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                {:else}
+                    <!-- Display Title -->
+                    <button
+                        onclick={startEditing}
+                        class="text-left w-full group/title"
+                        title="Klicken zum Bearbeiten"
+                    >
+                        <h3
+                            class="text-[17px] font-bold text-zinc-900 dark:text-white group-hover/title:text-primary-600 dark:group-hover/title:text-primary-400 transition-colors tracking-tight leading-relaxed"
+                        >
+                            {item.content}
+                        </h3>
+                    </button>
+                {/if}
+
+                <!-- Second Row: Meta Chips (Hidden for virtual items) -->
+                {#if !editing && !isVirtual}
+                    {@const cat = getCategory(displayedCategory)}
+                    {@const t = getTag(displayedTag)}
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Category Chip -->
+                        <div class="relative">
                             <button
-                                onclick={() => updateTopicStatus(st.id)}
-                                class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {item.status ===
-                                    st.id ||
-                                (!item.status && st.id === 'offen')
-                                    ? 'text-primary-600 dark:text-primary-400'
-                                    : 'text-zinc-600 dark:text-zinc-400'}"
+                                onclick={() =>
+                                    (showCategoryMenu = !showCategoryMenu)}
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm {cat
+                                    ? cat.color
+                                    : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500 group/cat'}"
                             >
-                                <span>{st.label}</span>
-                                {#if item.status === st.id || (!item.status && st.id === "offen")}
-                                    <Check size={14} />
+                                {#if cat?.icon}
+                                    {@const Icon = cat.icon}
+                                    <Icon size={11} />
                                 {/if}
+                                {cat?.label || "Kategorie"}
                             </button>
-                        {/each}
+
+                            {#if showCategoryMenu}
+                                <div
+                                    class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
+                                    in:fade={{ duration: 150 }}
+                                    use:clickOutside={() =>
+                                        (showCategoryMenu = false)}
+                                >
+                                    <button
+                                        onclick={() => updateTopicCategory("")}
+                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors {displayedCategory ===
+                                        ''
+                                            ? 'text-primary-600 font-bold opacity-100'
+                                            : 'text-zinc-600 opacity-60'}"
+                                    >
+                                        Keine Kategorie
+                                    </button>
+                                    {#each categories as c}
+                                        {@const Icon = c.icon}
+                                        <button
+                                            onclick={() =>
+                                                updateTopicCategory(c.id)}
+                                            class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 {displayedCategory ===
+                                            c.id
+                                                ? 'text-primary-600 font-bold bg-primary-50/30'
+                                                : 'text-zinc-600'}"
+                                        >
+                                            <Icon size={14} />
+                                            <span>{c.label}</span>
+                                            {#if displayedCategory === c.id}
+                                                <Check
+                                                    size={14}
+                                                    class="ml-auto"
+                                                />
+                                            {/if}
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+
+                        <!-- Tag Chip -->
+                        <div class="relative">
+                            <button
+                                onclick={() => (showTagMenu = !showTagMenu)}
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm {t
+                                    ? t.color
+                                    : 'bg-zinc-50 dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-500'}"
+                            >
+                                {#if t?.icon}
+                                    {@const Icon = t.icon}
+                                    <Icon size={11} />
+                                {/if}
+                                {t?.label || "Tag"}
+                            </button>
+
+                            {#if showTagMenu}
+                                <div
+                                    class="absolute left-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
+                                    in:fade={{ duration: 150 }}
+                                    use:clickOutside={() =>
+                                        (showTagMenu = false)}
+                                >
+                                    <button
+                                        onclick={() => updateTopicTag("")}
+                                        class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors {displayedTag ===
+                                        ''
+                                            ? 'text-primary-600 font-bold'
+                                            : 'text-zinc-600'}"
+                                    >
+                                        Kein Tag
+                                    </button>
+                                    {#each tags as tag}
+                                        {@const Icon = tag.icon}
+                                        <button
+                                            onclick={() =>
+                                                updateTopicTag(tag.id)}
+                                            class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 {displayedTag ===
+                                            tag.id
+                                                ? 'text-primary-600 font-bold bg-primary-50/30'
+                                                : 'text-zinc-600'}"
+                                        >
+                                            <Icon size={14} />
+                                            <span>{tag.label}</span>
+                                            {#if displayedTag === tag.id}
+                                                <Check
+                                                    size={14}
+                                                    class="ml-auto"
+                                                />
+                                            {/if}
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Bible Text Input (Virtual Items) -->
+                {#if bibleText !== undefined && !editing}
+                    <div class="mt-2 relative group/bible w-full max-w-md">
+                        <BookOpen
+                            size={14}
+                            class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within/bible:text-primary-500 transition-colors"
+                        />
+                        <input
+                            value={bibleText}
+                            oninput={(e) =>
+                                onUpdateBibleText?.(e.currentTarget.value)}
+                            placeholder="Bibeltext..."
+                            class="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-zinc-700/50 border border-zinc-200 dark:border-zinc-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400/70 transition-all shadow-sm"
+                        />
                     </div>
                 {/if}
             </div>
+        </div>
 
-            <!-- Datepicker if Postponed -->
-            {#if displayedStatus === "verschoben"}
-                <div
-                    class="relative flex-shrink-0 ml-1"
-                    in:slide={{ axis: "x" }}
+        <div
+            class="flex items-center gap-2 flex-wrap lg:flex-nowrap justify-end ml-11 lg:ml-0"
+        >
+            {#if children.length > 0 && !editing}
+                <span
+                    class="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-700/80 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-600 flex-shrink-0"
                 >
-                    <DatePicker
-                        value={displayedDeadline
-                            ? displayedDeadline.split(" ")[0]
-                            : ""}
-                        onchange={(val: string) => updateTopicDeadline(val)}
-                        label="Datum wählen..."
-                    />
-                </div>
+                    <ChevronRight size={10} class="opacity-50" />
+                    {children.length}
+                    {children.length === 1 ? "Eintrag" : "Einträge"}
+                </span>
             {/if}
-        {/if}
 
-        <!-- Speaker Selection (Premium Custom Dropdown) -->
-        {#if !editing}
-            <div class="relative ml-2 flex-shrink-0" id="speaker-dropdown">
-                <button
-                    onclick={() => (showSpeakerMenu = !showSpeakerMenu)}
-                    class="flex items-center gap-2 px-2 py-1 bg-zinc-50 dark:bg-zinc-700/50 hover:bg-white dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg transition-all shadow-sm active:scale-95 group/btn"
-                >
-                    <div
-                        class="w-6 h-6 rounded-lg bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 flex items-center justify-center text-[10px] font-black text-primary-600 dark:text-primary-400 shadow-sm transition-all group-hover/btn:border-primary-500/50"
+            <!-- Status Selection -->
+            {#if !editing && !isVirtual}
+                <div class="relative flex-shrink-0">
+                    <button
+                        onclick={() => (showStatusMenu = !showStatusMenu)}
+                        class="flex items-center gap-2 px-3 py-1.5 {statusInfo.color} border rounded-xl transition-all shadow-sm active:scale-95 text-[11px] font-bold uppercase tracking-wider"
                     >
-                        {getInitials(
-                            members.find((m) => m.id === displayedSpeaker)
-                                ?.name || "?",
-                        )}
-                    </div>
-                    <ChevronDown
-                        size={12}
-                        class="text-zinc-400 group-hover/btn:text-primary-500 transition-transform {showSpeakerMenu
-                            ? 'rotate-180'
-                            : ''}"
-                    />
-                </button>
+                        {statusInfo.label}
+                        <ChevronDown
+                            size={12}
+                            class="transition-transform {showStatusMenu
+                                ? 'rotate-180'
+                                : ''}"
+                        />
+                    </button>
 
-                {#if showStatusMenu || showSpeakerMenu}
-                    <!-- Handled by their own local fixed backlayers -->
-                {/if}
+                    {#if showStatusMenu}
+                        <div
+                            class="absolute right-0 lg:left-0 mt-2 w-48 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden"
+                            in:fade={{ duration: 150 }}
+                            use:clickOutside={() => (showStatusMenu = false)}
+                        >
+                            {#each statuses as st}
+                                <button
+                                    onclick={() => updateTopicStatus(st.id)}
+                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {item.status ===
+                                        st.id ||
+                                    (!item.status && st.id === 'offen')
+                                        ? 'text-primary-600 dark:text-primary-400'
+                                        : 'text-zinc-600 dark:text-zinc-400'}"
+                                >
+                                    <span>{st.label}</span>
+                                    {#if item.status === st.id || (!item.status && st.id === "offen")}
+                                        <Check size={14} />
+                                    {/if}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
 
-                {#if showSpeakerMenu}
+                <!-- Datepicker if Postponed -->
+                {#if displayedStatus === "verschoben"}
                     <div
-                        class="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl shadow-zinc-900/20 z-[101] py-2 overflow-hidden"
-                        in:fade={{ duration: 150 }}
-                        use:clickOutside={() => (showSpeakerMenu = false)}
+                        class="relative flex-shrink-0"
+                        in:slide={{ axis: "x" }}
+                    >
+                        <DatePicker
+                            value={displayedDeadline
+                                ? displayedDeadline.split(" ")[0]
+                                : ""}
+                            onchange={(val: string) => updateTopicDeadline(val)}
+                            label="Datum wählen..."
+                        />
+                    </div>
+                {/if}
+            {/if}
+
+            <!-- Speaker Selection (Premium Custom Dropdown) -->
+            {#if !editing && !isVirtual}
+                <div class="relative flex-shrink-0" id="speaker-dropdown">
+                    <button
+                        onclick={() => (showSpeakerMenu = !showSpeakerMenu)}
+                        class="flex items-center gap-2 px-2 py-1 bg-zinc-50 dark:bg-zinc-700/50 hover:bg-white dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg transition-all shadow-sm active:scale-95 group/btn"
                     >
                         <div
-                            class="px-3 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-50 dark:border-zinc-600/50 mb-1"
+                            class="w-6 h-6 rounded-lg bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 flex items-center justify-center text-[10px] font-black text-primary-600 dark:text-primary-400 shadow-sm transition-all group-hover/btn:border-primary-500/50"
                         >
-                            Vortragenden wählen
+                            {getInitials(
+                                members.find((m) => m.id === displayedSpeaker)
+                                    ?.name || "?",
+                            )}
                         </div>
-                        <button
-                            onclick={() => updateTopicSpeaker("")}
-                            class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {displayedSpeaker ===
-                            ''
-                                ? 'text-primary-600 dark:text-primary-400'
-                                : 'text-zinc-600 dark:text-zinc-400'}"
+                        <ChevronDown
+                            size={12}
+                            class="text-zinc-400 group-hover/btn:text-primary-500 transition-transform {showSpeakerMenu
+                                ? 'rotate-180'
+                                : ''}"
+                        />
+                    </button>
+
+                    {#if showSpeakerMenu}
+                        <div
+                            class="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl shadow-zinc-900/20 z-[101] py-2 overflow-hidden"
+                            in:fade={{ duration: 150 }}
+                            use:clickOutside={() => (showSpeakerMenu = false)}
                         >
-                            <span>Kein Vortragender</span>
-                            {#if !displayedSpeaker}
-                                <Check size={14} />
-                            {/if}
-                        </button>
-                        {#each members as member}
+                            <div
+                                class="px-3 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-50 dark:border-zinc-600/50 mb-1"
+                            >
+                                Vortragenden wählen
+                            </div>
                             <button
-                                onclick={() => updateTopicSpeaker(member.id)}
+                                onclick={() => updateTopicSpeaker("")}
                                 class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {displayedSpeaker ===
-                                member.id
+                                ''
                                     ? 'text-primary-600 dark:text-primary-400'
                                     : 'text-zinc-600 dark:text-zinc-400'}"
                             >
-                                <div class="flex flex-col">
-                                    <span class="font-bold">{member.name}</span>
-                                    {#if member.role}
-                                        <span
-                                            class="text-[10px] opacity-60 font-normal"
-                                            >{member.role}</span
-                                        >
-                                    {/if}
-                                </div>
-                                {#if displayedSpeaker === member.id}
+                                <span>Kein Vortragender</span>
+                                {#if !displayedSpeaker}
                                     <Check size={14} />
                                 {/if}
                             </button>
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-        {/if}
+                            {#each members as member}
+                                <button
+                                    onclick={() =>
+                                        updateTopicSpeaker(member.id)}
+                                    class="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between {displayedSpeaker ===
+                                    member.id
+                                        ? 'text-primary-600 dark:text-primary-400'
+                                        : 'text-zinc-600 dark:text-zinc-400'}"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold"
+                                            >{member.name}</span
+                                        >
+                                        {#if member.role}
+                                            <span
+                                                class="text-[10px] opacity-60 font-normal"
+                                                >{member.role}</span
+                                            >
+                                        {/if}
+                                    </div>
+                                    {#if displayedSpeaker === member.id}
+                                        <Check size={14} />
+                                    {/if}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
 
-        <!-- Expand/Collapse Button (Far Right) -->
-        <button
-            onclick={() => (expanded = !expanded)}
-            class="ml-auto bg-zinc-100 dark:bg-zinc-700/50 p-1.5 rounded-xl text-zinc-400 dark:text-zinc-500 transition-all flex-shrink-0 {expanded
-                ? 'rotate-0'
-                : '-rotate-90'} hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-600 dark:hover:text-primary-400 shadow-sm active:scale-90"
-        >
-            <ChevronDown size={16} />
-        </button>
+            <!-- Expand/Collapse Button (Far Right) -->
+            {#if !isVirtual}
+                <button
+                    onclick={() => (expanded = !expanded)}
+                    class="bg-zinc-100 dark:bg-zinc-700/50 p-1.5 rounded-xl text-zinc-400 dark:text-zinc-500 transition-all flex-shrink-0 {expanded
+                        ? 'rotate-0'
+                        : '-rotate-90'} hover:bg-primary-50 dark:hover:bg-primary-900/30 hover:text-primary-600 dark:hover:text-primary-400 shadow-sm active:scale-90"
+                >
+                    <ChevronDown size={16} />
+                </button>
+            {/if}
+        </div>
     </div>
 
     <!-- Expanded Content -->
@@ -810,7 +918,6 @@
                                         bind:value={editChildContent}
                                         class="w-full px-4 py-3 text-sm bg-white dark:bg-zinc-700 border border-primary-300 dark:border-primary-700 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-800 dark:text-zinc-200"
                                         rows="2"
-                                        autofocus
                                     ></textarea>
 
                                     <div class="flex flex-wrap gap-3">
@@ -981,10 +1088,8 @@
                                         'bg-zinc-100 dark:bg-zinc-700 text-zinc-500'}"
                                 >
                                     {#if typeInfo?.icon}
-                                        <svelte:component
-                                            this={typeInfo.icon}
-                                            size={15}
-                                        />
+                                        {@const Icon = typeInfo.icon}
+                                        <Icon size={15} />
                                     {/if}
                                 </div>
 
@@ -1084,7 +1189,7 @@
                 <div
                     class="px-5 py-4 flex items-center gap-2 flex-wrap border-t border-zinc-100/50 dark:border-zinc-600/30 bg-zinc-50/50 dark:bg-zinc-700/10 rounded-b-2xl"
                 >
-                    {#each subTypes as st}
+                    {#each subTypes.filter((st) => (!allowedSubTypes || allowedSubTypes.includes(st.type)) && (!isVirtual || st.type === "beitrag")) as st}
                         <button
                             onclick={() => startAdd(st.type)}
                             class="flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold rounded-xl border-2 transition-all {st.borderColor} {st.color} hover:shadow-lg hover:shadow-zinc-500/10 active:scale-95 group/add"
@@ -1128,7 +1233,8 @@
                 >
                     <!-- Type Selector Pills -->
                     <div class="flex items-center gap-2 flex-wrap">
-                        {#each subTypes as st}
+                        {#each subTypes.filter((st) => !allowedSubTypes || allowedSubTypes.includes(st.type)) as st}
+                            {@const Icon = st.icon}
                             <button
                                 onclick={() => (addType = st.type)}
                                 class="flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold rounded-xl transition-all {addType ===
@@ -1137,23 +1243,40 @@
                                       ' ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-zinc-900 shadow-md'
                                     : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600'}"
                             >
-                                <svelte:component this={st.icon} size={13} />
+                                <Icon size={13} />
                                 {st.label}
                             </button>
                         {/each}
                     </div>
 
-                    <div class="flex gap-3 items-start">
-                        <textarea
-                            bind:value={newContent}
-                            onkeydown={handleKeydown}
-                            placeholder="{activeType?.label ||
-                                'Eintrag'} eingeben..."
-                            class="flex-1 px-4 py-3 text-sm bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 min-h-[100px]"
-                            rows="3"
-                            autofocus
-                        ></textarea>
-                    </div>
+                    <!-- Prayer Request Input (Special Mode) -->
+                    {#if showPrayerInput && addType === "prayer"}
+                        <div class="flex gap-3 items-center">
+                            <div class="relative flex-1">
+                                <User
+                                    size={14}
+                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                                />
+                                <input
+                                    bind:value={newContent}
+                                    onkeydown={handleKeydown}
+                                    placeholder="Name oder Familie..."
+                                    class="w-full pl-9 pr-4 py-3 text-sm bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400"
+                                />
+                            </div>
+                        </div>
+                    {:else}
+                        <div class="flex gap-3 items-start">
+                            <textarea
+                                bind:value={newContent}
+                                onkeydown={handleKeydown}
+                                placeholder="{activeType?.label ||
+                                    'Eintrag'} eingeben..."
+                                class="flex-1 px-4 py-3 text-sm bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 min-h-[100px]"
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    {/if}
 
                     <div class="flex flex-wrap gap-3">
                         {#if addType === "beitrag" || addType === "aufgabe"}
@@ -1187,11 +1310,12 @@
                                 </button>
 
                                 {#if showAddSpeakerMenu}
-                                    <div
-                                        class="fixed inset-0 z-[100]"
+                                    <button
+                                        class="fixed inset-0 z-[100] w-full h-full bg-transparent cursor-default"
                                         onclick={() =>
                                             (showAddSpeakerMenu = false)}
-                                    ></div>
+                                        aria-label="Menü schließen"
+                                    ></button>
                                     <div
                                         class="absolute left-0 bottom-full mb-2 w-full bg-white dark:bg-zinc-700 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl z-[101] py-2 overflow-hidden max-h-[250px] overflow-y-auto"
                                         in:fade={{ duration: 150 }}

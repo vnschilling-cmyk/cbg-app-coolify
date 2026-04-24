@@ -539,8 +539,8 @@
                             Mitglieder Synchronisation
                         </h3>
                         <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                            Synchronisiere Mitglieder der Gruppe "Prediger" (ID
-                            164)
+                            Synchronisiere Mitglieder aller konfigurierten
+                            Gruppen
                         </p>
                     </div>
                 </div>

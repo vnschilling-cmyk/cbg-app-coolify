@@ -30,12 +30,16 @@ export class ChurchToolsClient {
 
     public async request(endpoint: string, options: RequestInit = {}) {
         const url = `${this.baseUrl}/api/${endpoint}`;
-        const headers = {
+        const headers: any = {
             'Authorization': `Login ${this.apiToken}`,
-            'Content-Type': 'application/json',
             ...options.headers,
         };
 
+        if (options.body) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        console.log(`[CT Client] Fetching: ${url}`);
         const response = await fetch(url, { ...options, headers });
         if (!response.ok) {
             const body = await response.text();
@@ -104,8 +108,11 @@ export class ChurchToolsClient {
      * Fetch bookings (assignments) for a specific event.
      */
     async getEventBookings(eventId: string | number): Promise<any[]> {
-        const data = await this.request(`events/${eventId}/bookings`);
-        return data.data || [];
+        const data = await this.request(`events/${eventId}?include=eventServices`);
+        if (data.data && data.data.eventServices) {
+            return data.data.eventServices;
+        }
+        return [];
     }
 
     /**
