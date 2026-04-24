@@ -691,8 +691,11 @@
         const date = daySlots[0].date;
         if (isSunday(date)) {
           // Sundays: Keep morning (first) and evening (second) slots
-          const morning = daySlots.find((s) => !s.isSundaySecond);
-          const evening = daySlots.find((s) => s.isSundaySecond);
+          // FILTER: Ignore "Alsfeld" for Sundays as requested
+          const filteredSundaySlots = daySlots.filter(s => !s.label.includes("Alsfeld"));
+          
+          const morning = filteredSundaySlots.find((s) => !s.isSundaySecond);
+          const evening = filteredSundaySlots.find((s) => s.isSundaySecond);
           if (morning) deduped.push(morning);
           if (evening) deduped.push(evening);
         } else {
