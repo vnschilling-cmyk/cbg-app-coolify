@@ -730,6 +730,11 @@
   });
 
   // Filter slots to only show the currently selected 2-month window
+  let visibleSlots = $derived.by(() => {
+    const startMonth = selectedMonth.getMonth();
+    const startYear = selectedMonth.getFullYear();
+    const endDate = new Date(startYear, startMonth + 2, 0); // Last day of month+1
+    const startDate = new Date(startYear, startMonth, 1);
     return slots.filter((s) => s.date >= startDate && s.date <= endDate);
   });
 
