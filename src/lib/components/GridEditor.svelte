@@ -743,8 +743,8 @@
     const seenTimestamps = new Set<string>();
     
     return Object.entries(specialServices)
-      // Robust filter: must have at least one alphanumeric character or emoji
-      .filter(([_, val]) => val && val.replace(/[\s\u200B-\u200D\uFEFF]/g, "").length > 0)
+      // Robust filter: must have at least one character and not be "Neuer Eintrag" if we want to be clean
+      .filter(([_, val]) => val && val.trim().length > 0)
       .map(([sid, val]) => {
         const s = slots.find(sl => sl.id === sid) || 
                  serverSlots.find(sl => sl.id === sid);
@@ -760,7 +760,7 @@
         };
       })
       .filter(item => {
-        // De-duplicate by time slot: only show the first entry for a given time
+        if (!item.val || item.val.trim().length === 0) return false;
         if (seenTimestamps.has(item.timestamp)) return false;
         seenTimestamps.add(item.timestamp);
         return true;
@@ -1093,14 +1093,21 @@
   let syncing = $state(false);
 
   async function syncData() {
-    syncing = true;
-    try {
-      await invalidateAll();
-    } catch (e) {
-      console.error("Synchronisierung fehlgeschlagen:", e);
-    } finally {
-      syncing = false;
-    }
+    toast.promise(
+      (async () => {
+        syncing = true;
+        try {
+          await invalidateAll();
+        } finally {
+          syncing = false;
+        }
+      })(),
+      {
+        loading: "Synchronisiere mit ChurchTools...",
+        success: "Daten erfolgreich aktualisiert!",
+        error: "Fehler beim Synchronisieren.",
+      },
+    );
   }
 
   function removeSlot(id: string) {
@@ -1858,15 +1865,12 @@
                         }}
                       />
                     {:else}
-                      <div class="liveticker-container w-full h-4 relative flex items-center">
-                        <span
-                          use:checkOverflow={val}
-                          class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate"
-                          style={getFormattingStyle("names")}
-                        >
-                          {val || "Besonderheit..."}
-                        </span>
-                      </div>
+                      <span
+                        class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate font-bold leading-tight"
+                        style={getFormattingStyle("names")}
+                      >
+                        {val}
+                      </span>
                     {/if}
                   </div>
                   <button
