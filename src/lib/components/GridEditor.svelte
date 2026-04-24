@@ -1804,7 +1804,9 @@
               Besonderheiten
             </h3>
             <div
-              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom               <!-- Automated Entries -->
+              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
+            >
+              <!-- Automated Entries -->
               {#each automatedSpecialServices as s}
                 <div
                   class="flex items-center gap-2 p-1.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm"
