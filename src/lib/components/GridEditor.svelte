@@ -1886,18 +1886,6 @@
                   <Star size={24} class="text-zinc-300 dark:text-zinc-600 mb-2" />
                   <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Keine Einträge</span>
                 </div>
-              {/if}{/if}
-              {/each}
-              {#if Object.keys(specialServices).length === 0}
-                <div
-                  class="flex flex-col items-center justify-center py-4 opacity-30"
-                >
-                  <Star size={24} class="text-zinc-400 mb-2" />
-                  <span
-                    class="text-[10px] uppercase font-black tracking-widest text-zinc-400"
-                    >Keine Einträge</span
-                  >
-                </div>
               {/if}
             </div>
           </div>
