@@ -165,11 +165,20 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         try {
             const events = await client.getEventsWithServices(fromDate, toDate);
 
-            for (const event of events) {
-                // Fetch event details to get services
-                const detailResponse = await client.request(`events/${event.id}`);
-                const services = detailResponse.data?.services || [];
+            // Optimization: Fetch all event details in parallel instead of sequentially
+            const eventDetails = await Promise.all(
+                events.map(async (event: any) => {
+                    try {
+                        const detailResponse = await client.request(`events/${event.id}`);
+                        return { event, services: detailResponse.data?.services || [] };
+                    } catch (e) {
+                        console.error(`Failed to fetch details for event ${event.id}:`, e);
+                        return { event, services: [] };
+                    }
+                })
+            );
 
+            for (const { event, services } of eventDetails) {
                 const eventDate = new Date(event.startDate);
                 const dateStr = format(eventDate, 'yyyy-MM-dd');
                 const slotId = `${event.appointmentId}-${dateStr}`;
