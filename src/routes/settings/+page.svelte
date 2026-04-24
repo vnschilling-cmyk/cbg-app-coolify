@@ -15,6 +15,8 @@
         Square,
         ChevronDown,
         Clock,
+        Eye,
+        EyeOff,
     } from "lucide-svelte";
     import ThemeSwitcher from "$lib/components/ThemeSwitcher.svelte";
     import { invalidateAll, goto } from "$app/navigation";
@@ -639,6 +641,16 @@
                                     class="w-[70px] py-4 pr-1 text-[9px] font-black uppercase tracking-widest text-zinc-400 whitespace-nowrap sticky left-0 top-0 bg-white dark:bg-zinc-700 z-20 transition-colors"
                                     >Prediger</th
                                 >
+                                <th
+                                    class="w-10 py-4 px-0 pb-4 text-center sticky top-0 bg-white dark:bg-zinc-700 z-10 transition-colors"
+                                    title="Standardmäßig ausblenden"
+                                >
+                                    <div
+                                        class="w-6 h-6 rounded flex items-center justify-center text-[8px] font-bold mx-auto text-zinc-400"
+                                    >
+                                        <EyeOff size={14} />
+                                    </div>
+                                </th>
                                 {#each SERVICE_TYPES as type}
                                     <th
                                         class="w-7 py-4 px-0 pb-4 text-center sticky top-0 bg-white dark:bg-zinc-700 z-10 transition-colors"
@@ -665,7 +677,29 @@
                                         class="w-[70px] py-1.5 pr-1 font-bold text-zinc-900 dark:text-zinc-200 text-[11px] truncate sticky left-0 bg-white dark:bg-zinc-700 group-hover:bg-zinc-50/50 dark:group-hover:bg-zinc-800/20 z-10 transition-colors"
                                         title={preacher.name}
                                     >
-                                        {preacher.name}
+                                        <span class={preacher.hidden_by_default ? "opacity-40" : ""}>{preacher.name}</span>
+                                    </td>
+                                    <td class="w-10 py-1.5 px-0 text-center border-r border-zinc-100 dark:border-zinc-700">
+                                        <button
+                                            onclick={async () => {
+                                                try {
+                                                    const updated = await pb.collection("members").update(preacher.id, {
+                                                        hidden_by_default: !preacher.hidden_by_default
+                                                    });
+                                                    preachers = preachers.map((p: any) => p.id === preacher.id ? updated : p);
+                                                } catch (e) {
+                                                    console.error("Failed to update visibility:", e);
+                                                    error = "Fehler beim Speichern der Sichtbarkeit.";
+                                                }
+                                            }}
+                                            class="w-10 h-10 rounded flex items-center justify-center mx-auto transition-all {preacher.hidden_by_default ? 'text-zinc-400 dark:text-zinc-500' : 'text-emerald-500 hover:text-emerald-600'}"
+                                        >
+                                            {#if preacher.hidden_by_default}
+                                                <EyeOff size={14} />
+                                            {:else}
+                                                <Eye size={14} />
+                                            {/if}
+                                        </button>
                                     </td>
                                     {#each SERVICE_TYPES as type}
                                         {@const isAllowed =

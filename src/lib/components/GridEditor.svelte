@@ -1024,6 +1024,39 @@
     }
   }
 
+  let savingStandard = $state(false);
+
+  async function saveAsStandard() {
+    savingStandard = true;
+    try {
+      // Collect IDs to set to hidden_by_default = true, others to false
+      const allPreachers = [...group1, ...group2];
+      const formData = new FormData();
+      
+      const hiddenIds = allPreachers
+        .filter(p => hiddenPreachers.has(String(p.id)))
+        .map(p => String(p.id));
+        
+      formData.append("hidden_preacher_ids", JSON.stringify(hiddenIds));
+
+      const response = await fetch("?/saveStandardVisibility", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        toast.success("Standard-Sichtbarkeit gespeichert!");
+      } else {
+        toast.error("Speichern fehlgeschlagen.");
+      }
+    } catch (e) {
+      console.error("Save standard error:", e);
+      toast.error("Fehler beim Speichern der Standards.");
+    } finally {
+      savingStandard = false;
+    }
+  }
+
   function removeSlot(id: string) {
     console.log("Removing slot:", id);
     deletedSlotIds = [...deletedSlotIds, String(id)];
@@ -1100,6 +1133,18 @@
       </div>
 
       <div class="mt-8 flex gap-3">
+        <button 
+          onclick={saveAsStandard}
+          disabled={savingStandard}
+          class="flex-1 py-4 bg-zinc-100 dark:bg-zinc-700/50 text-zinc-600 dark:text-zinc-300 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-95 transition-all flex justify-center items-center gap-2"
+        >
+          {#if savingStandard}
+            <div class="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+          {:else}
+            <Save size={16} />
+            Als Standard
+          {/if}
+        </button>
         <button 
           onclick={() => showPreacherFilter = false}
           class="flex-1 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-zinc-900/20 dark:shadow-white/10"

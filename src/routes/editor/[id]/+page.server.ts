@@ -98,7 +98,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                             lastName: lastNameParts.join(' ') || '',
                             role: m.role || 'Teilnehmer',
                             comment: '',
-                            allowed_services: m.allowed_services || []
+                            allowed_services: m.allowed_services || [],
+                            hidden_by_default: m.hidden_by_default || false
                         };
                     });
                 }
@@ -181,6 +182,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             console.error('Failed to fetch service rules from PB:', e);
         }
 
+        // Initialize hidden_preachers if the plan doesn't have it saved yet
+        if (!plan.hidden_preachers || !Array.isArray(plan.hidden_preachers)) {
+            plan.hidden_preachers = preachers
+                .filter(p => p.hidden_by_default)
+                .map(p => String(p.id));
+        }
+
         return {
             plan,
             slots,
@@ -256,6 +264,34 @@ export const actions: Actions = {
             return { success: true };
         } catch (e: any) {
             console.error('Failed to save plan:', e);
+            return { success: false, error: e.message };
+        }
+    },
+    saveStandardVisibility: async ({ request, locals }) => {
+        const formData = await request.formData();
+        const hiddenIdsStr = formData.get('hidden_preacher_ids') as string;
+        
+        if (!hiddenIdsStr || !locals.pb) {
+            return { success: false, error: 'Fehlende Daten oder keine Verbindung' };
+        }
+
+        try {
+            const hiddenIds = JSON.parse(hiddenIdsStr);
+            const allMembers = await locals.pb.collection('members').getFullList();
+
+            // Update each member
+            for (const member of allMembers) {
+                const shouldBeHidden = hiddenIds.includes(String(member.id));
+                if (member.hidden_by_default !== shouldBeHidden) {
+                    await locals.pb.collection('members').update(member.id, {
+                        hidden_by_default: shouldBeHidden
+                    });
+                }
+            }
+
+            return { success: true };
+        } catch (e: any) {
+            console.error('Failed to save standard visibility:', e);
             return { success: false, error: e.message };
         }
     },
