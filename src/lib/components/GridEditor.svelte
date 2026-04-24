@@ -108,6 +108,7 @@
   let activeFontSelector = $state<string | null>(null);
   let manualSlots = $state<Slot[]>([]);
   let showManualSlotEntry = $state(false);
+  let showPreacherFilter = $state(false);
   let newSlotDate = $state(format(new Date(), "yyyy-MM-dd"));
   let newSlotTime = $state("10:00");
   let specialServices = $state<Record<string, string>>({});
@@ -218,7 +219,8 @@
   // State - Moved to top to avoid ReferenceError
   let selectedMonth = $state(new Date(2026, 2, 1)); // Start with March 2026
   let gridData = $state<Record<string, Record<string, string>>>({});
-  let deletedAutomatedIds = $state(new Set<string>());
+  let deletedAutomatedIds = $state(new Set<string>(data.plan.deleted_automated_ids || []));
+  let hiddenPreachers = $state(new Set<string>(data.plan.hidden_preachers || []));
   let showExport = $state(false);
 
   // Constants
@@ -824,6 +826,11 @@
     }
   });
 
+  // Filtered Preachers based on visibility settings
+  let visiblePreachers = $derived.by(() => {
+    return group1.filter(p => !hiddenPreachers.has(String(p.id)));
+  });
+
   function getCellKey(preacher: string, slotId: string) {
     return `${preacher}-${slotId}`;
   }
@@ -1047,6 +1054,7 @@
       formData.append("data", JSON.stringify(gridData));
       formData.append("formatting", JSON.stringify(formatting));
       formData.append("specialServices", JSON.stringify(specialServices));
+      formData.append("hidden_preachers", JSON.stringify(Array.from(hiddenPreachers)));
 
       const response = await fetch("?/save", {
         method: "POST",
@@ -1175,6 +1183,64 @@
   });
 </script>
 
+{#if showPreacherFilter}
+  <div class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+    <div class="bg-white dark:bg-zinc-800 rounded-3xl w-full max-w-md p-8 shadow-2xl border border-zinc-200 dark:border-zinc-700 animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-black text-zinc-900 dark:text-white leading-tight">Regie-Ansicht</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Wähle die Prediger für diesen Plan</p>
+        </div>
+        <div class="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+          <Users size={20} />
+        </div>
+      </div>
+
+      <div class="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar space-y-1.5">
+        {#each [...group1, ...group2] as p}
+          {@const isHidden = hiddenPreachers.has(String(p.id))}
+          <button 
+            onclick={() => {
+              const sid = String(p.id);
+              if (hiddenPreachers.has(sid)) {
+                hiddenPreachers.delete(sid);
+              } else {
+                hiddenPreachers.add(sid);
+              }
+              hiddenPreachers = new Set(hiddenPreachers);
+            }}
+            class="w-full flex items-center justify-between p-3 rounded-2xl transition-all group {isHidden ? 'bg-zinc-50 dark:bg-zinc-900/50 opacity-60' : 'bg-zinc-50 dark:bg-zinc-800 hover:bg-white dark:hover:bg-zinc-700 shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600'}"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-600 dark:text-zinc-400 group-hover:scale-110 transition-transform">
+                {p.firstName[0]}{p.lastName[0]}
+              </div>
+              <span class="text-sm font-bold text-zinc-700 dark:text-zinc-300">{p.firstName} {p.lastName}</span>
+            </div>
+            
+            <div class="w-6 h-6 rounded-lg flex items-center justify-center transition-colors {isHidden ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'}">
+              {#if isHidden}
+                <EyeOff size={14} />
+              {:else}
+                <Eye size={14} />
+              {/if}
+            </div>
+          </button>
+        {/each}
+      </div>
+
+      <div class="mt-8 flex gap-3">
+        <button 
+          onclick={() => showPreacherFilter = false}
+          class="flex-1 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-zinc-900/20 dark:shadow-white/10"
+        >
+          Fertig & Speichern
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <div
   onmouseleave={() => {
     hoveredSlotIdx = null;
@@ -1184,7 +1250,6 @@
 >
   <!-- Toolbar - will be portaled to header -->
   <div bind:this={toolbarRef} class="flex items-center gap-4 no-print">
-    <!-- Month Navigation -->
     <!-- Month Navigation -->
     <div class="flex items-center gap-2">
       <button
@@ -1269,6 +1334,17 @@
       {:else}
         <Share size={18} />
       {/if}
+    </button>
+    
+    <div class="w-px h-6 bg-zinc-200 dark:bg-zinc-600 mx-1"></div>
+
+    <button
+      onclick={() => (showPreacherFilter = true)}
+      class="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 shadow-sm transition-all border border-transparent"
+      title="Prediger ein-/ausblenden"
+      aria-label="Prediger ein-/ausblenden"
+    >
+      <Users size={18} />
     </button>
 
     <!-- Formatting Toggle -->
@@ -1624,7 +1700,7 @@
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-zinc-700">
-              {#each group1 as p, pIdx}
+              {#each visiblePreachers as p, pIdx}
                 {@const preacherName = `${p.firstName} ${p.lastName}`}
                 {@const absoluteRowIdx = pIdx}
                 <tr

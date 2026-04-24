@@ -224,6 +224,8 @@ export const actions: Actions = {
         const formData = await request.formData();
         const dataStr = formData.get('data') as string;
         const formattingStr = formData.get('formatting') as string;
+        const specialServicesStr = formData.get('specialServices') as string;
+        const hiddenPreachersStr = formData.get('hidden_preachers') as string;
 
         if (!dataStr) {
             return { success: false, error: 'Keine Daten zum Speichern' };
@@ -238,6 +240,22 @@ export const actions: Actions = {
                     updateData.formatting = JSON.parse(formattingStr);
                 } catch (e) {
                     console.error('Failed to parse formatting JSON:', e);
+                }
+            }
+
+            if (specialServicesStr) {
+                try {
+                    updateData.special_services = JSON.parse(specialServicesStr);
+                } catch (e) {
+                    console.error('Failed to parse specialServices JSON:', e);
+                }
+            }
+
+            if (hiddenPreachersStr) {
+                try {
+                    updateData.hidden_preachers = JSON.parse(hiddenPreachersStr);
+                } catch (e) {
+                    console.error('Failed to parse hiddenPreachers JSON:', e);
                 }
             }
 
