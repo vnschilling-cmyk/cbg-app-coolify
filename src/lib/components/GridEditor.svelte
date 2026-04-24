@@ -246,11 +246,6 @@
     }
   });
 
-  // Derived columns for the grid (excluding Gemeindestunde)
-  let gridSlots = $derived.by(() => {
-    return slots.filter(s => !s.label.includes("Gemeindestunde"));
-  });
-
   // Constants
   const SERVICE_TYPES = [
     {
@@ -746,6 +741,11 @@
 
     // Fallback: Return empty array if no server data
     return [];
+  });
+
+  // Derived columns for the grid (excluding Gemeindestunde)
+  let gridSlots = $derived.by(() => {
+    return slots.filter((s) => !s.label.includes("Gemeindestunde"));
   });
 
   // Filtered Preachers based on visibility settings
