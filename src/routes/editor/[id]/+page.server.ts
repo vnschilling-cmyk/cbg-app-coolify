@@ -160,42 +160,17 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             console.error('Failed to fetch absences:', e);
         }
 
-        // Fetch events to get existing assignments
+        // Fetch events to get existing assignments (TEMPORARILY DISABLED to fix deployment timeout)
         let assignments: Record<string, Record<string, string>> = {};
+        /* 
         try {
             const events = await client.getEventsWithServices(fromDate, toDate);
-
-            // Optimization: Fetch all event details in parallel instead of sequentially
-            const eventDetails = await Promise.all(
-                events.map(async (event: any) => {
-                    try {
-                        const detailResponse = await client.request(`events/${event.id}`);
-                        return { event, services: detailResponse.data?.services || [] };
-                    } catch (e) {
-                        console.error(`Failed to fetch details for event ${event.id}:`, e);
-                        return { event, services: [] };
-                    }
-                })
-            );
-
-            for (const { event, services } of eventDetails) {
-                const eventDate = new Date(event.startDate);
-                const dateStr = format(eventDate, 'yyyy-MM-dd');
-                const slotId = `${event.appointmentId}-${dateStr}`;
-
-                if (!assignments[slotId]) assignments[slotId] = {};
-
-                for (const service of services) {
-                    const person = service.person;
-                    if (person && person.domainAttributes) {
-                        const name = `${person.domainAttributes.firstName} ${person.domainAttributes.lastName}`;
-                        assignments[slotId][name] = 'X';
-                    }
-                }
-            }
+            // This was causing 100+ requests which timed out the deployment
+            // ... (fetching logic removed for now)
         } catch (e) {
             console.error('Failed to fetch event assignments:', e);
         }
+        */
 
         // Merge persisted assignments from PB
         const finalAssignments = { ...assignments, ...(plan.data || {}) };
