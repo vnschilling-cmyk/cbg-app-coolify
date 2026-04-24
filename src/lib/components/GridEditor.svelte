@@ -738,6 +738,17 @@
     return slots.filter((s) => s.date >= startDate && s.date <= endDate);
   });
 
+  // Sorted and unified special services for the sidebar
+  let sortedSpecialServices = $derived.by(() => {
+    return Object.entries(specialServices)
+      .map(([sid, val]) => {
+        const s = slots.find(sl => sl.id === sid) || 
+                 serverSlots.find(sl => sl.id === sid);
+        return { sid, val, date: s ? new Date(s.date) : new Date(0), time: s?.time || "" };
+      })
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  });
+
   // Automated Import Effect: Fill specialServices with CT data
   $effect(() => {
     if (serverSlots.length > 0) {
@@ -1795,15 +1806,7 @@
               class="flex flex-col gap-2 overflow-y-auto max-h-[400px] custom-scrollbar"
             >
               <!-- Unified Besonderheiten List -->
-              {@const sortedServices = Object.entries(specialServices)
-                .map(([sid, val]) => {
-                  const s = slots.find(sl => sl.id === sid) || 
-                           serverSlots.find(sl => sl.id === sid);
-                  return { sid, val, date: s ? new Date(s.date) : new Date(0), time: s?.time || "" };
-                })
-                .sort((a, b) => a.date.getTime() - b.date.getTime())}
-
-              {#each sortedServices as { sid, val, date, time }}
+              {#each sortedSpecialServices as { sid, val, date, time }}
                 <div
                   class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
                   onclick={() => (editingSpecialService = sid)}
@@ -1856,7 +1859,7 @@
                 </div>
               {/each}
               
-              {#if sortedServices.length === 0}
+              {#if sortedSpecialServices.length === 0}
                 <div class="flex-1 flex flex-col items-center justify-center py-8 opacity-40">
                   <Star size={24} class="text-zinc-300 dark:text-zinc-600 mb-2" />
                   <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Keine Einträge</span>
