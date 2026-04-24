@@ -729,12 +729,50 @@
   });
 
   // Filter slots to only show the currently selected 2-month window
-  let visibleSlots = $derived.by(() => {
+    return slots.filter((s) => s.date >= startDate && s.date <= endDate);
+  });
+
+  // Automated Besonderheiten from ChurchTools
+  let automatedSpecialServices = $derived.by(() => {
+    // 1. Get all raw slots from server that might be "Sondergemeinschaften"
+    // (Note: slots are already filtered for relevance, but we want the ones
+    // that ARE NOT in the grid columns)
     const startMonth = selectedMonth.getMonth();
     const startYear = selectedMonth.getFullYear();
-    const endDate = new Date(startYear, startMonth + 2, 0); // Last day of month+1
+    const endDate = new Date(startYear, startMonth + 2, 0);
     const startDate = new Date(startYear, startMonth, 1);
-    return slots.filter((s) => s.date >= startDate && s.date <= endDate);
+
+    return serverSlots
+      .filter((s) => {
+        const d = new Date(s.date);
+        if (d < startDate || d > endDate) return false;
+
+        // Condition 1: Calendar "Sondergemeinschaften"
+        const isSonder = s.calendar?.includes("Sondergemeinschaften");
+        if (!isSonder) return false;
+
+        // Condition 2: Afternoon (>= 12:00)
+        const hour = parseInt(s.time.split(":")[0], 10);
+        if (hour < 12) return false;
+
+        // Condition 3: Exclude "Abendmahl", "Alsfeld", "Gemeindestunde"
+        const label = s.label.toLowerCase();
+        if (
+          label.includes("abendmahl") ||
+          label.includes("alsfeld") ||
+          label.includes("gemeindestunde")
+        )
+          return false;
+
+        return true;
+      })
+      .map((s) => ({
+        id: s.id,
+        date: new Date(s.date),
+        time: s.time,
+        label: s.label,
+      }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
   });
 
   function getCellKey(preacher: string, slotId: string) {
@@ -1761,8 +1799,32 @@
               Besonderheiten
             </h3>
             <div
-              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
-            >
+              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom               <!-- Automated Entries -->
+              {#each automatedSpecialServices as s}
+                <div
+                  class="flex items-center gap-2 p-1.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm"
+                >
+                  <div
+                    class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-zinc-400 text-white shadow-sm"
+                  >
+                    <Calendar size={12} />
+                  </div>
+                  <div class="flex flex-col flex-1 min-w-0">
+                    <span
+                      class="text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-500 leading-none mb-0.5"
+                    >
+                      {format(s.date, "dd.MM.")} | {s.time}
+                    </span>
+                    <span
+                      class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate font-bold"
+                    >
+                      {s.label}
+                    </span>
+                  </div>
+                </div>
+              {/each}
+
+              <!-- Manual Entries -->
               {#each Object.entries(specialServices) as [sid, val]}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
@@ -1817,6 +1879,14 @@
                     </button>
                   </div>
                 {/if}
+              {/each}
+              
+              {#if automatedSpecialServices.length === 0 && Object.keys(specialServices).length === 0}
+                <div class="flex-1 flex flex-col items-center justify-center py-8 opacity-40">
+                  <Star size={24} class="text-zinc-300 dark:text-zinc-600 mb-2" />
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Keine Einträge</span>
+                </div>
+              {/if}{/if}
               {/each}
               {#if Object.keys(specialServices).length === 0}
                 <div
