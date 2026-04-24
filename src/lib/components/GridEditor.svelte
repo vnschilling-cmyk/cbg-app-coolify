@@ -218,7 +218,6 @@
   // State - Moved to top to avoid ReferenceError
   let selectedMonth = $state(new Date(2026, 2, 1)); // Start with March 2026
   let gridData = $state<Record<string, Record<string, string>>>({});
-  let specialServices = $state<Record<string, string>>({});
   let deletedAutomatedIds = $state(new Set<string>());
   let showExport = $state(false);
 
