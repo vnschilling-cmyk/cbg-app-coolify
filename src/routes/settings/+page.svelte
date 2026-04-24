@@ -164,16 +164,6 @@
             label: "Gebetstunde",
             color: "bg-amber-600 text-white",
         },
-        {
-            code: "Anf",
-            label: "Anfang (Sondergem.)",
-            color: "bg-orange-500 text-white",
-        },
-        {
-            code: "Schl",
-            label: "Schluss (Sondergem.)",
-            color: "bg-orange-600 text-white",
-        },
     ];
 
     async function togglePermission(preacherId: string, serviceCode: string) {
