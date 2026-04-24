@@ -4,7 +4,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { format, addMonths, startOfMonth, endOfMonth, isSaturday } from 'date-fns';
 import { error } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
     try {
         // Get user from locals (populated by hooks if available)
         const user = locals.user || locals.pb?.authStore?.model;
@@ -21,8 +21,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Plan nicht gefunden');
         }
 
-        // Define the date range (2 months) from the plan record if available
-        const startMonth = plan.period_start ? new Date(plan.period_start) : new Date(2026, 2, 1);
+        // Define the date range: use 'month' query param if provided, else plan.period_start
+        const monthParam = url.searchParams.get('month'); // Format: YYYY-MM
+        let startMonth: Date;
+        if (monthParam) {
+            const [y, m] = monthParam.split('-').map(Number);
+            startMonth = new Date(y, m - 1, 1);
+        } else {
+            startMonth = plan.period_start ? new Date(plan.period_start) : new Date(2026, 2, 1);
+        }
         const fromDate = format(startOfMonth(startMonth), 'yyyy-MM-dd');
         const toDate = format(endOfMonth(addMonths(startMonth, 1)), 'yyyy-MM-dd');
 

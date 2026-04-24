@@ -23,7 +23,8 @@
     Settings2,
     FileText,
   } from "lucide-svelte";
-  import { invalidateAll } from "$app/navigation";
+  import { invalidateAll, goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import {
     format,
     addMonths,
@@ -921,11 +922,21 @@
   };
 
   function nextMonth() {
-    selectedMonth = addMonths(selectedMonth, 2);
+    const next = addMonths(selectedMonth, 2);
+    selectedMonth = next;
+    const monthStr = format(next, 'yyyy-MM');
+    const url = new URL(window.location.href);
+    url.searchParams.set('month', monthStr);
+    goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true }).then(() => invalidateAll());
   }
 
   function prevMonth() {
-    selectedMonth = addMonths(selectedMonth, -2);
+    const prev = addMonths(selectedMonth, -2);
+    selectedMonth = prev;
+    const monthStr = format(prev, 'yyyy-MM');
+    const url = new URL(window.location.href);
+    url.searchParams.set('month', monthStr);
+    goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true }).then(() => invalidateAll());
   }
 
   let saving = $state(false);
