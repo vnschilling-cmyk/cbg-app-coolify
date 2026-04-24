@@ -218,6 +218,8 @@
   // State - Moved to top to avoid ReferenceError
   let selectedMonth = $state(new Date(2026, 2, 1)); // Start with March 2026
   let gridData = $state<Record<string, Record<string, string>>>({});
+  let specialServices = $state<Record<string, string>>({});
+  let deletedAutomatedIds = $state(new Set<string>());
   let showExport = $state(false);
 
   // Constants
@@ -729,55 +731,37 @@
   });
 
   // Filter slots to only show the currently selected 2-month window
-  let visibleSlots = $derived.by(() => {
-    const startMonth = selectedMonth.getMonth();
-    const startYear = selectedMonth.getFullYear();
-    const endDate = new Date(startYear, startMonth + 2, 0); // Last day of month+1
-    const startDate = new Date(startYear, startMonth, 1);
     return slots.filter((s) => s.date >= startDate && s.date <= endDate);
   });
 
-  // Automated Besonderheiten from ChurchTools
-  let automatedSpecialServices = $derived.by(() => {
-    // 1. Get all raw slots from server that might be "Sondergemeinschaften"
-    // (Note: slots are already filtered for relevance, but we want the ones
-    // that ARE NOT in the grid columns)
-    const startMonth = selectedMonth.getMonth();
-    const startYear = selectedMonth.getFullYear();
-    const endDate = new Date(startYear, startMonth + 2, 0);
-    const startDate = new Date(startYear, startMonth, 1);
+  // Automated Import Effect: Fill specialServices with CT data
+  $effect(() => {
+    if (serverSlots.length > 0) {
+      const startMonth = selectedMonth.getMonth();
+      const startYear = selectedMonth.getFullYear();
+      const endDate = new Date(startYear, startMonth + 2, 0);
+      const startDate = new Date(startYear, startMonth, 1);
 
-    return serverSlots
-      .filter((s) => {
+      serverSlots.forEach((s) => {
         const d = new Date(s.date);
-        if (d < startDate || d > endDate) return false;
+        if (d < startDate || d > endDate) return;
 
-        // Condition 1: Calendar "Sondergemeinschaften"
+        // Condition: Sondergemeinschaften, Afternoon, Exclusions
         const isSonder = s.calendar?.includes("Sondergemeinschaften");
-        if (!isSonder) return false;
-
-        // Condition 2: Afternoon (>= 12:00)
         const hour = parseInt(s.time.split(":")[0], 10);
-        if (hour < 12) return false;
-
-        // Condition 3: Exclude "Abendmahl", "Alsfeld", "Gemeindestunde"
         const label = s.label.toLowerCase();
-        if (
-          label.includes("abendmahl") ||
-          label.includes("alsfeld") ||
-          label.includes("gemeindestunde")
-        )
-          return false;
+        
+        const isRelevant = isSonder && 
+          hour >= 12 && 
+          !label.includes("abendmahl") && 
+          !label.includes("alsfeld") && 
+          !label.includes("gemeindestunde");
 
-        return true;
-      })
-      .map((s) => ({
-        id: s.id,
-        date: new Date(s.date),
-        time: s.time,
-        label: s.label,
-      }))
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
+        if (isRelevant && !specialServices[s.id] && !deletedAutomatedIds.has(s.id)) {
+          specialServices[s.id] = s.label;
+        }
+      });
+    }
   });
 
   function getCellKey(preacher: string, slotId: string) {
@@ -1804,91 +1788,71 @@
               Besonderheiten
             </h3>
             <div
-              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
+              class="flex flex-col gap-2 overflow-y-auto max-h-[400px] custom-scrollbar"
             >
-              <!-- Automated Entries -->
-              {#each automatedSpecialServices as s}
+              <!-- Unified Besonderheiten List -->
+              {@const sortedServices = Object.entries(specialServices)
+                .map(([sid, val]) => {
+                  const s = slots.find(sl => sl.id === sid) || 
+                           serverSlots.find(sl => sl.id === sid);
+                  return { sid, val, date: s ? new Date(s.date) : new Date(0), time: s?.time || "" };
+                })
+                .sort((a, b) => a.date.getTime() - b.date.getTime())}
+
+              {#each sortedServices as { sid, val, date, time }}
                 <div
-                  class="flex items-center gap-2 p-1.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm"
+                  class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
+                  onclick={() => (editingSpecialService = sid)}
                 >
                   <div
-                    class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-zinc-400 text-white shadow-sm"
+                    class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-amber-500 text-white shadow-sm transition-transform group-hover:scale-110 z-10"
                   >
-                    <Calendar size={12} />
+                    <Star size={12} class="fill-white" />
                   </div>
-                  <div class="flex flex-col flex-1 min-w-0">
-                    <span
-                      class="text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-500 leading-none mb-0.5"
-                    >
-                      {format(s.date, "dd.MM.")} | {s.time}
+                  <div class="flex flex-col flex-1 min-w-0 overflow-hidden relative">
+                    <span class="text-[8px] font-black uppercase text-zinc-400 dark:text-zinc-500 leading-none mb-0.5">
+                      {date.getTime() > 0 ? format(date, "dd.MM.") : ""} {time ? `| ${time}` : ""}
                     </span>
-                    <span
-                      class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate font-bold"
-                    >
-                      {s.label}
-                    </span>
+                    {#if editingSpecialService === sid}
+                      <input
+                        type="text"
+                        bind:value={specialServices[sid]}
+                        placeholder="Besonderheit..."
+                        class="bg-transparent border-none focus:ring-0 text-[11px] text-zinc-800 dark:text-zinc-200 p-0 h-4 w-full placeholder:text-zinc-400"
+                        style={getFormattingStyle("names")}
+                        autoFocus
+                        onblur={() => (editingSpecialService = null)}
+                        onkeydown={(e) => {
+                          if (e.key === "Enter") editingSpecialService = null;
+                          e.stopPropagation();
+                        }}
+                      />
+                    {:else}
+                      <div class="liveticker-container w-full h-4 relative flex items-center">
+                        <span
+                          use:checkOverflow={val}
+                          class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate"
+                          style={getFormattingStyle("names")}
+                        >
+                          {val || "Besonderheit..."}
+                        </span>
+                      </div>
+                    {/if}
                   </div>
+                  <button
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      delete specialServices[sid];
+                      deletedAutomatedIds.add(sid);
+                    }}
+                    class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all z-10"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               {/each}
-
-              <!-- Manual Entries -->
-              {#each Object.entries(specialServices) as [sid, val]}
-                {@const s = slots.find((sl) => sl.id === sid)}
-                {#if s}
-                  <div
-                    class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
-                    onclick={() => (editingSpecialService = sid)}
-                  >
-                    <div
-                      class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-amber-500 text-white shadow-sm transition-transform group-hover:scale-110 z-10"
-                    >
-                      <Star size={12} class="fill-white" />
-                    </div>
-                    <div
-                      class="flex flex-col flex-1 min-w-0 overflow-hidden relative"
-                    >
-                      {#if editingSpecialService === sid}
-                        <input
-                          type="text"
-                          bind:value={specialServices[sid]}
-                          placeholder="Besonderheit..."
-                          class="bg-transparent border-none focus:ring-0 text-[11px] text-zinc-800 dark:text-zinc-200 p-0 h-4 w-full placeholder:text-zinc-400"
-                          style={getFormattingStyle("names")}
-                          autoFocus
-                          onblur={() => (editingSpecialService = null)}
-                          onkeydown={(e) => {
-                            if (e.key === "Enter") editingSpecialService = null;
-                            e.stopPropagation();
-                          }}
-                        />
-                      {:else}
-                        <div
-                          class="liveticker-container w-full h-4 relative flex items-center"
-                        >
-                          <span
-                            use:checkOverflow={val}
-                            class="text-[11px] text-zinc-800 dark:text-zinc-200"
-                            style={getFormattingStyle("names")}
-                          >
-                            {val || "Besonderheit..."}
-                          </span>
-                        </div>
-                      {/if}
-                    </div>
-                    <button
-                      onclick={(e) => {
-                        e.stopPropagation();
-                        delete specialServices[sid];
-                      }}
-                      class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all z-10"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                {/if}
-              {/each}
               
-              {#if automatedSpecialServices.length === 0 && Object.keys(specialServices).length === 0}
+              {#if sortedServices.length === 0}
                 <div class="flex-1 flex flex-col items-center justify-center py-8 opacity-40">
                   <Star size={24} class="text-zinc-300 dark:text-zinc-600 mb-2" />
                   <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Keine Einträge</span>
