@@ -224,6 +224,29 @@
     }
   });
 
+  // Auto-populate specialServices with Gottesdienst and Sondergemeinschaften
+  $effect(() => {
+    if (serverSlots.length > 0) {
+      let changed = false;
+      const nextSpecial = { ...specialServices };
+      
+      for (const slot of serverSlots) {
+        const isTargetCalendar = slot.calendar && 
+          (slot.calendar.includes("Gottesdienst") || slot.calendar.includes("Sondergemeinschaften"));
+        
+        if (isTargetCalendar && nextSpecial[slot.id] === undefined) {
+          // Use label if available, fallback to calendar name
+          nextSpecial[slot.id] = slot.label && slot.label !== "Unbenannter Termin" ? slot.label : slot.calendar;
+          changed = true;
+        }
+      }
+      
+      if (changed) {
+        specialServices = nextSpecial;
+      }
+    }
+  });
+
   // Constants
   const SERVICE_TYPES = [
     {
@@ -1603,18 +1626,18 @@
                         <button
                           onclick={(e) => {
                             e.stopPropagation();
-                            if (specialServices[slot.id]) {
-                              const next = { ...specialServices };
-                              delete next[slot.id];
-                              specialServices = next;
+                            const next = { ...specialServices };
+                            if (next[slot.id]) {
+                              next[slot.id] = ""; // Mark as explicitly deleted
                             } else {
-                              specialServices = { ...specialServices, [slot.id]: "Neuer Eintrag" };
+                              next[slot.id] = slot.label && slot.label !== "Unbenannter Termin" ? slot.label : "Besonderheit";
                             }
+                            specialServices = next;
                           }}
-                          class="w-7 h-7 flex items-center justify-center rounded-full bg-amber-600 text-white hover:bg-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:scale-110 active:scale-90 transition-all z-[112]"
+                          class="w-7 h-7 flex items-center justify-center rounded-full {specialServices[slot.id] ? 'bg-amber-600 text-white shadow-[0_4px_12px_rgba(245,158,11,0.4)]' : 'bg-zinc-400 text-white opacity-50 hover:opacity-100'} hover:scale-110 active:scale-90 transition-all z-[112]"
                           title="Besonderheit hinzufügen/entfernen"
                         >
-                          <Star size={16} class="fill-white" />
+                          <Star size={16} class={specialServices[slot.id] ? "fill-white" : ""} />
                         </button>
 
                         <!-- Delete Column Button -->
@@ -2010,7 +2033,7 @@
               Besonderheiten
             </h3>
             <div class="flex flex-col gap-3">
-              {#each Object.entries(specialServices) as [sid, val]}
+              {#each Object.entries(specialServices).filter(([_, v]) => v !== "") as [sid, val]}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
                   <div
@@ -2057,7 +2080,7 @@
                       onclick={(e) => {
                         e.stopPropagation();
                         const next = { ...specialServices };
-                        delete next[sid];
+                        next[sid] = ""; // Mark as deleted
                         specialServices = next;
                       }}
                       class="p-2 text-zinc-400 hover:text-red-500 transition-colors z-10"
