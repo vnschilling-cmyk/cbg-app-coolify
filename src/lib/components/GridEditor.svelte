@@ -210,6 +210,15 @@
   let gridData = $state<Record<string, Record<string, string>>>({});
   let showExport = $state(false);
 
+  // Filter slots to only show the currently selected 2-month window
+  let visibleSlots = $derived.by(() => {
+    const startMonth = selectedMonth.getMonth();
+    const startYear = selectedMonth.getFullYear();
+    const endDate = new Date(startYear, startMonth + 2, 0); // Last day of month+1
+    const startDate = new Date(startYear, startMonth, 1);
+    return slots.filter((s) => s.date >= startDate && s.date <= endDate);
+  });
+
   // Constants
   const SERVICE_TYPES = [
     {
@@ -1326,7 +1335,7 @@
           <table class="table-fixed border-separate border-spacing-0">
             <colgroup>
               <col class="w-[200px]" />
-              {#each slots as _}
+              {#each visibleSlots as _}
                 <col class="w-7" />
               {/each}
             </colgroup>
@@ -1345,11 +1354,11 @@
                     </span>
                   </div>
                 </th>
-                {#each [...new Set(slots.map( (s) => s.date.getMonth(), ))] as mIdx}
-                  {@const monthDate = slots.find(
+                {#each [...new Set(visibleSlots.map( (s) => s.date.getMonth(), ))] as mIdx}
+                  {@const monthDate = visibleSlots.find(
                     (s) => s.date.getMonth() === mIdx,
                   )?.date}
-                  {@const monthSlots = slots.filter(
+                  {@const monthSlots = visibleSlots.filter(
                     (s) => s.date.getMonth() === mIdx,
                   )}
                   <th
@@ -1386,7 +1395,7 @@
                     />
                   </div>
                 </th>
-                {#each slots as slot, sIdx}
+                {#each visibleSlots as slot, sIdx}
                   <th
                     class="sticky top-[36px] z-[100] transition-all border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)]
                     {getDayHighlightClass(new Date(slot.date), slot.time)}
@@ -1410,7 +1419,7 @@
               </tr>
               <!-- Row 3: Dates -->
               <tr class="h-14">
-                {#each slots as slot, sIdx}
+                {#each visibleSlots as slot, sIdx}
                   <th
                     class="sticky top-[76px] z-[100] transition-colors border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] group {slot.isSundaySecond
                       ? 'border-l-0'
@@ -1506,7 +1515,7 @@
                       {preacherName}
                     </span>
                   </td>
-                  {#each slots as slot, sIdx}
+                  {#each visibleSlots as slot, sIdx}
                     {@const code = gridData[slot.id]?.[preacherName] || ""}
                     <td
                       class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
@@ -1579,7 +1588,7 @@
                       {preacherName}
                     </span>
                   </td>
-                  {#each slots as slot, sIdx}
+                  {#each visibleSlots as slot, sIdx}
                     {@const code = gridData[slot.id]?.[preacherName] || ""}
                     <td
                       class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
@@ -1653,7 +1662,7 @@
                         </span>
                       </div>
                     </td>
-                    {#each slots as slot, sIdx}
+                    {#each visibleSlots as slot, sIdx}
                       <td
                         class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all
                             {getDayHighlightClass(
