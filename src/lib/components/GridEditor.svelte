@@ -738,13 +738,54 @@
     return slots.filter((s) => s.date >= startDate && s.date <= endDate);
   });
 
+  // Automated Spezialdienste from ChurchTools (Dynamic/Live)
+  let automatedSpecialServices = $derived.by(() => {
+    const startMonth = selectedMonth.getMonth();
+    const startYear = selectedMonth.getFullYear();
+    const endDate = new Date(startYear, startMonth + 2, 0);
+    const startDate = new Date(startYear, startMonth, 1);
+
+    return serverSlots
+      .filter((s) => {
+        const d = new Date(s.date);
+        if (d < startDate || d > endDate) return false;
+
+        const isSonder = s.calendar?.includes("Sondergemeinschaften");
+        const hour = parseInt(s.time.split(":")[0], 10);
+        const label = s.label.toLowerCase();
+        
+        return isSonder && (hour >= 12 || label.includes("himmelfahrt")) && 
+               !label.includes("abendmahl") && 
+               !label.includes("alsfeld") && 
+               !label.includes("gemeindestunde");
+      })
+      .map(s => ({ sid: s.id, val: s.label }));
+  });
+
   // Sorted and unified special services for the sidebar and matrix rows
   let sortedSpecialServices = $derived.by(() => {
     const seenTimestamps = new Set<string>();
     
-    return Object.entries(specialServices)
-      // Robust filter: must have at least one character and not be "Neuer Eintrag" if we want to be clean
-      .filter(([_, val]) => val && val.trim().length > 0)
+    // 1. Start with automated ones
+    // 2. Override with manual ones (specialServices)
+    // 3. Remove deleted ones
+    const combined: Record<string, string> = {};
+    
+    automatedSpecialServices.forEach(s => {
+      if (!deletedAutomatedIds.has(s.sid)) {
+        combined[s.sid] = s.val;
+      }
+    });
+
+    Object.entries(specialServices).forEach(([sid, val]) => {
+      if (val && val.trim().length > 0) {
+        combined[sid] = val;
+      } else {
+        delete combined[sid];
+      }
+    });
+
+    return Object.entries(combined)
       .map(([sid, val]) => {
         const s = slots.find(sl => sl.id === sid) || 
                  serverSlots.find(sl => sl.id === sid);
@@ -760,7 +801,6 @@
         };
       })
       .filter(item => {
-        if (!item.val || item.val.trim().length === 0) return false;
         if (seenTimestamps.has(item.timestamp)) return false;
         seenTimestamps.add(item.timestamp);
         return true;
@@ -768,33 +808,17 @@
       .sort((a, b) => a.date.getTime() - b.date.getTime());
   });
 
-  // Automated Import Effect: Fill specialServices with CT data
+  // Automated Import Effect: Cleanup stale data and let live sync take over
   $effect(() => {
-    if (serverSlots.length > 0) {
-      const startMonth = selectedMonth.getMonth();
-      const startYear = selectedMonth.getFullYear();
-      const endDate = new Date(startYear, startMonth + 2, 0);
-      const startDate = new Date(startYear, startMonth, 1);
-
-      serverSlots.forEach((s) => {
-        const d = new Date(s.date);
-        if (d < startDate || d > endDate) return;
-
-        // Condition: Sondergemeinschaften, Afternoon, or specific keywords
-        const isSonder = s.calendar?.includes("Sondergemeinschaften");
-        const hour = parseInt(s.time.split(":")[0], 10);
-        const label = s.label.toLowerCase();
-        
-        // Include morning Himmelfahrt but otherwise keep afternoon rule
-        const isRelevant = isSonder && (
-          hour >= 12 || label.includes("himmelfahrt")
-        ) && 
-        !label.includes("abendmahl") && 
-        !label.includes("alsfeld") && 
-        !label.includes("gemeindestunde");
-
-        if (isRelevant && !specialServices[s.id] && !deletedAutomatedIds.has(s.id)) {
-          specialServices[s.id] = s.label;
+    if (automatedSpecialServices.length > 0) {
+      // If we have a manual entry that is identical to the live CT entry,
+      // remove it from the manual state so it becomes "live" again.
+      // This cleans up old persisted data from before the live-sync update.
+      automatedSpecialServices.forEach(s => {
+        if (specialServices[s.sid] === s.val) {
+          const next = { ...specialServices };
+          delete next[s.sid];
+          specialServices = next;
         }
       });
     }
@@ -1098,6 +1122,18 @@
         syncing = true;
         try {
           await invalidateAll();
+          
+          // Reset manual overrides for automated slots to let live CT data win
+          const next = { ...specialServices };
+          let changed = false;
+          automatedSpecialServices.forEach(s => {
+            if (next[s.sid]) {
+              delete next[s.sid];
+              changed = true;
+            }
+          });
+          if (changed) specialServices = next;
+          
         } finally {
           syncing = false;
         }
