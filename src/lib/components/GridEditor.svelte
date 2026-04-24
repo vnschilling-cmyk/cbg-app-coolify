@@ -79,6 +79,7 @@
     serverAssignments?: Record<string, Record<string, string>>;
     serverFormatting?: any;
     serverServiceRules?: any[];
+    serverPlan?: any;
   }
 
   import ExportPreview from "./ExportPreview.svelte";
@@ -91,6 +92,7 @@
     serverAssignments = {},
     serverFormatting = null,
     serverServiceRules = [],
+    serverPlan = {},
   }: Props = $props();
 
   let hoveredSlotIdx = $state<number | null>(null);
@@ -111,7 +113,7 @@
   let showPreacherFilter = $state(false);
   let newSlotDate = $state(format(new Date(), "yyyy-MM-dd"));
   let newSlotTime = $state("10:00");
-  let specialServices = $state<Record<string, string>>({});
+  let specialServices = $state<Record<string, string>>(serverPlan?.special_services || {});
   let editingSpecialService = $state<string | null>(null);
 
   // Formatting state
@@ -216,11 +218,10 @@
     return `font-weight: ${s.bold ? "bold" : "normal"}; font-style: ${s.italic ? "italic" : "normal"}; font-size: ${s.fontSize}px; font-family: '${s.fontFamily}', sans-serif;`;
   }
 
-  // State - Moved to top to avoid ReferenceError
   let selectedMonth = $state(new Date(2026, 2, 1)); // Start with March 2026
   let gridData = $state<Record<string, Record<string, string>>>({});
-  let deletedAutomatedIds = $state(new Set<string>(data.plan.deleted_automated_ids || []));
-  let hiddenPreachers = $state(new Set<string>(data.plan.hidden_preachers || []));
+  let deletedAutomatedIds = $state(new Set<string>(serverPlan?.deleted_automated_ids || []));
+  let hiddenPreachers = $state(new Set<string>(serverPlan?.hidden_preachers || []));
   let showExport = $state(false);
 
   // Constants

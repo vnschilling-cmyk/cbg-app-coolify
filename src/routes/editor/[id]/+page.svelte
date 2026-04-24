@@ -25,6 +25,7 @@
 {:else}
   <GridEditor
     planId={data.plan.id}
+    serverPlan={data.plan}
     serverSlots={data.slots}
     serverPreachers={data.preachers}
     serverAbsences={data.absences}
