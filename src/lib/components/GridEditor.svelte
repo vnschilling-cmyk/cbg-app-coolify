@@ -224,20 +224,38 @@
     }
   });
 
-  // Auto-populate specialServices with Gottesdienst and Sondergemeinschaften
+  // Auto-populate specialServices ONLY with Gemeindestunde from Sondergemeinschaften
   $effect(() => {
     if (serverSlots.length > 0) {
       let changed = false;
       const nextSpecial = { ...specialServices };
       
       for (const slot of serverSlots) {
-        const isTargetCalendar = slot.calendar && 
-          (slot.calendar.includes("Gottesdienst") || slot.calendar.includes("Sondergemeinschaften"));
+        const isSondergemeinschaft = slot.calendar && slot.calendar.includes("Sondergemeinschaften");
+        const isGemeindestunde = slot.label && slot.label.includes("Gemeindestunde");
         
-        if (isTargetCalendar && nextSpecial[slot.id] === undefined) {
-          // Use label if available, fallback to calendar name
-          nextSpecial[slot.id] = slot.label && slot.label !== "Unbenannter Termin" ? slot.label : slot.calendar;
+        if (isSondergemeinschaft && isGemeindestunde && nextSpecial[slot.id] === undefined) {
+          nextSpecial[slot.id] = slot.label;
           changed = true;
+        }
+      }
+
+      // Cleanup: Remove existing entries that were auto-populated but no longer match the criteria
+      for (const [slotId, val] of Object.entries(nextSpecial)) {
+        if (val === "") continue; // Keep explicit deletions
+        
+        const slot = serverSlots.find(s => s.id === slotId);
+        if (slot) {
+          const isSondergemeinschaft = slot.calendar && slot.calendar.includes("Sondergemeinschaften");
+          const isGemeindestunde = slot.label && slot.label.includes("Gemeindestunde");
+          
+          if (!(isSondergemeinschaft && isGemeindestunde)) {
+            // Only auto-remove if the value matches the original label or calendar name
+            if (val === slot.label || val === slot.calendar) {
+              delete nextSpecial[slotId];
+              changed = true;
+            }
+          }
         }
       }
       
