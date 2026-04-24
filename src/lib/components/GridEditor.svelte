@@ -141,6 +141,15 @@
       Object.assign(formatting, serverFormatting);
     }
 
+    // Initialize selectedMonth from URL if present
+    const monthParam = new URLSearchParams(window.location.search).get("month");
+    if (monthParam) {
+      const [y, m] = monthParam.split("-").map(Number);
+      if (!isNaN(y) && !isNaN(m)) {
+        selectedMonth = new Date(y, m - 1, 1);
+      }
+    }
+
     // Load special services
     if (typeof localStorage !== "undefined" && planId) {
       const savedSpecial = localStorage.getItem(`specialServices_${planId}`);
