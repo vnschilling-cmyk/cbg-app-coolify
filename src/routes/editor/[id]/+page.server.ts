@@ -72,15 +72,20 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
                 // ID is under apt.base.id or apt.appointment.base.id
                 const appointmentId = apt.base?.id || apt.appointment?.base?.id || apt.id;
 
-                // Extract date and time DIRECTLY from the string to avoid UTC timezone conversion.
-                // ChurchTools returns e.g. "2026-05-03T10:00:00+02:00" (CEST local time).
-                // Using new Date() would convert to UTC (08:00), showing 2h too early on a UTC server.
-                const dateMatch = rawStartDate.match(/^(\d{4}-\d{2}-\d{2})/);
-                const timeMatch = rawStartDate.match(/T(\d{2}:\d{2})/);
-                const dateStr = dateMatch ? dateMatch[1] : format(new Date(rawStartDate), 'yyyy-MM-dd');
-                const timeStr = timeMatch ? timeMatch[1] : '00:00';
+                // ChurchTools returns UTC times (e.g. "2026-05-01T16:30:00Z").
+                // Convert to Europe/Berlin timezone (CET=UTC+1, CEST=UTC+2) for correct display.
+                const utcDate = new Date(rawStartDate);
+                const berlinFormatter = new Intl.DateTimeFormat('de-DE', {
+                    timeZone: 'Europe/Berlin',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                });
+                const parts = berlinFormatter.formatToParts(utcDate);
+                const getPart = (type: string) => parts.find(p => p.type === type)?.value ?? '00';
+                const dateStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+                const timeStr = `${getPart('hour')}:${getPart('minute')}`;
 
-                // Still need a Date object for the filter (Saturday check) - use noon to be safe
+                // Use dateStr for date-only operations (Saturday check etc.)
                 const startDate = new Date(`${dateStr}T12:00:00`);
 
                 return {
