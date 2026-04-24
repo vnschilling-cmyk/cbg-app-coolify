@@ -738,14 +738,32 @@
     return slots.filter((s) => s.date >= startDate && s.date <= endDate);
   });
 
-  // Sorted and unified special services for the sidebar
+  // Sorted and unified special services for the sidebar and matrix rows
   let sortedSpecialServices = $derived.by(() => {
+    const seenTimestamps = new Set<string>();
+    
     return Object.entries(specialServices)
-      .filter(([_, val]) => val && val.trim() !== "") // Filter out empty entries
+      // Robust filter: must have at least one alphanumeric character or emoji
+      .filter(([_, val]) => val && val.replace(/[\s\u200B-\u200D\uFEFF]/g, "").length > 0)
       .map(([sid, val]) => {
         const s = slots.find(sl => sl.id === sid) || 
                  serverSlots.find(sl => sl.id === sid);
-        return { sid, val, date: s ? new Date(s.date) : new Date(0), time: s?.time || "" };
+        
+        const timestamp = s ? `${s.date}_${s.time}` : sid;
+        return { 
+          sid, 
+          val, 
+          date: s ? new Date(s.date) : new Date(0), 
+          time: s?.time || "",
+          timestamp,
+          exists: !!s
+        };
+      })
+      .filter(item => {
+        // De-duplicate by time slot: only show the first entry for a given time
+        if (seenTimestamps.has(item.timestamp)) return false;
+        seenTimestamps.add(item.timestamp);
+        return true;
       })
       .sort((a, b) => a.date.getTime() - b.date.getTime());
   });
@@ -762,16 +780,18 @@
         const d = new Date(s.date);
         if (d < startDate || d > endDate) return;
 
-        // Condition: Sondergemeinschaften, Afternoon, Exclusions
+        // Condition: Sondergemeinschaften, Afternoon, or specific keywords
         const isSonder = s.calendar?.includes("Sondergemeinschaften");
         const hour = parseInt(s.time.split(":")[0], 10);
         const label = s.label.toLowerCase();
         
-        const isRelevant = isSonder && 
-          hour >= 12 && 
-          !label.includes("abendmahl") && 
-          !label.includes("alsfeld") && 
-          !label.includes("gemeindestunde");
+        // Include morning Himmelfahrt but otherwise keep afternoon rule
+        const isRelevant = isSonder && (
+          hour >= 12 || label.includes("himmelfahrt")
+        ) && 
+        !label.includes("abendmahl") && 
+        !label.includes("alsfeld") && 
+        !label.includes("gemeindestunde");
 
         if (isRelevant && !specialServices[s.id] && !deletedAutomatedIds.has(s.id)) {
           specialServices[s.id] = s.label;
@@ -1706,10 +1726,9 @@
                 </tr>
               {/each}
 
-              <!-- Individual Besonderheiten Rows -->
-              {#each Object.entries(specialServices).filter(([_, t]) => t && t.trim() !== "") as [sid, text], idx}
-                {@const s = slots.find((sl) => sl.id === sid)}
-                {#if s}
+              <!-- Individual Besonderheiten Rows (Synchronized with Sidebar) -->
+              {#each sortedSpecialServices as { sid, val, exists }, idx}
+                {#if exists}
                   <tr
                     class="group transition-colors border-t border-amber-500/10"
                     onmouseenter={() => (hoveredSpecialServiceId = sid)}
@@ -1723,12 +1742,12 @@
                     >
                       <div class="flex items-center gap-2">
                         <Star size={12} class="fill-current shrink-0" />
-                        <span
-                          class="text-[11px] font-bold truncate"
-                          style={getFormattingStyle("names")}
-                        >
-                          {text}
-                        </span>
+                          <span
+                            class="text-[11px] font-bold truncate"
+                            style={getFormattingStyle("names")}
+                          >
+                            {val}
+                          </span>
                       </div>
                     </td>
                     {#each visibleSlots as slot, sIdx}
