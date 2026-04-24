@@ -295,6 +295,24 @@ export const actions: Actions = {
             return { success: false, error: e.message };
         }
     },
+    updatePeriod: async ({ request, params, locals }) => {
+        const formData = await request.formData();
+        const periodStartStr = formData.get('period_start') as string;
+        
+        if (!periodStartStr || !locals.pb) {
+            return { success: false, error: 'Fehlende Daten' };
+        }
+
+        try {
+            await locals.pb.collection('plans').update(params.id, {
+                period_start: periodStartStr
+            });
+            return { success: true };
+        } catch (e: any) {
+            console.error('Failed to update period_start:', e);
+            return { success: false, error: e.message };
+        }
+    },
     export: async ({ request, params, locals }) => {
         const results: string[] = [];
         try {

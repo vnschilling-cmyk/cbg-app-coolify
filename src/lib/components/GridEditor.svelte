@@ -926,12 +926,32 @@
     "2026-04-12": "Nachversammlung",
   };
 
-  function nextMonth() {
+  async function nextMonth() {
     selectedMonth = addMonths(selectedMonth, 2);
+    await updatePeriodInDB();
   }
 
-  function prevMonth() {
+  async function prevMonth() {
     selectedMonth = addMonths(selectedMonth, -2);
+    await updatePeriodInDB();
+  }
+
+  async function updatePeriodInDB() {
+    syncing = true;
+    try {
+      const formData = new FormData();
+      formData.append("period_start", format(selectedMonth, "yyyy-MM-dd 12:00:00"));
+      await fetch("?/updatePeriod", {
+        method: "POST",
+        body: formData,
+      });
+      await invalidateAll();
+    } catch (e) {
+      console.error("Failed to update period:", e);
+      toast.error("Fehler beim Wechseln des Monats");
+    } finally {
+      syncing = false;
+    }
   }
 
   let saving = $state(false);
