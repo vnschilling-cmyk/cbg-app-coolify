@@ -4,7 +4,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { format, addMonths, startOfMonth, endOfMonth, isSaturday } from 'date-fns';
 import { error } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params, locals, url }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
     try {
         // Get user from locals (populated by hooks if available)
         const user = locals.user || locals.pb?.authStore?.model;
@@ -21,15 +21,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             throw error(404, 'Plan nicht gefunden');
         }
 
-        // Define the date range: use 'month' query param if provided, else plan.period_start
-        const monthParam = url.searchParams.get('month'); // Format: YYYY-MM
-        let startMonth: Date;
-        if (monthParam) {
-            const [y, m] = monthParam.split('-').map(Number);
-            startMonth = new Date(y, m - 1, 1);
-        } else {
-            startMonth = plan.period_start ? new Date(plan.period_start) : new Date(2026, 2, 1);
-        }
+        // Define the date range (2 months) from the plan record if available
+        const startMonth = plan.period_start ? new Date(plan.period_start) : new Date(2026, 2, 1);
         const fromDate = format(startOfMonth(startMonth), 'yyyy-MM-dd');
         const toDate = format(endOfMonth(addMonths(startMonth, 1)), 'yyyy-MM-dd');
 
@@ -68,30 +61,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             })
             .map((apt: any) => {
                 // The API returns nested structure: apt.calculated.startDate or apt.base.startDate
-                const rawStartDate: string = apt.calculated?.startDate || apt.base?.startDate || apt.startDate || '';
+                const startDate = new Date(apt.calculated?.startDate || apt.base?.startDate || apt.startDate);
                 // ID is under apt.base.id or apt.appointment.base.id
                 const appointmentId = apt.base?.id || apt.appointment?.base?.id || apt.id;
 
-                // ChurchTools returns UTC times (e.g. "2026-05-01T16:30:00Z").
-                // Convert to Europe/Berlin timezone (CET=UTC+1, CEST=UTC+2) for correct display.
-                const utcDate = new Date(rawStartDate);
-                const berlinFormatter = new Intl.DateTimeFormat('de-DE', {
-                    timeZone: 'Europe/Berlin',
-                    year: 'numeric', month: '2-digit', day: '2-digit',
-                    hour: '2-digit', minute: '2-digit', hour12: false
-                });
-                const parts = berlinFormatter.formatToParts(utcDate);
-                const getPart = (type: string) => parts.find(p => p.type === type)?.value ?? '00';
-                const dateStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
-                const timeStr = `${getPart('hour')}:${getPart('minute')}`;
-
-                // Use dateStr for date-only operations (Saturday check etc.)
-                const startDate = new Date(`${dateStr}T12:00:00`);
-
                 return {
-                    id: `${appointmentId}-${dateStr}`,
-                    date: dateStr,
-                    time: timeStr,
+                    id: `${appointmentId}-${format(startDate, 'yyyy-MM-dd')}`,
+                    date: format(startDate, 'yyyy-MM-dd'), // Simplified to just date
+                    time: format(startDate, 'HH:mm'),
                     label: apt.base?.title || apt.appointment?.base?.title || apt.caption || 'Unbenannter Termin',
                     calendar: apt.base?.calendar?.name || apt.appointment?.base?.calendar?.name || 'Unbekannter Kalender',
                     isSundaySecond: false // Will be calculated client-side
@@ -160,17 +137,33 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             console.error('Failed to fetch absences:', e);
         }
 
-        // Fetch events to get existing assignments (TEMPORARILY DISABLED to fix deployment timeout)
+        // Fetch events to get existing assignments
         let assignments: Record<string, Record<string, string>> = {};
-        /* 
         try {
             const events = await client.getEventsWithServices(fromDate, toDate);
-            // This was causing 100+ requests which timed out the deployment
-            // ... (fetching logic removed for now)
+
+            for (const event of events) {
+                // Fetch event details to get services
+                const detailResponse = await client.request(`events/${event.id}`);
+                const services = detailResponse.data?.services || [];
+
+                const eventDate = new Date(event.startDate);
+                const dateStr = format(eventDate, 'yyyy-MM-dd');
+                const slotId = `${event.appointmentId}-${dateStr}`;
+
+                if (!assignments[slotId]) assignments[slotId] = {};
+
+                for (const service of services) {
+                    const person = service.person;
+                    if (person && person.domainAttributes) {
+                        const name = `${person.domainAttributes.firstName} ${person.domainAttributes.lastName}`;
+                        assignments[slotId][name] = 'X';
+                    }
+                }
+            }
         } catch (e) {
             console.error('Failed to fetch event assignments:', e);
         }
-        */
 
         // Merge persisted assignments from PB
         const finalAssignments = { ...assignments, ...(plan.data || {}) };

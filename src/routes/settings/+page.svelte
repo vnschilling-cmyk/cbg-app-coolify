@@ -8,7 +8,7 @@
         Loader2,
         ArrowLeft,
         Palette,
-        Users,
+        Users as UsersIcon,
         Trash2,
         Plus,
         CheckSquare,
@@ -449,7 +449,7 @@
                         <div
                             class="w-12 h-12 bg-violet-50 dark:bg-violet-900/20 rounded-2xl flex items-center justify-center text-violet-600 dark:text-violet-400"
                         >
-                            <Users size={24} />
+                            <UsersIcon size={24} />
                         </div>
                         <div>
                             <h3
@@ -539,8 +539,8 @@
                             Mitglieder Synchronisation
                         </h3>
                         <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                            Synchronisiere Mitglieder aller konfigurierten
-                            Gruppen
+                            Synchronisiere Mitglieder der Gruppe "Prediger" (ID
+                            164)
                         </p>
                     </div>
                 </div>

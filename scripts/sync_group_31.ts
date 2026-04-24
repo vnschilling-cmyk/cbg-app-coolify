@@ -50,18 +50,16 @@ async function syncGroup31() {
         const members = await ctClient.getGroupMembers(GROUP_ID);
         console.log(`Found ${members.length} members.`);
 
-        // Find the PB Group ID for the relation
-        let pbGroupId = '';
-        try {
-            const pbGroup = await pb.collection('groups').getFirstListItem(`ct_id="${GROUP_ID}"`);
-            pbGroupId = pbGroup.id;
-            console.log(`Matching PB Group found: ${pbGroup.name} (${pbGroupId})`);
-        } catch (e) {
-            console.warn(`Warning: Could not find a group with ct_id="${GROUP_ID}" in PB 'groups' collection.`);
-            console.log('Skipping group relation sync.');
+        if (members.length > 0) {
+            // console.log('Sample Member:', JSON.stringify(members[0], null, 2));
         }
 
         for (const member of members) {
+            // Inspect member object for role
+            // CT structure usually: { person: {...}, groupTypeRoleId: number, ... }
+            // or sometimes directly fields. We need to check structure.
+            // For now, let's assume we can find email and name.
+
             let person = member.person || member;
             let email = person.email;
 
@@ -70,6 +68,8 @@ async function syncGroup31() {
                 try {
                     console.log(`fetching person ${member.personId}...`);
                     const personData = await ctClient.request(`persons/${member.personId}`);
+                    // API returns { data: { ... } } or just the object depending on endpoint?
+                    // Usually CT API returns wrapped data. Let's check 'data' property.
                     person = personData.data || personData;
                     email = person.email;
                 } catch (e) {
@@ -80,6 +80,12 @@ async function syncGroup31() {
             const firstName = person.firstName;
             const lastName = person.lastName;
 
+
+            // Role mapping logic
+            // groupTypeRoleId 16 = Leiter -> admin
+            // groupTypeRoleId 17 = Co-Leiter -> admin
+            // groupTypeRoleId 15 = Mitarbeiter -> user
+
             const roleId = member.groupTypeRoleId;
             let appRole = 'user';
 
@@ -88,6 +94,7 @@ async function syncGroup31() {
             } else if (roleId === 15) {
                 appRole = 'user';
             } else {
+                // Default fallback
                 console.log(`Unknown groupTypeRoleId ${roleId} for ${firstName} ${lastName}, defaulting to user.`);
                 appRole = 'user';
             }
@@ -104,38 +111,26 @@ async function syncGroup31() {
                 const existingUser = await pb.collection('users').getFirstListItem(`email="${email}"`);
                 console.log(`  User exists (ID: ${existingUser.id}). Updating...`);
 
-                const updateData: any = {
+                await pb.collection('users').update(existingUser.id, {
                     name: `${firstName} ${lastName}`,
                     role: appRole,
-                };
-
-                // Add to groups relation if not already present
-                if (pbGroupId && !(existingUser.groups || []).includes(pbGroupId)) {
-                    console.log(`  -> Adding group relation for ${pbGroupId}`);
-                    updateData['groups+'] = pbGroupId;
-                }
-
-                await pb.collection('users').update(existingUser.id, updateData);
+                    // Don't overwrite other fields potentially
+                });
             } catch (e: any) {
                 if (e.status === 404) {
                     console.log(`  User does not exist. Creating...`);
+                    // Create new user with robust password
                     const tempPassword = `Pwd${Math.random().toString(36).slice(-8)}${Math.random().toString(36).slice(-8)}!`;
 
                     try {
-                        const createData: any = {
+                        await pb.collection('users').create({
                             email: email,
                             emailVisibility: true,
                             password: tempPassword,
                             passwordConfirm: tempPassword,
                             name: `${firstName} ${lastName}`,
                             role: appRole,
-                        };
-
-                        if (pbGroupId) {
-                            createData.groups = [pbGroupId];
-                        }
-
-                        await pb.collection('users').create(createData);
+                        });
                         console.log(`  Created user: ${firstName} ${lastName} (${appRole})`);
                     } catch (createError: any) {
                         console.error(`  Failed to create user ${email}:`, createError?.data || createError.message);

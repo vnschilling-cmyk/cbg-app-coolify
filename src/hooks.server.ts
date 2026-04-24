@@ -2,6 +2,12 @@ import PocketBase from 'pocketbase';
 import type { Handle } from '@sveltejs/kit';
 import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
 import { dev } from '$app/environment';
+import https from 'https';
+
+// Workaround for self-signed certificates in dev mode
+if (dev) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
     event.locals.pb = new PocketBase(PUBLIC_POCKETBASE_URL || 'https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io');
@@ -30,7 +36,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     // Export authStore to cookie
     // httpOnly: false allows client-side JS to read the cookie (needed for hydration in lib/pocketbase.ts if not using server load)
     // secure: false is required for localhost http dev
-    response.headers.append('set-cookie', event.locals.pb.authStore.exportToCookie({ httpOnly: false, secure: false, sameSite: 'Lax' }));
+    response.headers.append('set-cookie', event.locals.pb.authStore.exportToCookie({ httpOnly: false, secure: false }));
 
     return response;
 };

@@ -22,9 +22,11 @@
     Type,
     Settings2,
     FileText,
+    Users as UsersIcon,
+    Eye,
+    EyeOff,
   } from "lucide-svelte";
-  import { invalidateAll, goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { invalidateAll } from "$app/navigation";
   import {
     format,
     addMonths,
@@ -144,15 +146,6 @@
       Object.assign(formatting, serverFormatting);
     }
 
-    // Initialize selectedMonth from URL if present
-    const monthParam = new URLSearchParams(window.location.search).get("month");
-    if (monthParam) {
-      const [y, m] = monthParam.split("-").map(Number);
-      if (!isNaN(y) && !isNaN(m)) {
-        selectedMonth = new Date(y, m - 1, 1);
-      }
-    }
-
     // Load special services
     if (typeof localStorage !== "undefined" && planId) {
       const savedSpecial = localStorage.getItem(`specialServices_${planId}`);
@@ -218,11 +211,18 @@
     return `font-weight: ${s.bold ? "bold" : "normal"}; font-style: ${s.italic ? "italic" : "normal"}; font-size: ${s.fontSize}px; font-family: '${s.fontFamily}', sans-serif;`;
   }
 
+  // State - Moved to top to avoid ReferenceError
   let selectedMonth = $state(new Date(2026, 2, 1)); // Start with March 2026
   let gridData = $state<Record<string, Record<string, string>>>({});
-  let deletedAutomatedIds = $state(new Set<string>(serverPlan?.deleted_automated_ids || []));
-  let hiddenPreachers = $state(new Set<string>(serverPlan?.hidden_preachers || []));
+  let hiddenPreachers = $state(new Set<string>());
   let showExport = $state(false);
+
+  // Sync hidden_preachers from server plan on mount
+  $effect(() => {
+    if (serverPlan?.hidden_preachers) {
+      hiddenPreachers = new Set(serverPlan.hidden_preachers);
+    }
+  });
 
   // Constants
   const SERVICE_TYPES = [
@@ -680,42 +680,31 @@
         })
         .filter((s): s is Slot => s !== null);
 
-      // Deduplicate: Keep only one entry per day, except Sundays (2 allowed: morning + evening)
-      const seen = new Map<string, Slot[]>();
+      // Deduplicate: Use composite key (date + time + label) to preserve all unique events
+      const seenKeys = new Set<string>();
+      const deduped: Slot[] = [];
       for (const slot of transformed) {
         const dateKey = format(slot.date, "yyyy-MM-dd");
-        if (!seen.has(dateKey)) {
-          seen.set(dateKey, []);
-        }
-        seen.get(dateKey)!.push(slot);
-      }
+        const compositeKey = `${dateKey}_${slot.time}_${slot.label}`;
 
-      const deduped: Slot[] = [];
-      for (const [dateKey, daySlots] of seen.entries()) {
-        const date = daySlots[0].date;
-        if (isSunday(date)) {
-          // Sundays: Keep morning (first) and evening (second) slots
-          // FILTER: Ignore "Alsfeld" for Sundays as requested
-          const filteredSundaySlots = daySlots.filter(s => !s.label.includes("Alsfeld"));
-          
-          const morning = filteredSundaySlots.find((s) => !s.isSundaySecond);
-          const evening = filteredSundaySlots.find((s) => s.isSundaySecond);
-          if (morning) deduped.push(morning);
-          if (evening) deduped.push(evening);
-        } else {
-          // Other days: Keep only the first slot to avoid duplicates
-          const s = daySlots[0];
-          if (isWednesday(date)) {
-            s.label =
-              s.label === "Unbenannter Termin" ? "Gebetsstunde" : s.label;
-            s.time = s.time === "00:00" ? "19:00" : s.time;
-          } else if (isFriday(date)) {
-            s.label =
-              s.label === "Unbenannter Termin" ? "Bibelstunde" : s.label;
-            s.time = s.time === "00:00" ? "19:00" : s.time;
+        if (seenKeys.has(compositeKey)) continue;
+        seenKeys.add(compositeKey);
+
+        // Apply default labels for unnamed mid-week events
+        if (!isSunday(slot.date)) {
+          if (isWednesday(slot.date)) {
+            slot.label = slot.label === "Unbenannter Termin" ? "Gebetsstunde" : slot.label;
+            slot.time = slot.time === "00:00" ? "19:00" : slot.time;
+          } else if (isFriday(slot.date)) {
+            slot.label = slot.label === "Unbenannter Termin" ? "Bibelstunde" : slot.label;
+            slot.time = slot.time === "00:00" ? "19:00" : slot.time;
           }
-          deduped.push(s);
         }
+
+        // Filter out Sunday Alsfeld events
+        if (isSunday(slot.date) && slot.label.toLowerCase().includes('alsfeld')) continue;
+
+        deduped.push(slot);
       }
 
       // Final filter: remove deleted ones, add manual ones, and sort
@@ -732,104 +721,13 @@
     return [];
   });
 
-  // Filter slots to only show the currently selected 2-month window
-  let visibleSlots = $derived.by(() => {
-    const startMonth = selectedMonth.getMonth();
-    const startYear = selectedMonth.getFullYear();
-    const endDate = new Date(startYear, startMonth + 2, 0); // Last day of month+1
-    const startDate = new Date(startYear, startMonth, 1);
-    return slots.filter((s) => s.date >= startDate && s.date <= endDate);
-  });
-
-  // Automated Spezialdienste from ChurchTools (Dynamic/Live)
-  let automatedSpecialServices = $derived.by(() => {
-    const startMonth = selectedMonth.getMonth();
-    const startYear = selectedMonth.getFullYear();
-    const endDate = new Date(startYear, startMonth + 2, 0);
-    const startDate = new Date(startYear, startMonth, 1);
-
-    return serverSlots
-      .filter((s) => {
-        const d = new Date(s.date);
-        if (d < startDate || d > endDate) return false;
-
-        const isSonder = s.calendar?.includes("Sondergemeinschaften");
-        const hour = parseInt(s.time.split(":")[0], 10);
-        const label = s.label.toLowerCase();
-        
-        return isSonder && (hour >= 12 || label.includes("himmelfahrt")) && 
-               !label.includes("abendmahl") && 
-               !label.includes("alsfeld") && 
-               !label.includes("gemeindestunde");
-      })
-      .map(s => ({ sid: s.id, val: s.label }));
-  });
-
-  // Sorted and unified special services for the sidebar and matrix rows
-  let sortedSpecialServices = $derived.by(() => {
-    const seenTimestamps = new Set<string>();
-    
-    // 1. Start with automated ones
-    // 2. Override with manual ones (specialServices)
-    // 3. Remove deleted ones
-    const combined: Record<string, string> = {};
-    
-    automatedSpecialServices.forEach(s => {
-      if (!deletedAutomatedIds.has(s.sid)) {
-        combined[s.sid] = s.val;
-      }
-    });
-
-    Object.entries(specialServices).forEach(([sid, val]) => {
-      if (val && val.trim().length > 0) {
-        combined[sid] = val;
-      } else {
-        delete combined[sid];
-      }
-    });
-
-    return Object.entries(combined)
-      .map(([sid, val]) => {
-        const s = slots.find(sl => sl.id === sid) || 
-                 serverSlots.find(sl => sl.id === sid);
-        
-        const timestamp = s ? `${s.date}_${s.time}` : sid;
-        return { 
-          sid, 
-          val, 
-          date: s ? new Date(s.date) : new Date(0), 
-          time: s?.time || "",
-          timestamp,
-          exists: !!s
-        };
-      })
-      .filter(item => {
-        if (seenTimestamps.has(item.timestamp)) return false;
-        seenTimestamps.add(item.timestamp);
-        return true;
-      })
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
-  });
-
-  // Automated Import Effect: Cleanup stale data and let live sync take over
-  $effect(() => {
-    if (automatedSpecialServices.length > 0) {
-      // If we have a manual entry that is identical to the live CT entry,
-      // remove it from the manual state so it becomes "live" again.
-      // This cleans up old persisted data from before the live-sync update.
-      automatedSpecialServices.forEach(s => {
-        if (specialServices[s.sid] === s.val) {
-          const next = { ...specialServices };
-          delete next[s.sid];
-          specialServices = next;
-        }
-      });
-    }
-  });
-
   // Filtered Preachers based on visibility settings
-  let visiblePreachers = $derived.by(() => {
+  let visibleGroup1 = $derived.by(() => {
     return group1.filter(p => !hiddenPreachers.has(String(p.id)));
+  });
+
+  let visibleGroup2 = $derived.by(() => {
+    return group2.filter(p => !hiddenPreachers.has(String(p.id)));
   });
 
   function getCellKey(preacher: string, slotId: string) {
@@ -1029,21 +927,11 @@
   };
 
   function nextMonth() {
-    const next = addMonths(selectedMonth, 2);
-    selectedMonth = next;
-    const monthStr = format(next, 'yyyy-MM');
-    const url = new URL(window.location.href);
-    url.searchParams.set('month', monthStr);
-    goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true }).then(() => invalidateAll());
+    selectedMonth = addMonths(selectedMonth, 2);
   }
 
   function prevMonth() {
-    const prev = addMonths(selectedMonth, -2);
-    selectedMonth = prev;
-    const monthStr = format(prev, 'yyyy-MM');
-    const url = new URL(window.location.href);
-    url.searchParams.set('month', monthStr);
-    goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true }).then(() => invalidateAll());
+    selectedMonth = addMonths(selectedMonth, -2);
   }
 
   let saving = $state(false);
@@ -1126,33 +1014,14 @@
   let syncing = $state(false);
 
   async function syncData() {
-    toast.promise(
-      (async () => {
-        syncing = true;
-        try {
-          await invalidateAll();
-          
-          // Reset manual overrides for automated slots to let live CT data win
-          const next = { ...specialServices };
-          let changed = false;
-          automatedSpecialServices.forEach(s => {
-            if (next[s.sid]) {
-              delete next[s.sid];
-              changed = true;
-            }
-          });
-          if (changed) specialServices = next;
-          
-        } finally {
-          syncing = false;
-        }
-      })(),
-      {
-        loading: "Synchronisiere mit ChurchTools...",
-        success: "Daten erfolgreich aktualisiert!",
-        error: "Fehler beim Synchronisieren.",
-      },
-    );
+    syncing = true;
+    try {
+      await invalidateAll();
+    } catch (e) {
+      console.error("Synchronisierung fehlgeschlagen:", e);
+    } finally {
+      syncing = false;
+    }
   }
 
   function removeSlot(id: string) {
@@ -1193,7 +1062,7 @@
           <p class="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Wähle die Prediger für diesen Plan</p>
         </div>
         <div class="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-          <Users size={20} />
+          <UsersIcon size={20} />
         </div>
       </div>
 
@@ -1214,7 +1083,7 @@
           >
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-600 dark:text-zinc-400 group-hover:scale-110 transition-transform">
-                {p.firstName[0]}{p.lastName[0]}
+                {p.firstName?.[0] ?? ""}{p.lastName?.[0] ?? ""}
               </div>
               <span class="text-sm font-bold text-zinc-700 dark:text-zinc-300">{p.firstName} {p.lastName}</span>
             </div>
@@ -1235,7 +1104,7 @@
           onclick={() => showPreacherFilter = false}
           class="flex-1 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-zinc-900/20 dark:shadow-white/10"
         >
-          Fertig & Speichern
+          Fertig
         </button>
       </div>
     </div>
@@ -1251,6 +1120,7 @@
 >
   <!-- Toolbar - will be portaled to header -->
   <div bind:this={toolbarRef} class="flex items-center gap-4 no-print">
+    <!-- Month Navigation -->
     <!-- Month Navigation -->
     <div class="flex items-center gap-2">
       <button
@@ -1345,7 +1215,7 @@
       title="Prediger ein-/ausblenden"
       aria-label="Prediger ein-/ausblenden"
     >
-      <Users size={18} />
+      <UsersIcon size={18} />
     </button>
 
     <!-- Formatting Toggle -->
@@ -1541,7 +1411,7 @@
           <table class="table-fixed border-separate border-spacing-0">
             <colgroup>
               <col class="w-[200px]" />
-              {#each visibleSlots as _}
+              {#each slots as _}
                 <col class="w-7" />
               {/each}
             </colgroup>
@@ -1560,11 +1430,11 @@
                     </span>
                   </div>
                 </th>
-                {#each [...new Set(visibleSlots.map( (s) => s.date.getMonth(), ))] as mIdx}
-                  {@const monthDate = visibleSlots.find(
+                {#each [...new Set(slots.map( (s) => s.date.getMonth(), ))] as mIdx}
+                  {@const monthDate = slots.find(
                     (s) => s.date.getMonth() === mIdx,
                   )?.date}
-                  {@const monthSlots = visibleSlots.filter(
+                  {@const monthSlots = slots.filter(
                     (s) => s.date.getMonth() === mIdx,
                   )}
                   <th
@@ -1601,7 +1471,7 @@
                     />
                   </div>
                 </th>
-                {#each visibleSlots as slot, sIdx}
+                {#each slots as slot, sIdx}
                   <th
                     class="sticky top-[36px] z-[100] transition-all border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)]
                     {getDayHighlightClass(new Date(slot.date), slot.time)}
@@ -1625,7 +1495,7 @@
               </tr>
               <!-- Row 3: Dates -->
               <tr class="h-14">
-                {#each visibleSlots as slot, sIdx}
+                {#each slots as slot, sIdx}
                   <th
                     class="sticky top-[76px] z-[100] transition-colors border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] group {slot.isSundaySecond
                       ? 'border-l-0'
@@ -1644,6 +1514,13 @@
                         style={getFormattingStyle("dates")}
                       >
                         {format(slot.date, "dd. eee", { locale: de })}
+                      </div>
+
+                      <div
+                        class="absolute bottom-16 left-1/2 -translate-x-1/2 tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-400 dark:text-zinc-500 font-bold opacity-40"
+                        style="font-size: 8px;"
+                      >
+                        {slot.label}
                       </div>
 
                       <!-- Column Header Tools -->
@@ -1669,12 +1546,11 @@
                           onclick={(e) => {
                             e.stopPropagation();
                             if (specialServices[slot.id]) {
-                              deletedAutomatedIds.add(slot.id);
                               const next = { ...specialServices };
                               delete next[slot.id];
                               specialServices = next;
                             } else {
-                              specialServices[slot.id] = "Neuer Eintrag";
+                              specialServices = { ...specialServices, [slot.id]: "Neuer Eintrag" };
                             }
                           }}
                           class="w-7 h-7 flex items-center justify-center rounded-full bg-amber-600 text-white hover:bg-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:scale-110 active:scale-90 transition-all z-[112]"
@@ -1701,7 +1577,7 @@
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-zinc-700">
-              {#each visiblePreachers as p, pIdx}
+              {#each visibleGroup1 as p, pIdx}
                 {@const preacherName = `${p.firstName} ${p.lastName}`}
                 {@const absoluteRowIdx = pIdx}
                 <tr
@@ -1724,7 +1600,7 @@
                       {preacherName}
                     </span>
                   </td>
-                  {#each visibleSlots as slot, sIdx}
+                  {#each slots as slot, sIdx}
                     {@const code = gridData[slot.id]?.[preacherName] || ""}
                     <td
                       class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
@@ -1774,9 +1650,9 @@
                 </tr>
               {/each}
 
-              {#each group2 as p, pIdx}
+              {#each visibleGroup2 as p, pIdx}
                 {@const preacherName = `${p.firstName} ${p.lastName}`}
-                {@const absoluteRowIdx = group1.length + pIdx}
+                {@const absoluteRowIdx = visibleGroup1.length + pIdx}
                 <tr
                   class="group transition-colors {pIdx % 2 === 1
                     ? 'bg-zinc-50/40 dark:bg-zinc-700/20'
@@ -1797,7 +1673,7 @@
                       {preacherName}
                     </span>
                   </td>
-                  {#each visibleSlots as slot, sIdx}
+                  {#each slots as slot, sIdx}
                     {@const code = gridData[slot.id]?.[preacherName] || ""}
                     <td
                       class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
@@ -1846,9 +1722,10 @@
                 </tr>
               {/each}
 
-              <!-- Individual Besonderheiten Rows (Synchronized with Sidebar) -->
-              {#each sortedSpecialServices as { sid, val, exists }, idx}
-                {#if exists}
+              <!-- Individual Besonderheiten Rows -->
+              {#each Object.entries(specialServices) as [sid, text], idx}
+                {@const s = slots.find((sl) => sl.id === sid)}
+                {#if s}
                   <tr
                     class="group transition-colors border-t border-amber-500/10"
                     onmouseenter={() => (hoveredSpecialServiceId = sid)}
@@ -1862,15 +1739,15 @@
                     >
                       <div class="flex items-center gap-2">
                         <Star size={12} class="fill-current shrink-0" />
-                          <span
-                            class="text-[11px] font-bold truncate"
-                            style={getFormattingStyle("names")}
-                          >
-                            {val}
-                          </span>
+                        <span
+                          class="text-[11px] font-bold truncate"
+                          style={getFormattingStyle("names")}
+                        >
+                          {text}
+                        </span>
                       </div>
                     </td>
-                    {#each visibleSlots as slot, sIdx}
+                    {#each slots as slot, sIdx}
                       <td
                         class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all
                             {getDayHighlightClass(
@@ -1946,66 +1823,74 @@
               Besonderheiten
             </h3>
             <div
-              class="flex flex-col gap-2 overflow-y-auto max-h-[400px] custom-scrollbar"
+              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
             >
-              <!-- Unified Besonderheiten List -->
-              {#each sortedSpecialServices as { sid, val, date, time }}
-                <div
-                  class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
-                  onclick={() => (editingSpecialService = sid)}
-                >
+              {#each Object.entries(specialServices) as [sid, val]}
+                {@const s = slots.find((sl) => sl.id === sid)}
+                {#if s}
                   <div
-                    class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-amber-500 text-white shadow-sm transition-transform group-hover:scale-110 z-10"
+                    class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
+                    onclick={() => (editingSpecialService = sid)}
                   >
-                    <Star size={12} class="fill-white" />
+                    <div
+                      class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-amber-500 text-white shadow-sm transition-transform group-hover:scale-110 z-10"
+                    >
+                      <Star size={12} class="fill-white" />
+                    </div>
+                    <div
+                      class="flex flex-col flex-1 min-w-0 overflow-hidden relative"
+                    >
+                      {#if editingSpecialService === sid}
+                        <input
+                          type="text"
+                          bind:value={specialServices[sid]}
+                          placeholder="Besonderheit..."
+                          class="bg-transparent border-none focus:ring-0 text-[11px] text-zinc-800 dark:text-zinc-200 p-0 h-4 w-full placeholder:text-zinc-400"
+                          style={getFormattingStyle("names")}
+                          autoFocus
+                          onblur={() => (editingSpecialService = null)}
+                          onkeydown={(e) => {
+                            if (e.key === "Enter") editingSpecialService = null;
+                            e.stopPropagation();
+                          }}
+                        />
+                      {:else}
+                        <div
+                          class="liveticker-container w-full h-4 relative flex items-center"
+                        >
+                          <span
+                            use:checkOverflow={val}
+                            class="text-[11px] text-zinc-800 dark:text-zinc-200"
+                            style={getFormattingStyle("names")}
+                          >
+                            {val || "Besonderheit..."}
+                          </span>
+                        </div>
+                      {/if}
+                    </div>
+                    <button
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        const next = { ...specialServices };
+                        delete next[sid];
+                        specialServices = next;
+                      }}
+                      class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all z-10"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
-                  <div class="flex flex-col flex-1 min-w-0 overflow-hidden relative">
-                    <span class="text-[8px] font-black uppercase text-zinc-400 dark:text-zinc-500 leading-none mb-0.5">
-                      {date.getTime() > 0 ? format(date, "dd.MM.") : ""} {time ? `| ${time}` : ""}
-                    </span>
-                    {#if editingSpecialService === sid}
-                      <input
-                        type="text"
-                        bind:value={specialServices[sid]}
-                        placeholder="Besonderheit..."
-                        class="bg-transparent border-none focus:ring-0 text-[11px] text-zinc-800 dark:text-zinc-200 p-0 h-4 w-full placeholder:text-zinc-400"
-                        style={getFormattingStyle("names")}
-                        autoFocus
-                        onblur={() => (editingSpecialService = null)}
-                        onkeydown={(e) => {
-                          if (e.key === "Enter") editingSpecialService = null;
-                          e.stopPropagation();
-                        }}
-                      />
-                    {:else}
-                      <span
-                        class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate font-bold leading-tight"
-                        style={getFormattingStyle("names")}
-                      >
-                        {val}
-                      </span>
-                    {/if}
-                  </div>
-                  <button
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      deletedAutomatedIds.add(sid);
-                      // Remove property and trigger reactivity
-                      const next = { ...specialServices };
-                      delete next[sid];
-                      specialServices = next;
-                    }}
-                    class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all z-10"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
+                {/if}
               {/each}
-              
-              {#if sortedSpecialServices.length === 0}
-                <div class="flex-1 flex flex-col items-center justify-center py-8 opacity-40">
-                  <Star size={24} class="text-zinc-300 dark:text-zinc-600 mb-2" />
-                  <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Keine Einträge</span>
+              {#if Object.keys(specialServices).length === 0}
+                <div
+                  class="flex flex-col items-center justify-center py-4 opacity-30"
+                >
+                  <Star size={24} class="text-zinc-400 mb-2" />
+                  <span
+                    class="text-[10px] uppercase font-black tracking-widest text-zinc-400"
+                    >Keine Einträge</span
+                  >
                 </div>
               {/if}
             </div>
@@ -2113,7 +1998,9 @@
                     <button
                       onclick={(e) => {
                         e.stopPropagation();
-                        delete specialServices[sid];
+                        const next = { ...specialServices };
+                        delete next[sid];
+                        specialServices = next;
                       }}
                       class="p-2 text-zinc-400 hover:text-red-500 transition-colors z-10"
                     >

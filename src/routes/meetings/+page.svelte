@@ -5,7 +5,7 @@
         Plus,
         Calendar,
         ChevronRight,
-        Users,
+        Users as UsersIcon,
         UserPlus,
         Trash2,
         ChevronDown,
@@ -245,7 +245,7 @@
                             style="color: {group.color || '#4f46e5'}"
                             class="w-24 h-24 rounded-full bg-zinc-50 dark:bg-zinc-700 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300 relative z-10 shadow-sm"
                         >
-                            <Users size={48} />
+                            <UsersIcon size={48} />
                         </div>
 
                         <div class="relative z-10">
@@ -392,7 +392,7 @@
                     <div
                         class="w-8 h-8 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400"
                     >
-                        <Users size={16} />
+                        <UsersIcon size={16} />
                     </div>
                     <div class="flex-1 text-left">
                         <h3

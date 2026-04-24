@@ -25,12 +25,12 @@
 {:else}
   <GridEditor
     planId={data.plan.id}
-    serverPlan={data.plan}
     serverSlots={data.slots}
     serverPreachers={data.preachers}
     serverAbsences={data.absences}
     serverAssignments={data.assignments}
     serverFormatting={data.formatting}
     serverServiceRules={data.serviceRules}
+    serverPlan={data.plan}
   />
 {/if}

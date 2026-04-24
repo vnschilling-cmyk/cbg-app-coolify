@@ -1,0 +1,142 @@
+{
+  "message": "Cannot call `fetch` eagerly during server-side rendering with relative URL (/api/health) — put your `fetch` calls inside `onMount` or a `load` function instead",
+  "stack": "Error: Cannot call `fetch` eagerly during server-side rendering with relative URL (/api/health) — put your `fetch` calls inside `onMount` or a `load` function instead\n    at globalThis.fetch (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/page/render.js:212:13)\n    at Client.send (file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37033)\n    at HealthService.check (file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:29082)\n    at GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:38)\n    at eval (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:57:4)\n    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)\n    at with_request_store (file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/internal/event.js:77:20)\n    at render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:70)\n    at resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:70)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:28:20)"
+}
+---
+{
+  "url": "http://127.0.0.1:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:28:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "http://localhost:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:28:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:28:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "message": "Cannot call `fetch` eagerly during server-side rendering with relative URL (/api/health) — put your `fetch` calls inside `onMount` or a `load` function instead",
+  "stack": "Error: Cannot call `fetch` eagerly during server-side rendering with relative URL (/api/health) — put your `fetch` calls inside `onMount` or a `load` function instead\n    at globalThis.fetch (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/page/render.js:212:13)\n    at Client.send (file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37033)\n    at HealthService.check (file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:29082)\n    at GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:38)\n    at eval (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:57:4)\n    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)\n    at with_request_store (file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/internal/event.js:77:20)\n    at render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:70)\n    at resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+}
+---
+{
+  "url": "http://127.0.0.1:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:28:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "http://localhost:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:28:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:28:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "http://127.0.0.1:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "http://localhost:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io",
+  "message": "Something went wrong.",
+  "status": 503,
+  "stack": "ClientResponseError 503: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": {
+    "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io/api/health",
+    "status": 503,
+    "data": {}
+  }
+}
+---
+{
+  "url": "http://127.0.0.1:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "http://localhost:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io",
+  "message": "Something went wrong.",
+  "status": 503,
+  "stack": "ClientResponseError 503: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": {
+    "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io/api/health",
+    "status": 503,
+    "data": {}
+  }
+}
+---
+{
+  "url": "http://127.0.0.1:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "http://localhost:8090",
+  "message": "Something went wrong.",
+  "status": 0,
+  "stack": "ClientResponseError 0: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": "fetch failed"
+}
+---
+{
+  "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io",
+  "message": "Something went wrong.",
+  "status": 503,
+  "stack": "ClientResponseError 503: Something went wrong.\n    at file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/pocketbase/dist/pocketbase.es.mjs:1:37329\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async GET (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/routes/api/debug-pb/+server.ts:21:22)\n    at async render_endpoint (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/endpoint.js:56:20)\n    at async resolve (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:472:23)\n    at async Object.handle (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/src/hooks.server.ts:33:20)\n    at async fn (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:337:16)\n    at async internal_respond (/Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/runtime/server/respond.js:319:22)\n    at async file:///Users/ViSc/Gemeinde/Apps/cbg-app-coolify/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:562:22",
+  "cause": {
+    "url": "https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io/api/health",
+    "status": 503,
+    "data": {}
+  }
+}
+---

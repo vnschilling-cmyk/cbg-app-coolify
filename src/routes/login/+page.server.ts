@@ -33,6 +33,7 @@ export const actions: Actions = {
                 error: message
             });
         }
-        return redirect(303, '/');
+
+        throw redirect(303, '/');
     }
 };

@@ -1,4 +1,4 @@
-import { BookOpen, Settings, Flame, Users, Info, Gavel } from "lucide-svelte";
+import { BookOpen, Settings, Flame, Users as UsersIcon, Info, Gavel } from "lucide-svelte";
 
 export const categories = [
     {
@@ -22,7 +22,7 @@ export const categories = [
     {
         id: "menschen",
         label: "Menschen",
-        icon: Users,
+        icon: UsersIcon,
         color: "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
     },
 ];
