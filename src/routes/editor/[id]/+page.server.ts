@@ -144,9 +144,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             const events = await client.getEventsWithServices(fromDate, toDate);
 
             for (const event of events) {
-                // Fetch event details to get services
-                const detailResponse = await client.request(`events/${event.id}`);
-                const services = detailResponse.data?.services || [];
+                // `eventServices` are now included directly via the API request
+                const services = event.eventServices || [];
 
                 const eventDate = new Date(event.startDate);
                 const dateStr = format(eventDate, 'yyyy-MM-dd');
