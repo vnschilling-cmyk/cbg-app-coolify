@@ -53,11 +53,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 const sDate = new Date(apt.calculated?.startDate || apt.base?.startDate || apt.startDate);
                 if (isNaN(sDate.getTime())) return false;
 
-                // FILTER: Ignore Saturday events for Sondergemeinschaften (ID 90)
-                const calId = apt.base?.calendar?.id || apt.appointment?.base?.calendar?.id;
-                if (calId === 90) {
-                    if (isSaturday(sDate)) return false;
-                }
                 return true;
             })
             .map((apt: any) => {

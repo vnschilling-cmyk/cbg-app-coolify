@@ -224,38 +224,19 @@
     }
   });
 
-  // Auto-populate specialServices ONLY with Gemeindestunde from Sondergemeinschaften
+  // Auto-populate specialServices with all Gottesdienst and Sondergemeinschaften
   $effect(() => {
     if (serverSlots.length > 0) {
       let changed = false;
       const nextSpecial = { ...specialServices };
       
       for (const slot of serverSlots) {
-        const isSondergemeinschaft = slot.calendar && slot.calendar.includes("Sondergemeinschaften");
-        const isGemeindestunde = slot.label && slot.label.includes("Gemeindestunde");
+        const isTargetCalendar = slot.calendar && 
+          (slot.calendar.includes("Gottesdienst") || slot.calendar.includes("Sondergemeinschaften"));
         
-        if (isSondergemeinschaft && isGemeindestunde && nextSpecial[slot.id] === undefined) {
-          nextSpecial[slot.id] = slot.label;
+        if (isTargetCalendar && nextSpecial[slot.id] === undefined) {
+          nextSpecial[slot.id] = slot.label && slot.label !== "Unbenannter Termin" ? slot.label : slot.calendar;
           changed = true;
-        }
-      }
-
-      // Cleanup: Remove existing entries that were auto-populated but no longer match the criteria
-      for (const [slotId, val] of Object.entries(nextSpecial)) {
-        if (val === "") continue; // Keep explicit deletions
-        
-        const slot = serverSlots.find(s => s.id === slotId);
-        if (slot) {
-          const isSondergemeinschaft = slot.calendar && slot.calendar.includes("Sondergemeinschaften");
-          const isGemeindestunde = slot.label && slot.label.includes("Gemeindestunde");
-          
-          if (!(isSondergemeinschaft && isGemeindestunde)) {
-            // Only auto-remove if the value matches the original label or calendar name
-            if (val === slot.label || val === slot.calendar) {
-              delete nextSpecial[slotId];
-              changed = true;
-            }
-          }
         }
       }
       
@@ -263,6 +244,11 @@
         specialServices = nextSpecial;
       }
     }
+  });
+
+  // Derived columns for the grid (excluding Gemeindestunde)
+  let gridSlots = $derived.by(() => {
+    return slots.filter(s => !s.label.includes("Gemeindestunde"));
   });
 
   // Constants
@@ -1534,15 +1520,10 @@
                     >
                       {selectedMonth?.getFullYear()}
                     </span>
-                  </div>
                 </th>
-                {#each [...new Set(slots.map( (s) => s.date.getMonth(), ))] as mIdx}
-                  {@const monthDate = slots.find(
-                    (s) => s.date.getMonth() === mIdx,
-                  )?.date}
-                  {@const monthSlots = slots.filter(
-                    (s) => s.date.getMonth() === mIdx,
-                  )}
+                {#each [...new Set(gridSlots.map((s) => s.date.getMonth()))] as mIdx}
+                  {@const monthDate = gridSlots.find((s) => s.date.getMonth() === mIdx)?.date}
+                  {@const monthSlots = gridSlots.filter((s) => s.date.getMonth() === mIdx)}
                   <th
                     colspan={monthSlots.length}
                     class="sticky top-0 z-[100] bg-zinc-100 dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-2 text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors duration-300"
@@ -1551,9 +1532,7 @@
                       class="uppercase tracking-[0.3em] text-zinc-900 dark:text-white"
                       style={getFormattingStyle("months")}
                     >
-                      {monthDate
-                        ? format(monthDate, "MMMM", { locale: de })
-                        : ""}
+                      {monthDate ? format(monthDate, "MMMM", { locale: de }) : ""}
                     </span>
                   </th>
                 {/each}
@@ -1577,7 +1556,7 @@
                     />
                   </div>
                 </th>
-                {#each slots as slot, sIdx}
+                {#each gridSlots as slot, sIdx}
                   <th
                     class="sticky top-[36px] z-[100] transition-all border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)]
                     {getDayHighlightClass(new Date(slot.date), slot.time)}
@@ -1601,7 +1580,7 @@
               </tr>
               <!-- Row 3: Dates -->
               <tr class="h-14">
-                {#each slots as slot, sIdx}
+                {#each gridSlots as slot, sIdx}
                   <th
                     class="sticky top-[76px] z-[100] transition-colors border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] group {slot.isSundaySecond
                       ? 'border-l-0'
@@ -1699,7 +1678,7 @@
                       {preacherName}
                     </span>
                   </td>
-                  {#each slots as slot, sIdx}
+                  {#each gridSlots as slot, sIdx}
                     {@const code = gridData[slot.id]?.[preacherName] || ""}
                     <td
                       class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
@@ -1772,7 +1751,7 @@
                       {preacherName}
                     </span>
                   </td>
-                  {#each slots as slot, sIdx}
+                  {#each gridSlots as slot, sIdx}
                     {@const code = gridData[slot.id]?.[preacherName] || ""}
                     <td
                       class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
@@ -1822,7 +1801,7 @@
               {/each}
 
               <!-- Individual Besonderheiten Rows -->
-              {#each Object.entries(specialServices) as [sid, text], idx}
+              {#each Object.entries(specialServices).filter(([_, text]) => !text.includes("Gemeindestunde")) as [sid, text], idx}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
                   <tr
@@ -1846,7 +1825,7 @@
                         </span>
                       </div>
                     </td>
-                    {#each slots as slot, sIdx}
+                    {#each gridSlots as slot, sIdx}
                       <td
                         class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all
                             {getDayHighlightClass(
@@ -2052,7 +2031,7 @@
             </h3>
             <div class="flex flex-col gap-3">
               {#each Object.entries(specialServices).filter(([_, v]) => v !== "") as [sid, val]}
-                {@const s = slots.find((sl) => sl.id === sid)}
+                {@const s = serverSlots.find((sl) => sl.id === sid)}
                 {#if s}
                   <div
                     class="group flex items-center gap-3 p-1.5 rounded-2xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
@@ -2066,6 +2045,9 @@
                     <div
                       class="flex flex-col flex-1 min-w-0 overflow-hidden relative"
                     >
+                      <div class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">
+                        {format(new Date(s.date), 'dd. MMM', { locale: de })}
+                      </div>
                       {#if editingSpecialService === sid}
                         <input
                           type="text"
