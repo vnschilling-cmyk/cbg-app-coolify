@@ -235,9 +235,20 @@
         const isSondergemeinschaft = slot.calendarId === 90 || (slot.calendar && slot.calendar.includes("Sondergemeinschaften"));
         const isGemeindestunde = slot.label && slot.label.toLowerCase().includes("gemeindestunde");
         
-        // Auto-populate ALL Sondergemeinschaften events EXCEPT Gemeindestunde
-        if (isSondergemeinschaft && !isGemeindestunde && nextSpecial[slot.id] === undefined) {
-          nextSpecial[slot.id] = slot.label;
+        // Sunday afternoon check (>= 12:00)
+        const parts = slot.date.split("-");
+        const [y, m, d] = parts.map(Number);
+        const date = new Date(y, m - 1, d, 12, 0, 0);
+        const hour = parseInt(slot.time.split(":")[0], 10);
+        const isSundayAfternoon = isSunday(date) && hour >= 12;
+
+        const shouldBeColumn = isSondergemeinschaft && (isGemeindestunde || isSundayAfternoon);
+        
+        // Auto-populate Sondergemeinschaften events that are NOT columns
+        if (isSondergemeinschaft && !shouldBeColumn && nextSpecial[slot.id] === undefined) {
+          // Avoid empty or generic labels
+          const cleanLabel = slot.label && slot.label !== "Unbenannter Termin" ? slot.label : "Besonderheit";
+          nextSpecial[slot.id] = cleanLabel;
           changed = true;
         }
       }
@@ -251,9 +262,13 @@
         if (slot) {
           const isSondergemeinschaft = slot.calendarId === 90 || (slot.calendar && slot.calendar.includes("Sondergemeinschaften"));
           const isGemeindestunde = slot.label && slot.label.toLowerCase().includes("gemeindestunde");
+          const hour = parseInt(slot.time.split(":")[0], 10);
+          const isSundayAfternoon = isSunday(slot.date) && hour >= 12;
+
+          const shouldBeColumn = isSondergemeinschaft && (isGemeindestunde || isSundayAfternoon);
           
-          // Only auto-cleanup if it's a Sondergemeinschaft and matches the "must-exclude" criteria (Gemeindestunde)
-          if (isSondergemeinschaft && isGemeindestunde) {
+          // Only auto-cleanup if it's now a column
+          if (shouldBeColumn) {
             if (val === slot.label || val === slot.calendar) {
               delete nextSpecial[slotId];
               changed = true;
@@ -772,10 +787,12 @@
     return slots.filter((s) => {
       const isSondergemeinschaft = s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften"));
       const isGemeindestunde = s.label && s.label.toLowerCase().includes("gemeindestunde");
+      const hour = parseInt(s.time.split(":")[0], 10);
+      const isSundayAfternoon = isSunday(s.date) && hour >= 12;
 
       if (isSondergemeinschaft) {
-        // Only include Gemeindestunde from Sondergemeinschaften as columns
-        return isGemeindestunde;
+        // Include if it's a Gemeindestunde OR a Sunday afternoon event
+        return isGemeindestunde || isSundayAfternoon;
       }
       
       // For other calendars, exclude Gemeindestunde
@@ -1837,8 +1854,16 @@
 
               <!-- Individual Besonderheiten Rows -->
               {#each Object.entries(specialServices).filter(([sid, text]) => {
+                if (text === "") return false;
+                const s = slots.find(sl => sl.id === sid);
+                const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
                 const isGemeinde = text && text.toLowerCase().includes("gemeindestunde");
-                return text !== "" && !isGemeinde;
+                const hour = s ? parseInt(s.time.split(":")[0], 10) : 0;
+                const isSundayAfternoon = s && isSunday(s.date) && hour >= 12;
+                
+                // Exclude if it's now a column
+                const isColumn = isSonder && (isGemeinde || isSundayAfternoon);
+                return !isColumn;
               }) as [sid, text], idx}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
@@ -1856,10 +1881,11 @@
                       <div class="flex items-center gap-2">
                         <Star size={12} class="fill-current shrink-0" />
                         <span
-                          class="text-[11px] font-bold truncate"
+                          class="text-[11px] font-bold truncate max-w-[160px]"
                           style={getFormattingStyle("names")}
+                          title={text}
                         >
-                          * {text}
+                          * {(text && text.trim()) ? (text.length > 25 ? text.substring(0, 22) + "..." : text) : "Besonderheit"}
                         </span>
                       </div>
                     </td>
@@ -1942,8 +1968,15 @@
               class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
             >
               {#each Object.entries(specialServices).filter(([sid, val]) => {
+                if (val === "") return false;
+                const s = slots.find(sl => sl.id === sid);
+                const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
                 const isGemeinde = val && val.toLowerCase().includes("gemeindestunde");
-                return val !== "" && !isGemeinde;
+                const hour = s ? parseInt(s.time.split(":")[0], 10) : 0;
+                const isSundayAfternoon = s && isSunday(s.date) && hour >= 12;
+                
+                const isColumn = isSonder && (isGemeinde || isSundayAfternoon);
+                return !isColumn;
               }) as [sid, val]}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
@@ -1979,10 +2012,11 @@
                         >
                           <span
                             use:checkOverflow={val}
-                            class="text-[11px] text-zinc-800 dark:text-zinc-200"
+                            class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate"
                             style={getFormattingStyle("names")}
+                            title={val}
                           >
-                            {val || "Besonderheit..."}
+                            {val.length > 20 ? val.substring(0, 18) + "..." : (val || "Besonderheit...")}
                           </span>
                         </div>
                       {/if}
@@ -2072,8 +2106,17 @@
             </h3>
             <div class="flex flex-col gap-3">
               {#each Object.entries(specialServices).filter(([sid, val]) => {
+                if (val === "") return false;
+                const s = serverSlots.find(sl => sl.id === sid);
+                const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
                 const isGemeinde = val && val.toLowerCase().includes("gemeindestunde");
-                return val !== "" && !isGemeinde;
+                const parts = s ? s.date.split("-") : [];
+                const d = parts.length === 3 ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0) : null;
+                const hour = s ? parseInt(s.time.split(":")[0], 10) : 0;
+                const isSundayAfternoon = d && isSunday(d) && hour >= 12;
+                
+                const isColumn = isSonder && (isGemeinde || isSundayAfternoon);
+                return !isColumn;
               }) as [sid, val]}
                 {@const s = serverSlots.find((sl) => sl.id === sid)}
                 {#if s}
