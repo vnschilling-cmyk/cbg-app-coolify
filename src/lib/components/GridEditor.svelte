@@ -1266,117 +1266,94 @@
   class="flex-1 h-full flex flex-col p-0 bg-white dark:bg-zinc-700 overflow-hidden transition-colors duration-300"
 >
   <!-- Toolbar - will be portaled to header -->
-  <div bind:this={toolbarRef} class="flex items-center gap-4 no-print">
+  <div bind:this={toolbarRef} class="flex items-center gap-4 bg-zinc-100/50 dark:bg-zinc-800/50 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm no-print">
     <!-- Month Navigation -->
-    <!-- Month Navigation -->
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1 bg-white dark:bg-zinc-700 p-0.5 rounded-xl border border-zinc-200 dark:border-zinc-600 shadow-sm">
       <button
         onclick={prevMonth}
-        class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-500 text-white hover:bg-zinc-600 hover:shadow-zinc-500/20 transition-all shadow-sm"
+        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-500 text-white hover:bg-zinc-600 transition-all"
         title="Vorheriger Monat"
-        aria-label="Vorheriger Monat"
       >
-        <ChevronLeft size={18} />
+        <ChevronLeft size={14} />
       </button>
-      <div
-        class="px-2 py-1 text-sm font-bold text-zinc-800 dark:text-zinc-200 min-w-[140px] text-center"
-      >
-        {format(selectedMonth, "MMMM", { locale: de })} - {format(
-          addMonths(selectedMonth, 1),
-          "MMMM yyyy",
-          { locale: de },
-        )}
+      <div class="px-3 text-[11px] font-black text-zinc-800 dark:text-zinc-200 min-w-[120px] text-center uppercase tracking-wider">
+        {format(selectedMonth, "MMM", { locale: de })} - {format(addMonths(selectedMonth, 1), "MMM yy", { locale: de })}
       </div>
       <button
         onclick={nextMonth}
-        class="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-500 text-white hover:bg-zinc-600 hover:shadow-zinc-500/20 transition-all shadow-sm"
+        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-500 text-white hover:bg-zinc-600 transition-all"
         title="Nächster Monat"
-        aria-label="Nächster Monat"
       >
-        <ChevronRight size={18} />
+        <ChevronRight size={14} />
       </button>
     </div>
 
+    <div class="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+
     <!-- Actions -->
+    <div class="flex items-center gap-1">
+      <button
+        onclick={() => (showExport = true)}
+        class="flex items-center justify-center w-8 h-8 rounded-xl bg-orange-500 text-white hover:bg-orange-600 shadow-sm transition-all"
+        title="Als PDF Exportieren"
+      >
+        <FileText size={16} />
+      </button>
 
-    <button
-      onclick={() => (showExport = true)}
-      class="flex items-center justify-center w-9 h-9 rounded-xl bg-orange-500 text-white hover:bg-orange-600 shadow-sm hover:shadow-orange-500/20 transition-all border border-transparent"
-      title="Als PDF Exportieren"
-      aria-label="Als PDF Exportieren"
-    >
-      <FileText size={18} />
-    </button>
+      <button
+        onclick={syncData}
+        disabled={syncing}
+        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        title="Synchronisieren"
+      >
+        <RefreshCw size={16} class={syncing ? "animate-spin" : ""} />
+      </button>
 
-    <button
-      onclick={syncData}
-      disabled={syncing}
-      class="flex items-center justify-center w-9 h-9 rounded-xl bg-cyan-500 text-white hover:bg-cyan-600 shadow-sm hover:shadow-cyan-500/20 transition-all border border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-      title="Von ChurchTools synchronisieren"
-      aria-label="Von ChurchTools synchronisieren"
-    >
-      <RefreshCw size={18} class={syncing ? "animate-spin" : ""} />
-    </button>
+      <button
+        onclick={savePlan}
+        disabled={saving}
+        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        title="Speichern"
+      >
+        {#if saving}
+          <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        {:else}
+          <Save size={16} />
+        {/if}
+      </button>
 
-    <button
-      onclick={savePlan}
-      disabled={saving}
-      class="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:shadow-blue-500/20 disabled:opacity-50 transition-all border border-transparent"
-      title={saving ? "Wird gespeichert..." : "Plan speichern"}
-      aria-label={saving ? "Wird gespeichert..." : "Plan speichern"}
-    >
-      {#if saving}
-        <div
-          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-        ></div>
-      {:else}
-        <Save size={18} />
-      {/if}
-    </button>
+      <button
+        onclick={exportToChurchTools}
+        disabled={exporting}
+        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        title="Nach ChurchTools exportieren"
+      >
+        {#if exporting}
+          <div class="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        {:else}
+          <Share size={16} />
+        {/if}
+      </button>
 
-    <button
-      onclick={exportToChurchTools}
-      disabled={exporting}
-      class="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm hover:shadow-emerald-500/20 disabled:opacity-50 transition-all border border-transparent"
-      title={exporting
-        ? "Wird exportiert..."
-        : "Nach ChurchTools exportieren (Push)"}
-      aria-label={exporting
-        ? "Wird exportiert..."
-        : "Nach ChurchTools exportieren (Push)"}
-    >
-      {#if exporting}
-        <div
-          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-        ></div>
-      {:else}
-        <Share size={18} />
-      {/if}
-    </button>
-    
-    <div class="w-px h-6 bg-zinc-200 dark:bg-zinc-600 mx-1"></div>
+      <div class="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
 
-    <button
-      onclick={() => (showPreacherFilter = true)}
-      class="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 shadow-sm transition-all border border-transparent"
-      title="Prediger ein-/ausblenden"
-      aria-label="Prediger ein-/ausblenden"
-    >
-      <UsersIcon size={18} />
-    </button>
+      <button
+        onclick={() => (showPreacherFilter = true)}
+        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        title="Gruppen & Sichtbarkeit"
+      >
+        <UsersIcon size={16} />
+      </button>
 
-    <!-- Formatting Toggle -->
-    <div class="relative">
       <button
         onclick={() => (showFormatting = !showFormatting)}
-        class="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:bg-fuchsia-500 hover:text-white dark:hover:bg-fuchsia-600 dark:hover:text-white transition-all shadow-sm hover:shadow-fuchsia-500/20 border border-transparent {showFormatting
-          ? '!bg-fuchsia-500 !text-white ring-2 ring-fuchsia-200 dark:ring-fuchsia-900'
-          : ''}"
-        title="Formatierung anpassen"
-        aria-label="Formatierung anpassen"
+        class="flex items-center justify-center w-8 h-8 rounded-xl transition-all {showFormatting ? 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/20' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}"
+        title="Formatierung"
       >
-        <Settings2 size={18} />
+        <Settings2 size={16} />
       </button>
+    </div>
+  </div>
 
       {#if showFormatting}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
