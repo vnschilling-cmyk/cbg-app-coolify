@@ -242,12 +242,13 @@
         const hour = parseInt(slot.time.split(":")[0], 10);
         const isSundayAfternoon = isSunday(date) && hour >= 12;
 
-        const shouldBeColumn = isSondergemeinschaft && (isGemeindestunde || isSundayAfternoon);
+        const isColumn = isSondergemeinschaft && (isGemeindestunde || isSundayAfternoon);
+        const isSpecial = isSondergemeinschaft && !isGemeindestunde;
         
-        // Auto-populate Sondergemeinschaften events that are NOT columns
-        if (isSondergemeinschaft && !shouldBeColumn && nextSpecial[slot.id] === undefined) {
+        // Auto-populate Sondergemeinschaften events if they are NOT Gemeindestunden
+        if (isSpecial && nextSpecial[slot.id] === undefined) {
           // Avoid empty or generic labels
-          const cleanLabel = slot.label && slot.label !== "Unbenannter Termin" ? slot.label : "Besonderheit";
+          const cleanLabel = (slot.label && slot.label.trim() && slot.label !== "Unbenannter Termin") ? slot.label : "Besonderheit";
           nextSpecial[slot.id] = cleanLabel;
           changed = true;
         }
@@ -262,13 +263,9 @@
         if (slot) {
           const isSondergemeinschaft = slot.calendarId === 90 || (slot.calendar && slot.calendar.includes("Sondergemeinschaften"));
           const isGemeindestunde = slot.label && slot.label.toLowerCase().includes("gemeindestunde");
-          const hour = parseInt(slot.time.split(":")[0], 10);
-          const isSundayAfternoon = isSunday(slot.date) && hour >= 12;
-
-          const shouldBeColumn = isSondergemeinschaft && (isGemeindestunde || isSundayAfternoon);
           
-          // Only auto-cleanup if it's now a column
-          if (shouldBeColumn) {
+          // Only auto-cleanup if it's a Sondergemeinschaft Gemeindestunde (which must be a column only)
+          if (isSondergemeinschaft && isGemeindestunde) {
             if (val === slot.label || val === slot.calendar) {
               delete nextSpecial[slotId];
               changed = true;
@@ -1854,16 +1851,16 @@
 
               <!-- Individual Besonderheiten Rows -->
               {#each Object.entries(specialServices).filter(([sid, text]) => {
-                if (text === "") return false;
+                const cleanText = text ? text.trim() : "";
+                if (cleanText === "") return false;
+                
                 const s = slots.find(sl => sl.id === sid);
                 const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
-                const isGemeinde = text && text.toLowerCase().includes("gemeindestunde");
-                const hour = s ? parseInt(s.time.split(":")[0], 10) : 0;
-                const isSundayAfternoon = s && isSunday(s.date) && hour >= 12;
+                const isGemeinde = cleanText.toLowerCase().includes("gemeindestunde") || (s?.label?.toLowerCase().includes("gemeindestunde"));
                 
-                // Exclude if it's now a column
-                const isColumn = isSonder && (isGemeinde || isSundayAfternoon);
-                return !isColumn;
+                // Exclude ONLY if it's a Sondergemeinschaft Gemeindestunde
+                const isGemeindeSonder = isSonder && isGemeinde;
+                return !isGemeindeSonder;
               }) as [sid, text], idx}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
@@ -1968,15 +1965,15 @@
               class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
             >
               {#each Object.entries(specialServices).filter(([sid, val]) => {
-                if (val === "") return false;
+                const cleanVal = val ? val.trim() : "";
+                if (cleanVal === "") return false;
+                
                 const s = slots.find(sl => sl.id === sid);
                 const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
-                const isGemeinde = val && val.toLowerCase().includes("gemeindestunde");
-                const hour = s ? parseInt(s.time.split(":")[0], 10) : 0;
-                const isSundayAfternoon = s && isSunday(s.date) && hour >= 12;
+                const isGemeinde = cleanVal.toLowerCase().includes("gemeindestunde") || (s?.label?.toLowerCase().includes("gemeindestunde"));
                 
-                const isColumn = isSonder && (isGemeinde || isSundayAfternoon);
-                return !isColumn;
+                const isGemeindeSonder = isSonder && isGemeinde;
+                return !isGemeindeSonder;
               }) as [sid, val]}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
@@ -2106,17 +2103,15 @@
             </h3>
             <div class="flex flex-col gap-3">
               {#each Object.entries(specialServices).filter(([sid, val]) => {
-                if (val === "") return false;
+                const cleanVal = val ? val.trim() : "";
+                if (cleanVal === "") return false;
+                
                 const s = serverSlots.find(sl => sl.id === sid);
                 const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
-                const isGemeinde = val && val.toLowerCase().includes("gemeindestunde");
-                const parts = s ? s.date.split("-") : [];
-                const d = parts.length === 3 ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0) : null;
-                const hour = s ? parseInt(s.time.split(":")[0], 10) : 0;
-                const isSundayAfternoon = d && isSunday(d) && hour >= 12;
+                const isGemeinde = cleanVal.toLowerCase().includes("gemeindestunde") || (s?.label?.toLowerCase().includes("gemeindestunde"));
                 
-                const isColumn = isSonder && (isGemeinde || isSundayAfternoon);
-                return !isColumn;
+                const isGemeindeSonder = isSonder && isGemeinde;
+                return !isGemeindeSonder;
               }) as [sid, val]}
                 {@const s = serverSlots.find((sl) => sl.id === sid)}
                 {#if s}
