@@ -53,6 +53,7 @@
     time: string;
     label: string;
     calendar?: string;
+    calendarId?: number;
     isSundaySecond?: boolean;
   }
 
@@ -224,33 +225,35 @@
     }
   });
 
-  // Auto-populate specialServices ONLY with Gemeindestunde from Sondergemeinschaften
+  // Auto-populate specialServices ONLY with events from Sondergemeinschaften (excluding Gemeindestunde)
   $effect(() => {
     if (serverSlots.length > 0) {
       let changed = false;
       const nextSpecial = { ...specialServices };
       
       for (const slot of serverSlots) {
-        const isSondergemeinschaft = slot.calendar && slot.calendar.includes("Sondergemeinschaften");
-        const isGemeindestunde = slot.label && slot.label.includes("Gemeindestunde");
+        const isSondergemeinschaft = slot.calendarId === 90 || (slot.calendar && slot.calendar.includes("Sondergemeinschaften"));
+        const isGemeindestunde = slot.label && slot.label.toLowerCase().includes("gemeindestunde");
         
-        if (isSondergemeinschaft && isGemeindestunde && nextSpecial[slot.id] === undefined) {
+        // Auto-populate ALL Sondergemeinschaften events EXCEPT Gemeindestunde
+        if (isSondergemeinschaft && !isGemeindestunde && nextSpecial[slot.id] === undefined) {
           nextSpecial[slot.id] = slot.label;
           changed = true;
         }
       }
 
-      // Cleanup: Remove existing entries that were auto-populated but no longer match the criteria
+      // Cleanup: ONLY remove entries if they are Sondergemeinschaften that should now be excluded (Gemeindestunde)
+      // Do NOT auto-remove manual entries from other calendars.
       for (const [slotId, val] of Object.entries(nextSpecial)) {
         if (val === "") continue; // Keep explicit deletions
         
         const slot = serverSlots.find(s => s.id === slotId);
         if (slot) {
-          const isSondergemeinschaft = slot.calendar && slot.calendar.includes("Sondergemeinschaften");
-          const isGemeindestunde = slot.label && slot.label.includes("Gemeindestunde");
+          const isSondergemeinschaft = slot.calendarId === 90 || (slot.calendar && slot.calendar.includes("Sondergemeinschaften"));
+          const isGemeindestunde = slot.label && slot.label.toLowerCase().includes("gemeindestunde");
           
-          if (!(isSondergemeinschaft && isGemeindestunde)) {
-            // Only auto-remove if the value matches the original label or calendar name
+          // Only auto-cleanup if it's a Sondergemeinschaft and matches the "must-exclude" criteria (Gemeindestunde)
+          if (isSondergemeinschaft && isGemeindestunde) {
             if (val === slot.label || val === slot.calendar) {
               delete nextSpecial[slotId];
               changed = true;
@@ -380,6 +383,7 @@
     time: string;
     label: string;
     calendar?: string;
+    calendarId?: number;
     isSundaySecond?: boolean;
   }
 
@@ -716,6 +720,7 @@
             time: s.time,
             label: s.label,
             calendar: s.calendar || undefined,
+            calendarId: s.calendarId || undefined,
             isSundaySecond,
           } as Slot;
         })
@@ -762,9 +767,20 @@
     return [];
   });
 
-  // Derived columns for the grid (excluding Gemeindestunde)
+  // Derived columns for the grid
   let gridSlots = $derived.by(() => {
-    return slots.filter((s) => !s.label.includes("Gemeindestunde"));
+    return slots.filter((s) => {
+      const isSondergemeinschaft = s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften"));
+      const isGemeindestunde = s.label && s.label.toLowerCase().includes("gemeindestunde");
+
+      if (isSondergemeinschaft) {
+        // Only include Gemeindestunde from Sondergemeinschaften as columns
+        return isGemeindestunde;
+      }
+      
+      // For other calendars, exclude Gemeindestunde
+      return !isGemeindestunde;
+    });
   });
 
   // Filtered Preachers based on visibility settings
@@ -1820,7 +1836,10 @@
               {/each}
 
               <!-- Individual Besonderheiten Rows -->
-              {#each Object.entries(specialServices).filter(([_, text]) => !text.includes("Gemeindestunde")) as [sid, text], idx}
+              {#each Object.entries(specialServices).filter(([sid, text]) => {
+                const isGemeinde = text && text.toLowerCase().includes("gemeindestunde");
+                return text !== "" && !isGemeinde;
+              }) as [sid, text], idx}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
                   <tr
@@ -1840,7 +1859,7 @@
                           class="text-[11px] font-bold truncate"
                           style={getFormattingStyle("names")}
                         >
-                          {text}
+                          * {text}
                         </span>
                       </div>
                     </td>
@@ -1922,7 +1941,10 @@
             <div
               class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
             >
-              {#each Object.entries(specialServices) as [sid, val]}
+              {#each Object.entries(specialServices).filter(([sid, val]) => {
+                const isGemeinde = val && val.toLowerCase().includes("gemeindestunde");
+                return val !== "" && !isGemeinde;
+              }) as [sid, val]}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
                   <div
@@ -2049,7 +2071,10 @@
               Besonderheiten
             </h3>
             <div class="flex flex-col gap-3">
-              {#each Object.entries(specialServices).filter(([_, v]) => v !== "") as [sid, val]}
+              {#each Object.entries(specialServices).filter(([sid, val]) => {
+                const isGemeinde = val && val.toLowerCase().includes("gemeindestunde");
+                return val !== "" && !isGemeinde;
+              }) as [sid, val]}
                 {@const s = serverSlots.find((sl) => sl.id === sid)}
                 {#if s}
                   <div

@@ -67,6 +67,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                     time: formatInTimeZone(startDate, 'Europe/Berlin', 'HH:mm'),
                     label: apt.base?.title || apt.appointment?.base?.title || apt.caption || 'Unbenannter Termin',
                     calendar: apt.base?.calendar?.name || apt.appointment?.base?.calendar?.name || 'Unbekannter Kalender',
+                    calendarId: apt.base?.calendar?.id || apt.appointment?.base?.calendar?.id || null,
                     isSundaySecond: false // Will be calculated client-side
                 };
             })
