@@ -262,8 +262,9 @@
         
         const slot = serverSlots.find(s => s.id === slotId);
         if (slot) {
-          const isSondergemeinschaft = slot.calendarId === 90 || (slot.calendar && slot.calendar.includes("Sondergemeinschaften"));
-          const isSundayEvent = isSunday(slot.date);
+          const parts = slot.date.split("-");
+          const dateObj = parts.length === 3 ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0) : null;
+          const isSundayEvent = dateObj && isSunday(dateObj);
           const isGemeindestunde = slot.label && slot.label.toLowerCase().includes("gemeindestunde");
           
           // Auto-cleanup if it's a Sondergemeinschaft that:
@@ -1557,7 +1558,7 @@
           <table class="table-fixed border-separate border-spacing-0">
             <colgroup>
               <col class="w-[200px]" />
-              {#each slots as _}
+              {#each gridSlots as _}
                 <col class="w-7" />
               {/each}
             </colgroup>
@@ -1860,12 +1861,9 @@
                 if (cleanText === "") return false;
                 
                 const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
-                const isSundayEvent = s && isSunday(s.date);
+                const isSundayEvent = s && isSunday(new Date(s.date));
                 const isGemeinde = cleanText.toLowerCase().includes("gemeindestunde") || (s?.label?.toLowerCase().includes("gemeindestunde"));
                 
-                // Exclude if it's a Sondergemeinschaft that is:
-                // 1. Not on Sunday
-                // 2. Or is a Gemeindestunde
                 if (isSonder) {
                   return isSundayEvent && !isGemeinde;
                 }
@@ -1978,7 +1976,7 @@
                 if (cleanVal === "") return false;
                 
                 const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
-                const isSundayEvent = s && isSunday(s.date);
+                const isSundayEvent = s && isSunday(new Date(s.date));
                 const isGemeinde = cleanVal.toLowerCase().includes("gemeindestunde") || (s?.label?.toLowerCase().includes("gemeindestunde"));
                 
                 if (isSonder) {
