@@ -789,6 +789,7 @@
       const isSondergemeinschaft = s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften"));
       const isGemeindestunde = s.label && s.label.toLowerCase().includes("gemeindestunde");
       const isSundayEvent = isSunday(s.date);
+      const hour = parseInt(s.time.split(":")[0], 10);
       const isSundayAfternoon = isSundayEvent && hour >= 12;
 
       if (isSondergemeinschaft) {
