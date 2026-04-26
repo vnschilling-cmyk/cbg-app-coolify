@@ -9,7 +9,6 @@
         rows = [],
         assignments = {},
         formatting = {},
-        specialServices = {},
     } = $props();
 
     let previewRef: HTMLElement;
@@ -296,33 +295,6 @@
                                             </td>
                                         {/each}
                                     </tr>
-                                {/each}
-                                <!-- Special Services Rows -->
-                                {#each Object.entries(specialServices).filter(([sid, val]) => val && val.trim() !== "") as [sid, val]}
-                                    {@const s = slots.find((sl) => sl.id === sid)}
-                                    {#if s}
-                                        <tr style="background-color: {HEX.white};">
-                                            <td
-                                                class="border-r border-b px-2 py-0.5 whitespace-nowrap overflow-hidden text-ellipsis text-amber-600 font-bold"
-                                                style="border-color: {HEX.zinc200}; font-size: 10px;"
-                                            >
-                                                * {val}
-                                            </td>
-                                            {#each slots as slot}
-                                                <td
-                                                    class="border-r border-b p-0.5 text-center align-middle"
-                                                    style="border-color: {HEX.zinc200}; {getDayHighlightStyle(
-                                                        slot.date,
-                                                        slot.time,
-                                                    )}"
-                                                >
-                                                    {#if slot.id === sid}
-                                                        <span style="color: #f59e0b; font-size: 10px;">★</span>
-                                                    {/if}
-                                                </td>
-                                            {/each}
-                                        </tr>
-                                    {/if}
                                 {/each}
                             </tbody>
                         </table>

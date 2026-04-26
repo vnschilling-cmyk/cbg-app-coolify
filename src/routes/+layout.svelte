@@ -28,69 +28,91 @@
     <!-- Navigation (Hidden on print) -->
     <header
       id="main-header"
-      class="bg-dark-bg border-dark-border print:hidden flex-none z-[200] transition-colors duration-300 border-b"
+      class="bg-zinc-50/80 dark:bg-zinc-800/80 backdrop-blur-md border-zinc-200 dark:border-zinc-700 print:hidden flex-none z-[200] transition-colors duration-300 {$page.url.pathname.includes(
+        '/editor/',
+      )
+        ? ''
+        : 'border-b'}"
     >
       <div
-        class="max-w-full mx-auto px-6 h-16 flex items-center justify-between"
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between"
       >
         <a
           href="/"
-          class="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          class="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div class="w-10 h-10 flex items-center justify-center bg-dark-surface rounded-xl border border-dark-border shadow-lg">
-            <svg viewBox="0 0 24 24" class="w-6 h-6 text-white fill-none stroke-current stroke-2" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" />
-              <path d="M12 6v12M8 10h8" />
-            </svg>
+          <img
+            src="/logo-light.png"
+            alt="Logo"
+            class="h-10 w-auto dark:hidden"
+          />
+          <img
+            src="/logo-dark.png"
+            alt="Logo"
+            class="h-10 w-auto hidden dark:block"
+          />
+          <div>
+            <h1
+              class="text-2xl font-normal text-zinc-900 dark:text-white leading-none tracking-tight"
+            >
+              διάκονος
+            </h1>
           </div>
-          <h1 class="text-2xl font-light text-white tracking-widest lowercase">
-            διάκονος
-          </h1>
         </a>
 
+        <!-- Spacer to push nav to right -->
+        <div class="flex-1"></div>
+
         <!-- Page-specific controls (slots) -->
-        <div id="header-controls" class="flex-1 flex justify-center px-4">
-          <!-- Will be populated by GridEditor -->
+        <div id="header-controls" class="flex items-center gap-4">
+          <!-- Will be populated by pages -->
         </div>
 
         <div class="flex items-center gap-4">
-          <!-- User Profile -->
-          <div class="flex items-center gap-4">
-             <div class="flex items-center gap-3 bg-dark-surface px-4 py-1.5 rounded-2xl border border-dark-border shadow-sm">
-                <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-[10px]">
-                  {($user.name || $user.username || "U").charAt(0).toUpperCase()}
-                </div>
-                <div class="hidden md:block text-left">
-                  <p class="text-xs font-bold text-white leading-tight">
-                    {$user.name || $user.username}
-                  </p>
-                  <p class="text-[10px] text-zinc-500 leading-tight">
-                    {$user.role || "Mitglied"}
-                  </p>
-                </div>
-                
-                <div class="flex items-center gap-1.5 ml-2 border-l border-dark-border pl-3">
-                  <a
-                    href="/settings"
-                    title="Einstellungen"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-700/50 text-zinc-400 hover:bg-zinc-600 hover:text-white transition-all"
-                  >
-                    <Settings size={16} />
-                  </a>
-                  <button
-                    onclick={logout}
-                    title="Abmelden"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                  >
-                    <LogOut size={16} />
-                  </button>
-                </div>
-             </div>
+          <div class="flex items-center gap-2 pl-4">
+            <!-- User Info Card -->
+            <div
+              class="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 rounded-2xl border border-zinc-100 dark:border-zinc-700/50 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <div
+                class="w-8 h-8 rounded-xl bg-primary-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-primary-500/20"
+              >
+                {($user.name || $user.username || "U").charAt(0).toUpperCase()}
+              </div>
+              <div class="hidden sm:block text-left">
+                <p
+                  class="text-xs font-bold text-zinc-900 dark:text-white leading-tight"
+                >
+                  {$user.name || $user.username}
+                </p>
+                <p
+                  class="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight capitalize"
+                >
+                  {$user.role || "Mitglied"}
+                </p>
+              </div>
+
+              <div class="flex items-center gap-1 ml-1 pl-1">
+                <a
+                  href="/settings"
+                  title="Einstellungen"
+                  class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-500 text-white hover:bg-slate-600 shadow-sm hover:shadow-slate-500/20 transition-all border border-transparent"
+                >
+                  <Settings size={18} />
+                </a>
+                <button
+                  onclick={logout}
+                  title="Abmelden"
+                  class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-500 text-white hover:bg-red-600 shadow-sm hover:shadow-red-500/20 transition-all border border-transparent"
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </header>
-
   {/if}
 
   <!-- Main Content -->
