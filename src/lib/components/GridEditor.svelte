@@ -1514,9 +1514,8 @@
         </div>
       </div>
     </button>
-  </div>
 
-  <!-- Grid Card Container -->
+    <!-- Grid Card Container -->
   <div
     class="flex-1 flex overflow-hidden border-t border-b border-zinc-200 dark:border-zinc-600 relative transition-colors duration-300"
   >
@@ -2371,7 +2370,6 @@
       </div>
     </div>
   {/if}
-</div>
 
 {#if showExport}
   <ExportPreview
