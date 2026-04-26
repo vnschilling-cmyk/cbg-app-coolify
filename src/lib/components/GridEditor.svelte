@@ -1266,94 +1266,93 @@
   class="flex-1 h-full flex flex-col p-0 bg-white dark:bg-zinc-700 overflow-hidden transition-colors duration-300"
 >
   <!-- Toolbar - will be portaled to header -->
-  <div bind:this={toolbarRef} class="flex items-center gap-4 bg-zinc-100/50 dark:bg-zinc-800/50 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm no-print">
+  <div bind:this={toolbarRef} class="flex items-center gap-6 no-print">
     <!-- Month Navigation -->
-    <div class="flex items-center gap-1 bg-white dark:bg-zinc-700 p-0.5 rounded-xl border border-zinc-200 dark:border-zinc-600 shadow-sm">
+    <div class="flex items-center gap-3">
       <button
         onclick={prevMonth}
-        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-500 text-white hover:bg-zinc-600 transition-all"
+        class="w-8 h-8 flex items-center justify-center rounded-xl bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all"
         title="Vorheriger Monat"
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={18} />
       </button>
-      <div class="px-3 text-[11px] font-black text-zinc-800 dark:text-zinc-200 min-w-[120px] text-center uppercase tracking-wider">
-        {format(selectedMonth, "MMM", { locale: de })} - {format(addMonths(selectedMonth, 1), "MMM yy", { locale: de })}
+      <div class="px-6 py-2 rounded-xl bg-dark-surface border border-dark-border text-xs font-bold text-white min-w-[160px] text-center tracking-widest uppercase">
+        {format(selectedMonth, "MMMM", { locale: de })} - {format(addMonths(selectedMonth, 1), "MMMM yyyy", { locale: de })}
       </div>
       <button
         onclick={nextMonth}
-        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-500 text-white hover:bg-zinc-600 transition-all"
+        class="w-8 h-8 flex items-center justify-center rounded-xl bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all"
         title="Nächster Monat"
       >
-        <ChevronRight size={14} />
+        <ChevronRight size={18} />
       </button>
     </div>
 
-    <div class="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
-
     <!-- Actions -->
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-2">
       <button
         onclick={() => (showExport = true)}
-        class="flex items-center justify-center w-8 h-8 rounded-xl bg-orange-500 text-white hover:bg-orange-600 shadow-sm transition-all"
+        class="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all"
         title="Als PDF Exportieren"
       >
-        <FileText size={16} />
+        <FileText size={20} />
       </button>
 
       <button
         onclick={syncData}
         disabled={syncing}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-10 h-10 rounded-xl bg-dark-surface text-cyan-400 border border-dark-border hover:bg-dark-surface/80 transition-all"
         title="Synchronisieren"
       >
-        <RefreshCw size={16} class={syncing ? "animate-spin" : ""} />
+        <RefreshCw size={20} class={syncing ? "animate-spin" : ""} />
       </button>
 
       <button
         onclick={savePlan}
         disabled={saving}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-10 h-10 rounded-xl bg-dark-surface text-blue-400 border border-dark-border hover:bg-dark-surface/80 transition-all"
         title="Speichern"
       >
         {#if saving}
-          <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         {:else}
-          <Save size={16} />
+          <Save size={20} />
         {/if}
       </button>
 
       <button
         onclick={exportToChurchTools}
         disabled={exporting}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all"
         title="Nach ChurchTools exportieren"
       >
         {#if exporting}
-          <div class="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
         {:else}
-          <Share size={16} />
+          <Share size={20} />
         {/if}
       </button>
 
-      <div class="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+      <div class="w-px h-6 bg-dark-border mx-2"></div>
 
       <button
         onclick={() => (showPreacherFilter = true)}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-10 h-10 rounded-xl bg-dark-surface text-zinc-400 border border-dark-border hover:text-white transition-all"
         title="Gruppen & Sichtbarkeit"
       >
-        <UsersIcon size={16} />
+        <UsersIcon size={20} />
       </button>
 
       <button
         onclick={() => (showFormatting = !showFormatting)}
-        class="flex items-center justify-center w-8 h-8 rounded-xl transition-all {showFormatting ? 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/20' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}"
+        class="flex items-center justify-center w-10 h-10 rounded-xl transition-all border {showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-500 shadow-lg shadow-fuchsia-500/20' : 'bg-dark-surface text-zinc-400 border-dark-border hover:text-white'}"
         title="Formatierung"
       >
-        <Settings2 size={16} />
+        <Settings2 size={20} />
       </button>
     </div>
   </div>
+
 
       {#if showFormatting}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -1496,7 +1495,6 @@
           </div>
         </div>
       {/if}
-    </div>
 
     <!-- Legend Toggle (Mobile only) -->
     <button
@@ -1514,18 +1512,24 @@
         </div>
       </div>
     </button>
-  </div>
 
+<div
+  onmouseleave={() => {
+    hoveredSlotIdx = null;
+    hoveredPreacherIdx = null;
+  }}
+  class="flex-1 h-full flex flex-col p-0 bg-dark-bg overflow-hidden transition-colors duration-300"
+>
   <!-- Grid Card Container -->
   <div
-    class="flex-1 flex overflow-hidden border-t border-b border-zinc-200 dark:border-zinc-600 relative transition-colors duration-300"
+    class="flex-1 flex overflow-hidden border-t border-dark-border relative transition-colors duration-300"
   >
     <div class="flex-1 overflow-auto custom-scrollbar">
       <div
-        class="min-w-fit px-8 pb-8 pt-4 flex justify-center items-stretch gap-2"
+        class="min-w-fit px-6 pb-6 pt-4 flex justify-start items-stretch gap-4"
       >
         <div
-          class="inline-block align-top shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-600"
+          class="inline-block align-top shadow-2xl shadow-black/50 overflow-hidden rounded-2xl border border-dark-border"
           role="presentation"
           onmouseleave={() => {
             hoveredSlotIdx = null;
@@ -1534,151 +1538,51 @@
         >
           <table class="table-fixed border-separate border-spacing-0">
             <colgroup>
-              <col class="w-[200px]" />
+              <col class="w-[180px]" />
               {#each gridSlots as _}
-                <col class="w-7" />
+                <col class="w-10" />
               {/each}
             </colgroup>
             <thead>
-              <!-- Row 1: Months -->
-              <tr class="h-9">
+              <!-- Row 1: Vertical Headers -->
+              <tr class="h-28">
                 <th
-                  class="sticky top-0 left-0 z-[120] bg-zinc-100 dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-1 text-center w-[200px] min-w-[200px] shadow-[4px_4px_8px_-4px_rgba(0,0,0,0.1)] transition-colors duration-300"
+                  class="sticky top-0 left-0 z-[120] bg-dark-surface border-r border-b border-dark-border p-4 text-center w-[180px] min-w-[180px]"
                 >
                   <div class="flex items-center justify-center">
-                    <span
-                      class="uppercase tracking-[0.3em] text-zinc-900 dark:text-white"
-                      style={getFormattingStyle("months")}
-                    >
-                      {selectedMonth?.getFullYear()}
-                    </span>
-                </th>
-                {#each [...new Set(gridSlots.map((s) => s.date.getMonth()))] as mIdx}
-                  {@const monthDate = gridSlots.find((s) => s.date.getMonth() === mIdx)?.date}
-                  {@const monthSlots = gridSlots.filter((s) => s.date.getMonth() === mIdx)}
-                  <th
-                    colspan={monthSlots.length}
-                    class="sticky top-0 z-[100] bg-zinc-100 dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-2 text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors duration-300"
-                  >
-                    <span
-                      class="uppercase tracking-[0.3em] text-zinc-900 dark:text-white"
-                      style={getFormattingStyle("months")}
-                    >
-                      {monthDate ? format(monthDate, "MMMM", { locale: de }) : ""}
-                    </span>
-                  </th>
-                {/each}
-              </tr>
-              <!-- Row 2: Times -->
-              <tr class="h-10">
-                <th
-                  rowspan="2"
-                  class="sticky top-[36px] left-0 z-[120] bg-white dark:bg-zinc-700 border-r border-b border-zinc-200 dark:border-zinc-600 p-2 transition-colors duration-300"
-                >
-                  <div class="flex items-center justify-center h-full">
-                    <img
-                      src="/logo-light.png"
-                      alt="Logo"
-                      class="h-16 w-auto dark:hidden"
-                    />
-                    <img
-                      src="/logo-dark.png"
-                      alt="Logo"
-                      class="h-16 w-auto hidden dark:block"
-                    />
+                    <svg viewBox="0 0 24 24" class="w-12 h-12 text-zinc-500 fill-none stroke-current stroke-1 opacity-50" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" />
+                      <path d="M12 6v12M8 10h8" />
+                    </svg>
                   </div>
                 </th>
                 {#each gridSlots as slot, sIdx}
                   <th
-                    class="sticky top-[36px] z-[100] transition-all border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)]
-                    {getDayHighlightClass(new Date(slot.date), slot.time)}
-                    {slot.isSundaySecond ? 'border-l-0' : ''} 
-                    {hoveredSlotIdx === sIdx
-                      ? '!bg-amber-500/10 dark:!bg-amber-500/20 shadow-[inset_0_4px_0_0_#f59e0b]'
-                      : ''}"
+                    class="sticky top-0 z-[100] transition-all border-r border-b border-dark-border p-0 w-10 min-w-[40px] text-center bg-dark-surface hover:bg-zinc-700/50 group
+                    {hoveredSlotIdx === sIdx ? 'bg-zinc-700/50' : ''}"
                     onmouseenter={() => (hoveredSlotIdx = sIdx)}
                     onmouseleave={() => (hoveredSlotIdx = null)}
                   >
-                    <div class="relative w-full h-12">
-                      <div
-                        class="absolute top-2 left-1/2 -translate-x-1/2 tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-900 dark:text-zinc-100"
-                        style={getFormattingStyle("dates")}
+                    <div class="relative w-full h-28 overflow-hidden">
+                       <div
+                        class="absolute bottom-4 left-1/2 -translate-x-1/2 tracking-tighter [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-[10px] font-bold text-zinc-400 uppercase flex flex-col gap-2"
                       >
-                        {slot.time}
-                      </div>
-                    </div>
-                  </th>
-                {/each}
-              </tr>
-              <!-- Row 3: Dates -->
-              <tr class="h-14">
-                {#each gridSlots as slot, sIdx}
-                  <th
-                    class="sticky top-[76px] z-[100] transition-colors border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] group {slot.isSundaySecond
-                      ? 'border-l-0'
-                      : ''} 
-                    {getDayHighlightClass(new Date(slot.date), slot.time)}
-                      {hoveredSlotIdx === sIdx
-                      ? '!bg-amber-500/10 dark:!bg-amber-500/20'
-                      : ''}"
-                    onmouseenter={() => (hoveredSlotIdx = sIdx)}
-                    onmouseleave={() => (hoveredSlotIdx = null)}
-                    title={getHolidayName(new Date(slot.date)) || ""}
-                  >
-                    <div class="relative w-full h-14">
-                      <div
-                        class="absolute bottom-3 left-1/2 -translate-x-1/2 tracking-tight [writing-mode:vertical-rl] -rotate-180 whitespace-nowrap text-zinc-900 dark:text-zinc-100"
-                        style={getFormattingStyle("dates")}
-                      >
-                        {format(slot.date, "dd. eee", { locale: de })}
+                        <span class="text-zinc-500 font-black">{format(slot.date, "dd. eee.", { locale: de })}</span>
+                        <span class="text-white text-xs">{slot.time}</span>
                       </div>
 
                       <!-- Column Header Tools -->
                       <div
-                        class="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-[110]"
+                        class="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-[110]"
                       >
-                        <!-- Add Slot Button -->
-                        <button
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            newSlotDate = format(slot.date, "yyyy-MM-dd");
-                            newSlotTime = slot.time;
-                            showManualSlotEntry = true;
-                          }}
-                          class="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-500 shadow-[0_4px_12px_rgba(5,150,105,0.4)] hover:scale-110 active:scale-90 transition-all z-[111]"
-                          title="Manuellen Termin hinzufügen"
-                        >
-                          <Plus size={16} />
-                        </button>
-
-                        <!-- Star Toggle Button -->
-                        <button
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            const next = { ...specialServices };
-                            if (next[slot.id]) {
-                              next[slot.id] = ""; // Mark as explicitly deleted
-                            } else {
-                              next[slot.id] = slot.label && slot.label !== "Unbenannter Termin" ? slot.label : "Besonderheit";
-                            }
-                            specialServices = next;
-                          }}
-                          class="w-7 h-7 flex items-center justify-center rounded-full {specialServices[slot.id] ? 'bg-amber-600 text-white shadow-[0_4px_12px_rgba(245,158,11,0.4)]' : 'bg-zinc-400 text-white opacity-50 hover:opacity-100'} hover:scale-110 active:scale-90 transition-all z-[112]"
-                          title="Besonderheit hinzufügen/entfernen"
-                        >
-                          <Star size={16} class={specialServices[slot.id] ? "fill-white" : ""} />
-                        </button>
-
-                        <!-- Delete Column Button -->
-                        <button
+                         <button
                           onclick={(e) => {
                             e.stopPropagation();
                             removeSlot(slot.id);
                           }}
-                          class="w-7 h-7 flex items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-500 shadow-[0_4px_12px_rgba(220,38,38,0.4)] hover:scale-110 active:scale-90 transition-all z-[111]"
-                          title="Spalte löschen"
+                          class="w-6 h-6 flex items-center justify-center rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
@@ -1686,49 +1590,37 @@
                 {/each}
               </tr>
             </thead>
+
             <tbody class="bg-white dark:bg-zinc-700">
-              {#each visibleGroup1 as p, pIdx}
+            <tbody class="bg-dark-surface">
+              {#each [...visibleGroup1, ...visibleGroup2] as p, pIdx}
                 {@const preacherName = `${p.firstName} ${p.lastName}`}
                 {@const absoluteRowIdx = pIdx}
                 <tr
                   class="group transition-colors {pIdx % 2 === 1
-                    ? 'bg-zinc-50/40 dark:bg-zinc-700/20'
-                    : ''}"
+                    ? 'bg-zinc-800/20'
+                    : 'bg-zinc-800/40'}"
                   onmouseenter={() => (hoveredPreacherIdx = absoluteRowIdx)}
                   onmouseleave={() => (hoveredPreacherIdx = null)}
                 >
                   <td
-                    class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 text-zinc-900 dark:text-zinc-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] whitespace-nowrap h-7 w-[200px] min-w-[200px] transition-all {hoveredPreacherIdx ===
-                    absoluteRowIdx
-                      ? '!bg-amber-500/10 dark:!bg-amber-500/20 shadow-[inset_4px_0_0_0_#f59e0b] z-[100]'
-                      : (pIdx % 2 === 1
-                          ? 'bg-zinc-50/95 dark:bg-zinc-700/95'
-                          : 'bg-white/95 dark:bg-zinc-700/95') +
-                        ' backdrop-blur-sm'}"
+                    class="sticky left-0 z-[90] border-r border-b border-dark-border px-4 py-0 text-white whitespace-nowrap h-10 w-[180px] min-w-[180px] transition-all bg-dark-surface group-hover:bg-zinc-700/50
+                    {hoveredPreacherIdx === absoluteRowIdx ? 'shadow-[inset_4px_0_0_0_#f59e0b]' : ''}"
                   >
-                    <span style={getFormattingStyle("names")}>
+                    <span class="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
                       {preacherName}
                     </span>
                   </td>
                   {#each gridSlots as slot, sIdx}
                     {@const code = gridData[slot.id]?.[preacherName] || ""}
                     <td
-                      class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
-                        {code === '-' ? 'cursor-not-allowed' : 'cursor-pointer'}
-                        {getDayHighlightClass(new Date(slot.date), slot.time)}
-                        {validationState[slot.id]?.has(preacherName)
-                        ? '!bg-red-100 dark:!bg-red-900/30 !ring-inset !ring-1 !ring-red-500'
-                        : ''}
-                        {hoveredPreacherIdx === absoluteRowIdx &&
-                      hoveredSlotIdx === sIdx
-                        ? '!bg-amber-500/20 dark:!bg-amber-500/30 !ring-2 !ring-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-10 relative'
-                        : hoveredPreacherIdx === absoluteRowIdx ||
-                            hoveredSlotIdx === sIdx
-                          ? code === '-'
-                            ? '!bg-zinc-100/30 dark:!bg-zinc-700/30'
-                            : '!bg-zinc-200/50 dark:!bg-zinc-700/50'
+                      class="border-b border-r border-dark-border p-0 transition-all select-none w-10
+                        {code === '-' ? 'cursor-not-allowed opacity-30' : 'cursor-pointer'}
+                        {hoveredPreacherIdx === absoluteRowIdx && hoveredSlotIdx === sIdx
+                        ? 'bg-amber-500/10 ring-1 ring-inset ring-amber-500/50'
+                        : hoveredPreacherIdx === absoluteRowIdx || hoveredSlotIdx === sIdx
+                          ? 'bg-zinc-700/30'
                           : ''}"
-                      title={code === "-" ? "Abwesend (ChurchTools)" : ""}
                       onclick={() => toggleService(preacherName, slot.id)}
                       oncontextmenu={(e) => {
                         e.preventDefault();
@@ -1747,90 +1639,32 @@
                     >
                       {#if code}
                         <div
-                          class="w-6 h-6 mx-auto flex items-center justify-center transition-all active:scale-95 rounded-lg {getServiceStyle(
-                            code,
-                          )}"
-                          style={getFormattingStyle("entries")}
+                          class="w-7 h-7 mx-auto flex items-center justify-center transition-all active:scale-90 rounded-full text-[10px] font-black shadow-lg
+                          {code === '🍷' ? 'bg-rose-900 text-white' : 
+                           code === 'V' ? 'bg-rose-400 text-white' :
+                           code === 'L' ? 'bg-blue-600 text-white' :
+                           code === '1' ? 'bg-emerald-600 text-white' :
+                           code === '2' ? 'bg-violet-600 text-white' :
+                           code === 'BN' ? 'bg-lime-600 text-white' :
+                           code === 'Als' ? 'bg-indigo-500 text-white' :
+                           code === 'BS' ? 'bg-fuchsia-600 text-white' :
+                           code === 'GS' ? 'bg-amber-600 text-white' :
+                           'bg-zinc-600 text-white'}"
                         >
-                          {code}
+                          {#if code === '🍷'}
+                            <Wine size={14} />
+                          {:else}
+                            {code}
+                          {/if}
                         </div>
+                      {:else if hoveredPreacherIdx === absoluteRowIdx && hoveredSlotIdx === sIdx && code !== '-'}
+                         <div class="w-1 h-1 rounded-full bg-zinc-600 mx-auto opacity-50"></div>
                       {/if}
                     </td>
                   {/each}
                 </tr>
               {/each}
 
-              {#each visibleGroup2 as p, pIdx}
-                {@const preacherName = `${p.firstName} ${p.lastName}`}
-                {@const absoluteRowIdx = visibleGroup1.length + pIdx}
-                <tr
-                  class="group transition-colors {pIdx % 2 === 1
-                    ? 'bg-zinc-50/40 dark:bg-zinc-700/20'
-                    : ''}"
-                  onmouseenter={() => (hoveredPreacherIdx = absoluteRowIdx)}
-                  onmouseleave={() => (hoveredPreacherIdx = null)}
-                >
-                  <td
-                    class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 text-zinc-900 dark:text-zinc-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] whitespace-nowrap h-7 w-[200px] min-w-[200px] transition-all {hoveredPreacherIdx ===
-                    absoluteRowIdx
-                      ? '!bg-amber-500/10 dark:!bg-amber-500/20 shadow-[inset_4px_0_0_0_#f59e0b] z-[100]'
-                      : (pIdx % 2 === 1
-                          ? 'bg-zinc-50/95 dark:bg-zinc-700/95'
-                          : 'bg-white/95 dark:bg-zinc-700/95') +
-                        ' backdrop-blur-sm'}"
-                  >
-                    <span style={getFormattingStyle("names")}>
-                      {preacherName}
-                    </span>
-                  </td>
-                  {#each gridSlots as slot, sIdx}
-                    {@const code = gridData[slot.id]?.[preacherName] || ""}
-                    <td
-                      class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all select-none
-                        {code === '-' ? 'cursor-not-allowed' : 'cursor-pointer'}
-                        {getDayHighlightClass(new Date(slot.date), slot.time)}
-                        {validationState[slot.id]?.has(preacherName)
-                        ? '!bg-red-100 dark:!bg-red-900/30 !ring-inset !ring-1 !ring-red-500'
-                        : ''}
-                        {hoveredPreacherIdx === absoluteRowIdx &&
-                      hoveredSlotIdx === sIdx
-                        ? '!bg-amber-500/20 dark:!bg-amber-500/30 !ring-2 !ring-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-10 relative'
-                        : hoveredPreacherIdx === absoluteRowIdx ||
-                            hoveredSlotIdx === sIdx
-                          ? code === '-'
-                            ? '!bg-zinc-100/30 dark:!bg-zinc-700/30'
-                            : '!bg-zinc-200/50 dark:!bg-zinc-700/50'
-                          : ''}"
-                      title={code === "-" ? "Abwesend (ChurchTools)" : ""}
-                      onclick={() => toggleService(preacherName, slot.id)}
-                      oncontextmenu={(e) => {
-                        e.preventDefault();
-                        if (gridData[slot.id]?.[preacherName]) {
-                          gridData[slot.id][preacherName] = "";
-                        }
-                      }}
-                      onmouseenter={() => {
-                        hoveredSlotIdx = sIdx;
-                        hoveredPreacherIdx = absoluteRowIdx;
-                      }}
-                      onmouseleave={() => {
-                        hoveredSlotIdx = null;
-                        hoveredPreacherIdx = null;
-                      }}
-                    >
-                      {#if code}
-                        <div
-                          class="w-8 h-6 flex items-center justify-center font-bold text-[16px] transition-all active:scale-95 rounded-lg {getServiceStyle(
-                            code,
-                          )}"
-                        >
-                          {code}
-                        </div>
-                      {/if}
-                    </td>
-                  {/each}
-                </tr>
-              {/each}
 
               <!-- Individual Besonderheiten Rows -->
               {#each Object.entries(specialServices).filter(([sid, text]) => {
@@ -1895,93 +1729,96 @@
                           </div>
                         {/if}
                       </td>
-                    {/each}
-                  </tr>
-                {/if}
-              {/each}
             </tbody>
           </table>
+
+          <!-- Bottom Left Roles Legend Overlay -->
+          <div class="absolute bottom-4 left-4 z-[100] flex flex-col gap-1.5 p-3 rounded-2xl bg-dark-surface/90 backdrop-blur-md border border-dark-border shadow-xl no-print pointer-events-none">
+            <div class="flex items-center gap-2">
+              <Star size={12} class="text-amber-500 fill-amber-500" />
+              <span class="text-[10px] font-bold text-amber-500 uppercase tracking-wider">* Predigerversammlung</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <Star size={12} class="text-amber-500 fill-amber-500" />
+              <span class="text-[10px] font-bold text-amber-500 uppercase tracking-wider">* Verantwortliche Diener</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <Star size={12} class="text-amber-500 fill-amber-500" />
+              <span class="text-[10px] font-bold text-amber-500 uppercase tracking-wider">* Seniorengemeinschaft</span>
+            </div>
+          </div>
         </div>
 
         <!-- Right Side Legend (Desktop) -->
         <div
-          class="hidden lg:flex w-56 flex-shrink-0 no-print flex flex-col gap-3"
+          class="hidden lg:flex w-64 flex-shrink-0 no-print flex flex-col gap-4"
         >
+          <!-- Categories Legend -->
           <div
-            class="p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 bg-white dark:bg-zinc-700 h-full"
+            class="p-4 rounded-3xl bg-dark-surface border border-dark-border shadow-2xl flex flex-col gap-4"
           >
-            <h3
-              class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 mb-2 px-1"
-            >
-              Legende & Hilfe
-            </h3>
             <div class="flex flex-col gap-2">
               {#each SERVICE_TYPES as type}
                 <div
-                  class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all"
+                  class="flex items-center gap-3 p-2 rounded-2xl bg-zinc-800/40 border border-dark-border shadow-sm hover:bg-zinc-700/50 transition-all group"
                 >
                   <div
-                    class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-transform group-hover:scale-110 {type.color}"
+                    class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg transition-transform group-hover:scale-110 {type.color}"
                   >
-                    {type.code}
+                    {#if type.code === '🍷'}
+                      <Wine size={14} />
+                    {:else}
+                      {type.code}
+                    {/if}
                   </div>
-                  <div class="flex flex-col">
-                    <span
-                      class="leading-none text-[11px] text-zinc-800 dark:text-zinc-200"
-                      style={getFormattingStyle("names")}>{type.label}</span
-                    >
-                  </div>
+                  <span class="text-[11px] font-bold text-zinc-300 group-hover:text-white transition-colors">
+                    {type.label}
+                  </span>
                 </div>
               {/each}
             </div>
           </div>
 
-          <!-- Besonderheiten Box -->
+          <!-- Besonderheiten Section -->
           <div
-            class="p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-600 shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 bg-white dark:bg-zinc-700 h-full flex flex-col"
+            class="p-4 rounded-3xl bg-dark-surface border border-dark-border shadow-2xl flex flex-col flex-1 overflow-hidden"
           >
             <h3
-              class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 mb-2 px-1"
+              class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3 px-1"
             >
               Besonderheiten
             </h3>
             <div
-              class="flex flex-col gap-2 overflow-y-auto max-h-[300px] custom-scrollbar"
+              class="flex flex-col gap-2 overflow-y-auto flex-1 custom-scrollbar pr-1"
             >
               {#each Object.entries(specialServices).filter(([sid, val]) => {
                 const cleanVal = val ? val.trim() : "";
                 if (cleanVal === "") return false;
-                
+                const s = slots.find(sl => sl.id === sid);
                 const isSonder = s && (s.calendarId === 90 || (s.calendar && s.calendar.includes("Sondergemeinschaften")));
                 const isSundayEvent = s && isSunday(new Date(s.date));
                 const isGemeinde = cleanVal.toLowerCase().includes("gemeindestunde") || (s?.label?.toLowerCase().includes("gemeindestunde"));
-                
-                if (isSonder) {
-                  return isSundayEvent && !isGemeinde;
-                }
-                return true; // Keep manual stars
+                if (isSonder) return isSundayEvent && !isGemeinde;
+                return true; 
               }) as [sid, val]}
                 {@const s = slots.find((sl) => sl.id === sid)}
                 {#if s}
                   <div
-                    class="group flex items-center gap-2 p-1 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/50 border border-zinc-100/50 dark:border-zinc-600/50 shadow-sm hover:bg-white dark:hover:bg-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-500 hover:shadow-md transition-all cursor-text"
+                    class="group flex items-center gap-3 p-2 rounded-2xl bg-zinc-800/40 border border-dark-border shadow-sm hover:bg-zinc-700/50 transition-all cursor-text"
                     onclick={() => (editingSpecialService = sid)}
                   >
                     <div
-                      class="w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-amber-500 text-white shadow-sm transition-transform group-hover:scale-110 z-10"
+                      class="w-7 h-7 shrink-0 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110"
                     >
-                      <Star size={12} class="fill-white" />
+                      <Star size={14} class="fill-white" />
                     </div>
-                    <div
-                      class="flex flex-col flex-1 min-w-0 overflow-hidden relative"
-                    >
-                      {#if editingSpecialService === sid}
+                    <div class="flex-1 min-w-0 overflow-hidden">
+                       {#if editingSpecialService === sid}
                         <input
                           type="text"
                           bind:value={specialServices[sid]}
                           placeholder="Besonderheit..."
-                          class="bg-transparent border-none focus:ring-0 text-[11px] text-zinc-800 dark:text-zinc-200 p-0 h-4 w-full placeholder:text-zinc-400"
-                          style={getFormattingStyle("names")}
+                          class="bg-transparent border-none focus:ring-0 text-[11px] text-zinc-300 p-0 h-4 w-full placeholder:text-zinc-500 font-bold"
                           autoFocus
                           onblur={() => (editingSpecialService = null)}
                           onkeydown={(e) => {
@@ -1990,48 +1827,25 @@
                           }}
                         />
                       {:else}
-                        <div
-                          class="liveticker-container w-full h-4 relative flex items-center"
-                        >
-                          <span
-                            use:checkOverflow={val}
-                            class="text-[11px] text-zinc-800 dark:text-zinc-200 truncate"
-                            style={getFormattingStyle("names")}
-                            title={val}
-                          >
-                            {val.length > 20 ? val.substring(0, 18) + "..." : (val || "Besonderheit...")}
-                          </span>
-                        </div>
+                         <span class="text-[11px] font-bold text-zinc-300 group-hover:text-white truncate block">
+                           {val}
+                         </span>
                       {/if}
                     </div>
-                    <button
-                      onclick={(e) => {
-                        e.stopPropagation();
-                        const next = { ...specialServices };
-                        delete next[sid];
-                        specialServices = next;
-                      }}
-                      class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all z-10"
-                    >
-                      <Trash2 size={12} />
-                    </button>
                   </div>
                 {/if}
               {/each}
+              
               {#if Object.keys(specialServices).length === 0}
-                <div
-                  class="flex flex-col items-center justify-center py-4 opacity-30"
-                >
-                  <Star size={24} class="text-zinc-400 mb-2" />
-                  <span
-                    class="text-[10px] uppercase font-black tracking-widest text-zinc-400"
-                    >Keine Einträge</span
-                  >
+                <div class="flex flex-col items-center justify-center py-8 opacity-20">
+                  <Star size={32} class="text-zinc-500 mb-2" />
+                  <span class="text-[8px] font-black uppercase tracking-widest text-zinc-500">Keine Einträge</span>
                 </div>
               {/if}
             </div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -2380,6 +2194,7 @@
     rows={[...group1, ...group2]}
     assignments={gridData}
     {formatting}
+    {specialServices}
   />
 {/if}
 

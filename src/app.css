@@ -12,6 +12,10 @@
   --color-primary-800: #075985;
   --color-primary-900: #0c4a6e;
   --color-primary-950: #082f49;
+
+  --color-dark-bg: #1a1b1e;
+  --color-dark-surface: #2d2e32;
+  --color-dark-border: #3f4044;
 }
 
 @font-face {
@@ -76,6 +80,20 @@
     overflow-y: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    @apply bg-dark-bg text-white transition-colors duration-300;
+  }
+}
+
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-zinc-600/50 rounded-full hover:bg-zinc-500;
   }
 }
 
@@ -84,3 +102,4 @@
     display: none !important;
   }
 }
+
