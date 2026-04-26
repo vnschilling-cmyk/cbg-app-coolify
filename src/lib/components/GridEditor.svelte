@@ -1263,7 +1263,7 @@
     hoveredSlotIdx = null;
     hoveredPreacherIdx = null;
   }}
-  class="flex-1 h-full flex flex-col p-0 bg-dark-bg overflow-hidden transition-colors duration-300"
+  class="flex-1 h-full flex flex-col p-0 bg-white dark:bg-zinc-700 overflow-hidden transition-colors duration-300"
 >
   <!-- Toolbar - will be portaled to header -->
   <div bind:this={toolbarRef} class="flex items-center gap-6 no-print">
@@ -1513,6 +1513,13 @@
       </div>
     </button>
 
+<div
+  onmouseleave={() => {
+    hoveredSlotIdx = null;
+    hoveredPreacherIdx = null;
+  }}
+  class="flex-1 h-full flex flex-col p-0 bg-dark-bg overflow-hidden transition-colors duration-300"
+>
   <!-- Grid Card Container -->
   <div
     class="flex-1 flex overflow-hidden border-t border-dark-border relative transition-colors duration-300"
@@ -1584,6 +1591,7 @@
               </tr>
             </thead>
 
+            <tbody class="bg-white dark:bg-zinc-700">
             <tbody class="bg-dark-surface">
               {#each [...visibleGroup1, ...visibleGroup2] as p, pIdx}
                 {@const preacherName = `${p.firstName} ${p.lastName}`}
@@ -1680,15 +1688,17 @@
                     onmouseleave={() => (hoveredSpecialServiceId = null)}
                   >
                     <td
-                      class="sticky left-0 z-[90] border-r border-b border-dark-border px-3 py-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] transition-all whitespace-nowrap h-7 w-[180px] min-w-[180px] {hoveredSpecialServiceId ===
+                      class="sticky left-0 z-[90] border-r border-b border-zinc-200 dark:border-zinc-600 px-3 py-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] transition-all whitespace-nowrap h-7 w-[200px] min-w-[200px] {hoveredSpecialServiceId ===
                       sid
                         ? '!bg-amber-500/10 dark:!bg-amber-500/20 text-amber-600 dark:text-amber-500 shadow-[inset_4px_0_0_0_#f59e0b] z-[100]'
-                        : 'bg-dark-surface text-amber-600 dark:text-amber-500'}"
+                        : 'bg-white dark:bg-zinc-700 text-amber-600 dark:text-amber-500 backdrop-blur-sm'}"
                     >
                       <div class="flex items-center gap-2">
                         <Star size={12} class="fill-current shrink-0" />
                         <span
                           class="text-[11px] font-bold truncate max-w-[160px]"
+                          style={getFormattingStyle("names")}
+                          title={text}
                         >
                           * {(text && text.trim()) ? (text.length > 25 ? text.substring(0, 22) + "..." : text) : "Besonderheit"}
                         </span>
@@ -1696,13 +1706,17 @@
                     </td>
                     {#each gridSlots as slot, sIdx}
                       <td
-                        class="border-b border-r border-dark-border p-0.5 transition-all
+                        class="border-b border-r border-zinc-200 dark:border-zinc-600 p-0.5 transition-all
+                            {getDayHighlightClass(
+                          new Date(slot.date),
+                          slot.time,
+                        )}
                             {hoveredSlotIdx === sIdx &&
                         hoveredSpecialServiceId === sid
                           ? '!bg-amber-500/20 dark:!bg-amber-500/30 !ring-2 !ring-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-10 relative'
                           : hoveredSlotIdx === sIdx ||
                               hoveredSpecialServiceId === sid
-                            ? '!bg-amber-500/10'
+                            ? '!bg-amber-500/10 dark:!bg-amber-900/10'
                             : ''}"
                         onmouseenter={() => (hoveredSlotIdx = sIdx)}
                         onmouseleave={() => (hoveredSlotIdx = null)}
@@ -1715,10 +1729,6 @@
                           </div>
                         {/if}
                       </td>
-                    {/each}
-                  </tr>
-                {/if}
-              {/each}
             </tbody>
           </table>
 
