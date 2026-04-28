@@ -1466,6 +1466,7 @@
                     >
                       {selectedMonth?.getFullYear()}
                     </span>
+                  </div>
                 </th>
                 {#each [...new Set(gridSlots.map((s) => s.date.getMonth()))] as mIdx}
                   {@const monthDate = gridSlots.find((s) => s.date.getMonth() === mIdx)?.date}
