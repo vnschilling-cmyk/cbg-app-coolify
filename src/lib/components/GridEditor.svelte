@@ -47,6 +47,7 @@
   import { HEADER_CONTEXT_KEY, type HeaderActionState } from "$lib/header_state.svelte.ts";
   import type { Writable } from "svelte/store";
 
+  import DatePicker from "./DatePicker.svelte";
   const headerStore = getContext<Writable<HeaderActionState>>(HEADER_CONTEXT_KEY);
 
   // Props from server
