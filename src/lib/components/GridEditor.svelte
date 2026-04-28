@@ -1344,35 +1344,35 @@
             </button>
 
             <button
-              onclick={syncData}
+              onclick={() => syncData()}
               disabled={syncing}
-              class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
+              class="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
               title="Synchronisieren"
             >
               <RefreshCw size={16} class={syncing ? "animate-spin" : ""} />
             </button>
 
             <button
-              onclick={savePlan}
+              onclick={() => savePlan()}
               disabled={saving}
-              class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
+              class="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50"
               title="Speichern"
             >
               {#if saving}
-                <div class="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               {:else}
                 <Save size={16} />
               {/if}
             </button>
 
             <button
-              onclick={exportToChurchTools}
+              onclick={() => exportToChurchTools()}
               disabled={exporting}
-              class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
+              class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50"
               title="Nach ChurchTools exportieren"
             >
               {#if exporting}
-                <div class="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                <div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               {:else}
                 <Share size={16} />
               {/if}
@@ -1382,7 +1382,7 @@
 
             <button
               onclick={() => (showPreacherFilter = true)}
-              class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95"
+              class="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-600 text-white hover:bg-zinc-500 shadow-lg transition-all active:scale-95"
               title="Gruppen & Sichtbarkeit"
             >
               <UsersIcon size={16} />
@@ -1390,7 +1390,7 @@
 
             <button
               onclick={() => (showFormatting = !showFormatting)}
-              class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-dark-surface text-zinc-400 border-dark-border hover:text-white'}"
+              class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-zinc-600 text-white border-transparent hover:bg-zinc-500'}"
               title="Formatierung"
             >
               <Settings2 size={16} />
