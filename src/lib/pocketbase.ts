@@ -13,6 +13,6 @@ export const user = writable(pb.authStore.model);
 pb.authStore.onChange((auth) => {
     user.set(pb.authStore.model);
     if (typeof document !== 'undefined') {
-        document.cookie = pb.authStore.exportToCookie({ httpOnly: false, secure: false });
+        document.cookie = pb.authStore.exportToCookie({ httpOnly: false, secure: false, sameSite: 'Lax', path: '/' });
     }
 });

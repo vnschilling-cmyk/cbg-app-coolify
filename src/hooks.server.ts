@@ -16,17 +16,12 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.pb.authStore.loadFromCookie(event.request.headers.get('cookie') || '');
 
     try {
-        // Authenticate and refresh if valid
         if (event.locals.pb.authStore.isValid) {
-            await event.locals.pb.collection('users').authRefresh();
+            // Only refresh if the token is old or for specific paths, 
+            // but for now let's just use the existing model to avoid frequent network calls that might fail
             event.locals.user = event.locals.pb.authStore.model;
         }
     } catch (e: any) {
-        console.error('Hook: Auth refresh failed. Connection to PB might be broken.', {
-            error: e.message,
-            url: event.locals.pb.baseUrl,
-            cause: e.cause?.message || e.cause
-        });
         event.locals.pb.authStore.clear();
         event.locals.user = null;
     }
@@ -36,7 +31,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     // Export authStore to cookie
     // httpOnly: false allows client-side JS to read the cookie (needed for hydration in lib/pocketbase.ts if not using server load)
     // secure: false is required for localhost http dev
-    response.headers.append('set-cookie', event.locals.pb.authStore.exportToCookie({ httpOnly: false, secure: false }));
+    response.headers.append('set-cookie', event.locals.pb.authStore.exportToCookie({ httpOnly: false, secure: false, sameSite: 'Lax', path: '/' }));
 
     return response;
 };

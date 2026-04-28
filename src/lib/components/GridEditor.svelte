@@ -1506,7 +1506,7 @@
                 </th>
                 {#each gridSlots as slot, sIdx}
                   <th
-                    class="sticky top-[36px] z-[100] transition-all border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)]
+                    class="sticky top-[36px] z-[100] transition-all border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] bg-white dark:bg-zinc-700
                     {getDayHighlightClass(new Date(slot.date), slot.time)}
                     {slot.isSundaySecond ? 'border-l-0' : ''} 
                     {hoveredSlotIdx === sIdx
@@ -1530,7 +1530,7 @@
               <tr class="h-14">
                 {#each gridSlots as slot, sIdx}
                   <th
-                    class="sticky top-[76px] z-[100] transition-colors border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] group {slot.isSundaySecond
+                    class="sticky top-[76px] z-[100] transition-colors border-r border-b border-zinc-200 dark:border-zinc-600 p-0 w-7 min-w-[28px] text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02)] bg-white dark:bg-zinc-700 group {slot.isSundaySecond
                       ? 'border-l-0'
                       : ''} 
                     {getDayHighlightClass(new Date(slot.date), slot.time)}
