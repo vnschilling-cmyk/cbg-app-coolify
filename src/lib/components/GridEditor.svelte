@@ -1288,7 +1288,8 @@
 >
   <!-- Local Header (integrated for reliability) -->
   <header
-    class="bg-dark-bg text-white border-b border-dark-border flex-none z-[9999] relative no-print shadow-2xl"
+    class="bg-dark-bg text-white border-b border-dark-border flex-none no-print shadow-2xl relative"
+    style="z-index: 2147483647;"
   >
     <div class="px-6 h-16 flex items-center justify-between gap-8">
       <a
@@ -1315,7 +1316,6 @@
             <button
               onclick={() => prevMonth()}
               class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
-              title="Vorheriger Monat"
             >
               <ChevronLeft size={14} />
             </button>
@@ -1325,7 +1325,6 @@
             <button
               onclick={() => nextMonth()}
               class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
-              title="Nächster Monat"
             >
               <ChevronRight size={14} />
             </button>
@@ -1338,7 +1337,7 @@
             <button
               onclick={() => { showExport = true; }}
               class="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
-              title="Als PDF Exportieren"
+              title="PDF"
             >
               <FileText size={16} />
             </button>
@@ -1347,7 +1346,7 @@
               onclick={() => syncData()}
               disabled={syncing}
               class="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
-              title="Synchronisieren"
+              title="Sync"
             >
               <RefreshCw size={16} class={syncing ? "animate-spin" : ""} />
             </button>
@@ -1356,7 +1355,7 @@
               onclick={() => savePlan()}
               disabled={saving}
               class="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50"
-              title="Speichern"
+              title="Save"
             >
               {#if saving}
                 <div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1369,7 +1368,7 @@
               onclick={() => exportToChurchTools()}
               disabled={exporting}
               class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 disabled:opacity-50"
-              title="Nach ChurchTools exportieren"
+              title="CT"
             >
               {#if exporting}
                 <div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1383,7 +1382,7 @@
             <button
               onclick={() => { showPreacherFilter = true; }}
               class="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-600 text-white hover:bg-zinc-500 shadow-lg transition-all active:scale-95"
-              title="Gruppen & Sichtbarkeit"
+              title="Filter"
             >
               <UsersIcon size={16} />
             </button>
@@ -1391,7 +1390,7 @@
             <button
               onclick={() => { showFormatting = !showFormatting; }}
               class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-zinc-600 text-white border-transparent hover:bg-zinc-500'}"
-              title="Formatierung"
+              title="Format"
             >
               <Settings2 size={16} />
             </button>
@@ -1406,7 +1405,7 @@
             class="flex items-center gap-3 bg-dark-surface px-3 py-1.5 rounded-2xl border border-dark-border shadow-lg"
           >
             <div
-              class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-blue-500/20"
+              class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs"
             >
               {($user.name || $user.username || "U").charAt(0).toUpperCase()}
             </div>
@@ -1422,14 +1421,12 @@
             <div class="flex items-center gap-1.5 ml-2">
               <a
                 href="/settings"
-                title="Einstellungen"
                 class="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-700/50 text-zinc-300 hover:text-white hover:bg-zinc-600 transition-all"
               >
                 <Settings size={16} />
               </a>
               <button
                 onclick={logout}
-                title="Abmelden"
                 class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all"
               >
                 <LogOut size={16} />
