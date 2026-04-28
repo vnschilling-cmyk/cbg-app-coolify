@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toast, confirm } from "$lib/notifications.svelte";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, getContext } from "svelte";
   import {
     Calendar,
     Save,
@@ -44,8 +44,10 @@
     getYear,
   } from "date-fns";
   import { de } from "date-fns/locale";
-  import DatePicker from "./DatePicker.svelte";
-  import { headerStore } from "$lib/header_state.svelte.ts";
+  import { HEADER_CONTEXT_KEY, type HeaderActionState } from "$lib/header_state.svelte.ts";
+  import type { Writable } from "svelte/store";
+
+  const headerStore = getContext<Writable<HeaderActionState>>(HEADER_CONTEXT_KEY);
 
   // Props from server
   interface ServerSlot {

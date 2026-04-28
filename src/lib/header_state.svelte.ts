@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { writable, type Writable } from "svelte/store";
 
 export interface HeaderActionState {
   show: boolean;
@@ -17,21 +17,23 @@ export interface HeaderActionState {
   onFormatting: () => void;
 }
 
-const initialState: HeaderActionState = {
-  show: false,
-  selectedMonth: new Date(),
-  syncing: false,
-  saving: false,
-  exporting: false,
-  showFormatting: false,
-  onPrev: () => {},
-  onNext: () => {},
-  onExport: () => {},
-  onSync: () => {},
-  onSave: () => {},
-  onShare: () => {},
-  onFilter: () => {},
-  onFormatting: () => {},
+export const createHeaderStore = () => {
+  return writable<HeaderActionState>({
+    show: false,
+    selectedMonth: new Date(),
+    syncing: false,
+    saving: false,
+    exporting: false,
+    showFormatting: false,
+    onPrev: () => {},
+    onNext: () => {},
+    onExport: () => {},
+    onSync: () => {},
+    onSave: () => {},
+    onShare: () => {},
+    onFilter: () => {},
+    onFormatting: () => {},
+  });
 };
 
-export const headerStore = writable<HeaderActionState>(initialState);
+export const HEADER_CONTEXT_KEY = Symbol('header-context');
