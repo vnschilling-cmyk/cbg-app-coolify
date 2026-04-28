@@ -1,16 +1,29 @@
-import { format, addMonths } from "date-fns";
-import { de } from "date-fns/locale";
+import { writable } from "svelte/store";
 
-// Using a simple reactive object for maximum compatibility in Svelte 5 shared state
-export const headerState = $state({
+export interface HeaderActionState {
+  show: boolean;
+  selectedMonth: Date;
+  syncing: boolean;
+  saving: boolean;
+  exporting: boolean;
+  showFormatting: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  onExport: () => void;
+  onSync: () => void;
+  onSave: () => void;
+  onShare: () => void;
+  onFilter: () => void;
+  onFormatting: () => void;
+}
+
+const initialState: HeaderActionState = {
   show: false,
   selectedMonth: new Date(),
   syncing: false,
   saving: false,
   exporting: false,
   showFormatting: false,
-  
-  // Actions
   onPrev: () => {},
   onNext: () => {},
   onExport: () => {},
@@ -19,4 +32,6 @@ export const headerState = $state({
   onShare: () => {},
   onFilter: () => {},
   onFormatting: () => {},
-});
+};
+
+export const headerStore = writable<HeaderActionState>(initialState);

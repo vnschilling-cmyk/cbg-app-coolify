@@ -45,7 +45,7 @@
   } from "date-fns";
   import { de } from "date-fns/locale";
   import DatePicker from "./DatePicker.svelte";
-  import { headerState } from "$lib/header_state.svelte.ts";
+  import { headerStore } from "$lib/header_state.svelte.ts";
 
   // Props from server
   interface ServerSlot {
@@ -1168,27 +1168,29 @@
 
   // Sync with global header state
   onMount(() => {
-    headerState.show = true;
+    headerStore.update(s => ({ ...s, show: true }));
     return () => {
-      headerState.show = false;
+      headerStore.update(s => ({ ...s, show: false }));
     };
   });
 
   $effect(() => {
-    headerState.selectedMonth = selectedMonth;
-    headerState.syncing = syncing;
-    headerState.saving = saving;
-    headerState.exporting = exporting;
-    headerState.showFormatting = showFormatting;
-    
-    headerState.onPrev = prevMonth;
-    headerState.onNext = nextMonth;
-    headerState.onExport = () => (showExport = true);
-    headerState.onSync = syncData;
-    headerState.onSave = savePlan;
-    headerState.onShare = exportToChurchTools;
-    headerState.onFilter = () => (showPreacherFilter = true);
-    headerState.onFormatting = () => (showFormatting = !showFormatting);
+    headerStore.update(s => ({
+      ...s,
+      selectedMonth,
+      syncing,
+      saving,
+      exporting,
+      showFormatting,
+      onPrev: prevMonth,
+      onNext: nextMonth,
+      onExport: () => (showExport = true),
+      onSync: syncData,
+      onSave: savePlan,
+      onShare: exportToChurchTools,
+      onFilter: () => (showPreacherFilter = true),
+      onFormatting: () => (showFormatting = !showFormatting),
+    }));
   });
 </script>
 
