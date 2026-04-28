@@ -1158,21 +1158,17 @@
     hoveredSlotIdx = null;
   }
 
-  // Sync with global header state
+  // Sync with global header state - Single source of truth in onMount
   onMount(() => {
-    headerState.show = true;
-    return () => {
-      headerState.show = false;
-    };
-  });
-
-  $effect(() => {
+    // Set initial state
     headerState.show = true;
     headerState.selectedMonth = selectedMonth;
     headerState.syncing = syncing;
     headerState.saving = saving;
     headerState.exporting = exporting;
     headerState.showFormatting = showFormatting;
+    
+    // Assign handlers
     headerState.onPrev = prevMonth;
     headerState.onNext = nextMonth;
     headerState.onExport = () => (showExport = true);
@@ -1181,6 +1177,27 @@
     headerState.onShare = exportToChurchTools;
     headerState.onFilter = () => (showPreacherFilter = true);
     headerState.onFormatting = () => (showFormatting = !showFormatting);
+
+    return () => {
+      headerState.show = false;
+    };
+  });
+
+  // Keep reactive values synced with headerState
+  $effect(() => {
+    headerState.selectedMonth = selectedMonth;
+  });
+  $effect(() => {
+    headerState.syncing = syncing;
+  });
+  $effect(() => {
+    headerState.saving = saving;
+  });
+  $effect(() => {
+    headerState.exporting = exporting;
+  });
+  $effect(() => {
+    headerState.showFormatting = showFormatting;
   });
 </script>
 
