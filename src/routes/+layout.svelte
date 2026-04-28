@@ -35,7 +35,7 @@
 <div
   class="h-screen flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 transition-colors duration-300 print:overflow-visible print:h-auto"
 >
-  {#if $user && $page.url.pathname !== "/login"}
+  {#if $user && $page.url.pathname !== "/login" && !headerState.show}
     <!-- Navigation (Hidden on print) -->
     <header
       id="main-header"
