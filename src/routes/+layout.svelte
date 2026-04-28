@@ -39,7 +39,7 @@
     <!-- Navigation (Hidden on print) -->
     <header
       id="main-header"
-      class="bg-dark-bg text-white border-dark-border print:hidden flex-none z-[200] transition-colors duration-300"
+      class="bg-dark-bg text-white border-b border-dark-border flex-none z-[100] no-print {$page.url.pathname.startsWith('/editor/') ? 'hidden' : ''} transition-colors duration-300"
     >
       <div class="px-6 h-16 flex items-center justify-between gap-8">
         <a

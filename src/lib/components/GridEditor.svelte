@@ -2467,7 +2467,10 @@
 </div>
 
 <style>
-  @reference "../../app.css";
+  /* Aggressively hide global header when editor is active */
+  :global(#main-header) {
+    display: none !important;
+  }
 
   /* Prevent focus outline on click-heavy interface */
   :root {
