@@ -20,11 +20,7 @@
   } from "lucide-svelte";
   import { format, addMonths } from "date-fns";
   import { de } from "date-fns/locale";
-  import { setContext } from "svelte";
-  import { createHeaderStore, HEADER_CONTEXT_KEY } from "$lib/header_state.svelte.ts";
-
-  const headerStore = createHeaderStore();
-  setContext(HEADER_CONTEXT_KEY, headerStore);
+  import { headerState } from "$lib/header_state.svelte.ts";
 
   import { page } from "$app/stores";
   import NotificationProvider from "$lib/components/NotificationProvider.svelte";
@@ -64,21 +60,21 @@
 
         <!-- Middle: Page-specific controls -->
         <div id="header-controls" class="flex-1 flex justify-center items-center">
-          <div class="{$headerStore.show ? 'flex' : 'hidden'} items-center gap-3 no-print">
+          <div class="{headerState.show ? 'flex' : 'hidden'} items-center gap-3 no-print">
               <!-- Month Navigation -->
               <div class="flex items-center gap-2 bg-dark-surface p-1 rounded-xl border border-dark-border shadow-lg">
                 <button
-                  onclick={() => $headerStore.onPrev()}
+                  onclick={() => headerState.onPrev()}
                   class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
                   title="Vorheriger Monat"
                 >
                   <ChevronLeft size={14} />
                 </button>
                 <div class="px-2 text-[10px] font-black text-white min-w-[100px] text-center uppercase tracking-[0.1em]">
-                  {format($headerStore.selectedMonth, "MMM", { locale: de })} - {format(addMonths($headerStore.selectedMonth, 1), "MMM yy", { locale: de })}
+                  {format(headerState.selectedMonth, "MMM", { locale: de })} - {format(addMonths(headerState.selectedMonth, 1), "MMM yy", { locale: de })}
                 </div>
                 <button
-                  onclick={() => $headerStore.onNext()}
+                  onclick={() => headerState.onNext()}
                   class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
                   title="Nächster Monat"
                 >
@@ -91,7 +87,7 @@
               <!-- Actions -->
               <div class="flex items-center gap-1.5">
                 <button
-                  onclick={() => $headerStore.onExport()}
+                  onclick={() => headerState.onExport()}
                   class="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
                   title="Als PDF Exportieren"
                 >
@@ -99,21 +95,21 @@
                 </button>
 
                 <button
-                  onclick={() => $headerStore.onSync()}
-                  disabled={$headerStore.syncing}
+                  onclick={() => headerState.onSync()}
+                  disabled={headerState.syncing}
                   class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
                   title="Synchronisieren"
                 >
-                  <RefreshCw size={16} class={$headerStore.syncing ? "animate-spin" : ""} />
+                  <RefreshCw size={16} class={headerState.syncing ? "animate-spin" : ""} />
                 </button>
 
                 <button
-                  onclick={() => $headerStore.onSave()}
-                  disabled={$headerStore.saving}
+                  onclick={() => headerState.onSave()}
+                  disabled={headerState.saving}
                   class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
                   title="Speichern"
                 >
-                  {#if $headerStore.saving}
+                  {#if headerState.saving}
                     <div class="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                   {:else}
                     <Save size={16} />
@@ -121,12 +117,12 @@
                 </button>
 
                 <button
-                  onclick={() => $headerStore.onShare()}
-                  disabled={$headerStore.exporting}
+                  onclick={() => headerState.onShare()}
+                  disabled={headerState.exporting}
                   class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
                   title="Nach ChurchTools exportieren"
                 >
-                  {#if $headerStore.exporting}
+                  {#if headerState.exporting}
                     <div class="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                   {:else}
                     <Share size={16} />
@@ -136,7 +132,7 @@
                 <div class="w-px h-6 bg-dark-border mx-1"></div>
 
                 <button
-                  onclick={() => $headerStore.onFilter()}
+                  onclick={() => headerState.onFilter()}
                   class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95"
                   title="Gruppen & Sichtbarkeit"
                 >
@@ -144,8 +140,8 @@
                 </button>
 
                 <button
-                  onclick={() => $headerStore.onFormatting()}
-                  class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {$headerStore.showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-dark-surface text-zinc-400 border-dark-border hover:text-white'}"
+                  onclick={() => headerState.onFormatting()}
+                  class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {headerState.showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-dark-surface text-zinc-400 border-dark-border hover:text-white'}"
                   title="Formatierung"
                 >
                   <Settings2 size={16} />

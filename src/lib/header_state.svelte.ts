@@ -1,39 +1,19 @@
-import { writable, type Writable } from "svelte/store";
+export class HeaderState {
+  show = $state(false);
+  selectedMonth = $state(new Date());
+  syncing = $state(false);
+  saving = $state(false);
+  exporting = $state(false);
+  showFormatting = $state(false);
 
-export interface HeaderActionState {
-  show: boolean;
-  selectedMonth: Date;
-  syncing: boolean;
-  saving: boolean;
-  exporting: boolean;
-  showFormatting: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-  onExport: () => void;
-  onSync: () => void;
-  onSave: () => void;
-  onShare: () => void;
-  onFilter: () => void;
-  onFormatting: () => void;
+  onPrev = $state(() => {});
+  onNext = $state(() => {});
+  onExport = $state(() => {});
+  onSync = $state(() => {});
+  onSave = $state(() => {});
+  onShare = $state(() => {});
+  onFilter = $state(() => {});
+  onFormatting = $state(() => {});
 }
 
-export const createHeaderStore = () => {
-  return writable<HeaderActionState>({
-    show: false,
-    selectedMonth: new Date(),
-    syncing: false,
-    saving: false,
-    exporting: false,
-    showFormatting: false,
-    onPrev: () => {},
-    onNext: () => {},
-    onExport: () => {},
-    onSync: () => {},
-    onSave: () => {},
-    onShare: () => {},
-    onFilter: () => {},
-    onFormatting: () => {},
-  });
-};
-
-export const HEADER_CONTEXT_KEY = Symbol('header-context');
+export const headerState = new HeaderState();

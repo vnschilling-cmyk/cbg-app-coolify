@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toast, confirm } from "$lib/notifications.svelte";
-  import { onMount, onDestroy, getContext } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import {
     Calendar,
     Save,
@@ -44,11 +44,8 @@
     getYear,
   } from "date-fns";
   import { de } from "date-fns/locale";
-  import { HEADER_CONTEXT_KEY, type HeaderActionState } from "$lib/header_state.svelte.ts";
-  import type { Writable } from "svelte/store";
-
+  import { headerState } from "$lib/header_state.svelte.ts";
   import DatePicker from "./DatePicker.svelte";
-  const headerStore = getContext<Writable<HeaderActionState>>(HEADER_CONTEXT_KEY);
 
   // Props from server
   interface ServerSlot {
@@ -1171,30 +1168,27 @@
 
   // Sync with global header state
   onMount(() => {
-    headerStore.update(s => ({ ...s, show: true }));
+    headerState.show = true;
     return () => {
-      headerStore.update(s => ({ ...s, show: false }));
+      headerState.show = false;
     };
   });
 
   $effect(() => {
-    headerStore.update(s => ({
-      ...s,
-      show: true,
-      selectedMonth,
-      syncing,
-      saving,
-      exporting,
-      showFormatting,
-      onPrev: prevMonth,
-      onNext: nextMonth,
-      onExport: () => (showExport = true),
-      onSync: syncData,
-      onSave: savePlan,
-      onShare: exportToChurchTools,
-      onFilter: () => (showPreacherFilter = true),
-      onFormatting: () => (showFormatting = !showFormatting),
-    }));
+    headerState.show = true;
+    headerState.selectedMonth = selectedMonth;
+    headerState.syncing = syncing;
+    headerState.saving = saving;
+    headerState.exporting = exporting;
+    headerState.showFormatting = showFormatting;
+    headerState.onPrev = prevMonth;
+    headerState.onNext = nextMonth;
+    headerState.onExport = () => (showExport = true);
+    headerState.onSync = syncData;
+    headerState.onSave = savePlan;
+    headerState.onShare = exportToChurchTools;
+    headerState.onFilter = () => (showPreacherFilter = true);
+    headerState.onFormatting = () => (showFormatting = !showFormatting);
   });
 </script>
 
