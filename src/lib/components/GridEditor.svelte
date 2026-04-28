@@ -1288,7 +1288,7 @@
 >
   <!-- Local Header (integrated for reliability) -->
   <header
-    class="bg-dark-bg text-white border-b border-dark-border flex-none z-[100] no-print"
+    class="bg-dark-bg text-white border-b border-dark-border flex-none z-[9999] relative no-print shadow-2xl"
   >
     <div class="px-6 h-16 flex items-center justify-between gap-8">
       <a
@@ -1313,7 +1313,7 @@
           <!-- Month Navigation -->
           <div class="flex items-center gap-2 bg-dark-surface p-1 rounded-xl border border-dark-border shadow-lg">
             <button
-              onclick={prevMonth}
+              onclick={() => prevMonth()}
               class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
               title="Vorheriger Monat"
             >
@@ -1323,7 +1323,7 @@
               {format(selectedMonth, "MMM", { locale: de })} - {format(addMonths(selectedMonth, 1), "MMM yy", { locale: de })}
             </div>
             <button
-              onclick={nextMonth}
+              onclick={() => nextMonth()}
               class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
               title="Nächster Monat"
             >
@@ -1336,7 +1336,7 @@
           <!-- Actions -->
           <div class="flex items-center gap-1.5">
             <button
-              onclick={() => (showExport = true)}
+              onclick={() => { showExport = true; }}
               class="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
               title="Als PDF Exportieren"
             >
@@ -1381,7 +1381,7 @@
             <div class="w-px h-6 bg-dark-border mx-1"></div>
 
             <button
-              onclick={() => (showPreacherFilter = true)}
+              onclick={() => { showPreacherFilter = true; }}
               class="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-600 text-white hover:bg-zinc-500 shadow-lg transition-all active:scale-95"
               title="Gruppen & Sichtbarkeit"
             >
@@ -1389,7 +1389,7 @@
             </button>
 
             <button
-              onclick={() => (showFormatting = !showFormatting)}
+              onclick={() => { showFormatting = !showFormatting; }}
               class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-zinc-600 text-white border-transparent hover:bg-zinc-500'}"
               title="Formatierung"
             >
