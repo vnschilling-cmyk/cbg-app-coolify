@@ -1303,7 +1303,7 @@
           />
         </div>
         <h1 class="text-xl font-bold tracking-tight">
-          διά코νος
+          διάκονος
         </h1>
       </a>
 
