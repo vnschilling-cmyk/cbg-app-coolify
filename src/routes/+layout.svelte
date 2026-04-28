@@ -20,7 +20,7 @@
   } from "lucide-svelte";
   import { format, addMonths } from "date-fns";
   import { de } from "date-fns/locale";
-  import { headerState } from "$lib/header_state.svelte";
+  import { headerState } from "$lib/header_state.svelte.ts";
 
   import { page } from "$app/stores";
   import NotificationProvider from "$lib/components/NotificationProvider.svelte";

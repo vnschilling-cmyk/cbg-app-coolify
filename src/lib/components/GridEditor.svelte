@@ -45,7 +45,7 @@
   } from "date-fns";
   import { de } from "date-fns/locale";
   import DatePicker from "./DatePicker.svelte";
-  import { headerState } from "$lib/header_state.svelte";
+  import { headerState } from "$lib/header_state.svelte.ts";
 
   // Props from server
   interface ServerSlot {
@@ -1167,8 +1167,14 @@
   }
 
   // Sync with global header state
-  $effect(() => {
+  onMount(() => {
     headerState.show = true;
+    return () => {
+      headerState.show = false;
+    };
+  });
+
+  $effect(() => {
     headerState.selectedMonth = selectedMonth;
     headerState.syncing = syncing;
     headerState.saving = saving;
@@ -1183,10 +1189,6 @@
     headerState.onShare = exportToChurchTools;
     headerState.onFilter = () => (showPreacherFilter = true);
     headerState.onFormatting = () => (showFormatting = !showFormatting);
-
-    return () => {
-      headerState.show = false;
-    };
   });
 </script>
 
