@@ -1409,7 +1409,7 @@
           </div>
         </div>
       {/if}
-    </div>
+    
 
     <!-- Legend Toggle (Mobile only) -->
     <button
@@ -2293,6 +2293,8 @@
     {formatting}
   />
 {/if}
+
+</div>
 
 <style>
   @reference "../../app.css";
