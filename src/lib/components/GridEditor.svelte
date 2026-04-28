@@ -2328,12 +2328,12 @@
                   class="p-3 rounded-xl border border-zinc-100 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-700/50 flex gap-3"
                 >
                   {#if log.startsWith("OK")}
-                    <span class="text-emerald-500 font-bold shrink-0">DONE</span
+                    <span class="text-emerald-500 font-bold shrink-0">OK</span
                     >
                   {:else if log.startsWith("ERROR")}
-                    <span class="text-red-500 font-bold shrink-0">FAIL</span>
+                    <span class="text-red-500 font-bold shrink-0">FEHLER</span>
                   {:else}
-                    <span class="text-amber-500 font-bold shrink-0">SKIP</span>
+                    <span class="text-amber-500 font-bold shrink-0">ÜBERSPRUNGEN</span>
                   {/if}
                   <span class="text-zinc-600 dark:text-zinc-400"
                     >{log.split(": ").slice(1).join(": ") || log}</span
