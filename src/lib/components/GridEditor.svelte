@@ -1177,6 +1177,7 @@
   $effect(() => {
     headerStore.update(s => ({
       ...s,
+      show: true,
       selectedMonth,
       syncing,
       saving,

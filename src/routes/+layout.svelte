@@ -60,8 +60,7 @@
 
         <!-- Middle: Page-specific controls -->
         <div id="header-controls" class="flex-1 flex justify-center items-center">
-          {#if $headerStore.show}
-            <div class="flex items-center gap-3 no-print">
+          <div class="{$headerStore.show ? 'flex' : 'hidden'} items-center gap-3 no-print">
               <!-- Month Navigation -->
               <div class="flex items-center gap-2 bg-dark-surface p-1 rounded-xl border border-dark-border shadow-lg">
                 <button
@@ -149,7 +148,6 @@
                 </button>
               </div>
             </div>
-          {/if}
         </div>
 
         <div class="flex items-center gap-3">
