@@ -45,6 +45,7 @@
   } from "date-fns";
   import { de } from "date-fns/locale";
   import DatePicker from "./DatePicker.svelte";
+  import { headerState } from "$lib/header_state.svelte";
 
   // Props from server
   interface ServerSlot {
@@ -1165,26 +1166,27 @@
     hoveredSlotIdx = null;
   }
 
-  // Portal toolbar to header on mount
-  let toolbarRef: HTMLElement | null = null;
-  let headerControlsOriginal: string = "";
+  // Sync with global header state
+  $effect(() => {
+    headerState.show = true;
+    headerState.selectedMonth = selectedMonth;
+    headerState.syncing = syncing;
+    headerState.saving = saving;
+    headerState.exporting = exporting;
+    headerState.showFormatting = showFormatting;
+    
+    headerState.onPrev = prevMonth;
+    headerState.onNext = nextMonth;
+    headerState.onExport = () => (showExport = true);
+    headerState.onSync = syncData;
+    headerState.onSave = savePlan;
+    headerState.onShare = exportToChurchTools;
+    headerState.onFilter = () => (showPreacherFilter = true);
+    headerState.onFormatting = () => (showFormatting = !showFormatting);
 
-  onMount(() => {
-    if (typeof document === "undefined") return;
-    const headerControls = document.getElementById("header-controls");
-    if (headerControls && toolbarRef) {
-      headerControlsOriginal = headerControls.innerHTML;
-      headerControls.innerHTML = "";
-      headerControls.appendChild(toolbarRef);
-    }
-  });
-
-  onDestroy(() => {
-    if (typeof document === "undefined") return;
-    const headerControls = document.getElementById("header-controls");
-    if (headerControls) {
-      headerControls.innerHTML = headerControlsOriginal;
-    }
+    return () => {
+      headerState.show = false;
+    };
   });
 </script>
 
@@ -1263,97 +1265,8 @@
     hoveredSlotIdx = null;
     hoveredPreacherIdx = null;
   }}
-  class="flex-1 h-full flex flex-col p-0 bg-white dark:bg-zinc-700 overflow-hidden transition-colors duration-300"
+  class="flex-1 h-full flex flex-col p-0 bg-white dark:bg-zinc-800 overflow-hidden transition-colors duration-300"
 >
-  <!-- Toolbar - will be portaled to header -->
-  <div bind:this={toolbarRef} class="flex items-center gap-3 no-print">
-    <!-- Month Navigation -->
-    <div class="flex items-center gap-2 bg-dark-surface p-1 rounded-xl border border-dark-border shadow-lg">
-      <button
-        onclick={prevMonth}
-        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
-        title="Vorheriger Monat"
-      >
-        <ChevronLeft size={14} />
-      </button>
-      <div class="px-2 text-[10px] font-black text-white min-w-[100px] text-center uppercase tracking-[0.1em]">
-        {format(selectedMonth, "MMM", { locale: de })} - {format(addMonths(selectedMonth, 1), "MMM yy", { locale: de })}
-      </div>
-      <button
-        onclick={nextMonth}
-        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
-        title="Nächster Monat"
-      >
-        <ChevronRight size={14} />
-      </button>
-    </div>
-
-    <div class="w-px h-6 bg-dark-border mx-1"></div>
-
-    <!-- Actions -->
-    <div class="flex items-center gap-1.5">
-      <button
-        onclick={() => (showExport = true)}
-        class="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
-        title="Als PDF Exportieren"
-      >
-        <FileText size={16} />
-      </button>
-
-      <button
-        onclick={syncData}
-        disabled={syncing}
-        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
-        title="Synchronisieren"
-      >
-        <RefreshCw size={16} class={syncing ? "animate-spin" : ""} />
-      </button>
-
-      <button
-        onclick={savePlan}
-        disabled={saving}
-        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
-        title="Speichern"
-      >
-        {#if saving}
-          <div class="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        {:else}
-          <Save size={16} />
-        {/if}
-      </button>
-
-      <button
-        onclick={exportToChurchTools}
-        disabled={exporting}
-        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
-        title="Nach ChurchTools exportieren"
-      >
-        {#if exporting}
-          <div class="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        {:else}
-          <Share size={16} />
-        {/if}
-      </button>
-
-      <div class="w-px h-6 bg-dark-border mx-1"></div>
-
-      <button
-        onclick={() => (showPreacherFilter = true)}
-        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95"
-        title="Gruppen & Sichtbarkeit"
-      >
-        <UsersIcon size={16} />
-      </button>
-
-      <button
-        onclick={() => (showFormatting = !showFormatting)}
-        class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-dark-surface text-zinc-400 border-dark-border hover:text-white'}"
-        title="Formatierung"
-      >
-        <Settings2 size={16} />
-      </button>
-    </div>
-  </div>
 
       {#if showFormatting}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
