@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toast, confirm } from "$lib/notifications.svelte";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
   import {
     Calendar,
     Save,
@@ -214,7 +214,11 @@
   }
 
   // State - Moved to top to avoid ReferenceError
-  let selectedMonth = $state(new Date(2026, 2, 1)); // Start with March 2026
+  let selectedMonth = $state(
+    serverPlan?.period_start
+      ? new Date(serverPlan.period_start)
+      : new Date(2026, 4, 1), // Default to May 2026 for now if none
+  );
   let gridData = $state<Record<string, Record<string, string>>>({});
   let hiddenPreachers = $state(new Set<string>());
   let showExport = $state(false);
@@ -590,122 +594,6 @@
     return state;
   });
 
-  // Auto-fill absences
-  $effect(() => {
-    // Build optimized lookup for absences: personId -> Set<dateString>
-    const absenceLookup = new Map<string, Set<string>>();
-
-    serverAbsences.forEach((a) => {
-      // KEY CHANGE: Use Name for lookup instead of ID
-      // because PB ID != CT Person ID
-      // and we don't have CT Person ID in PB yet
-      const key = a.fullName || String(a.personId);
-
-      if (!absenceLookup.has(key)) absenceLookup.set(key, new Set());
-
-      // Use a robust date parser for yyyy-MM-dd strings
-      const [y, m, d] = a.startDate.split("-").map(Number);
-      let curr = new Date(y, m - 1, d);
-
-      const [ey, em, ed] = a.endDate.split("-").map(Number);
-      const end = new Date(ey, em - 1, ed);
-
-      // Safety break
-      let steps = 0;
-      while (curr <= end && steps < 365) {
-        absenceLookup.get(key)?.add(format(curr, "yyyy-MM-dd"));
-        curr.setDate(curr.getDate() + 1);
-        steps++;
-      }
-    });
-
-    let hasUpdates = false;
-    const newGridData = { ...gridData }; // Copy to avoid multiple trigger
-
-    // 1. Clean up outdated data FIRST (Removed absences or assignments)
-    for (const slotId in newGridData) {
-      if (!newGridData[slotId]) continue;
-
-      const slotData = { ...newGridData[slotId] };
-      let rowChanged = false;
-
-      // Find date for this slotId (format is appointmentId-yyyy-mm-dd)
-      const parts = slotId.split("-");
-      const slotDateStr =
-        parts.length >= 4 ? parts.slice(parts.length - 3).join("-") : "";
-
-      for (const preacherName in slotData) {
-        const val = slotData[preacherName];
-        if (val === "-") {
-          // If NOT in absence lookup anymore -> REMOVE
-          if (!absenceLookup.get(preacherName)?.has(slotDateStr)) {
-            slotData[preacherName] = "";
-            rowChanged = true;
-          }
-        } else if (val === "X") {
-          // If assignment was placeholder (X) and is no longer on server -> REMOVE
-          if (
-            !serverAssignments[slotId] ||
-            !serverAssignments[slotId][preacherName]
-          ) {
-            slotData[preacherName] = "";
-            rowChanged = true;
-          }
-        }
-      }
-
-      if (rowChanged) {
-        newGridData[slotId] = slotData;
-        hasUpdates = true;
-      }
-    }
-
-    // 2. Apply current absences
-    for (const slot of slots) {
-      const slotDateStr = format(new Date(slot.date), "yyyy-MM-dd");
-
-      for (const preacherName of PREACHERS_FLAT) {
-        // MATCH BY NAME
-        if (absenceLookup.get(preacherName)?.has(slotDateStr)) {
-          if (!newGridData[slot.id]) newGridData[slot.id] = {};
-          // Only overwrite if empty or X (placeholder)
-          if (
-            !newGridData[slot.id][preacherName] ||
-            newGridData[slot.id][preacherName] === "X"
-          ) {
-            newGridData[slot.id][preacherName] = "-";
-            hasUpdates = true;
-          }
-        }
-      }
-    }
-
-    // 3. Apply server assignments (pre-filled data)
-    for (const slotId in serverAssignments) {
-      if (!newGridData[slotId]) newGridData[slotId] = {};
-      const slotData = { ...newGridData[slotId] };
-      let rowChanged = false;
-
-      for (const preacherName in serverAssignments[slotId]) {
-        // ONLY if NEVER touched/initialized (even empty string means "touched")
-        if (slotData[preacherName] === undefined) {
-          slotData[preacherName] = serverAssignments[slotId][preacherName];
-          rowChanged = true;
-        }
-      }
-
-      if (rowChanged) {
-        newGridData[slotId] = slotData;
-        hasUpdates = true;
-      }
-    }
-
-    // Only update state if something changed
-    if (hasUpdates) {
-      gridData = newGridData;
-    }
-  });
-
   // State definition moved to top
 
   // Transform server slots to internal format
@@ -855,6 +743,110 @@
     return null;
   }
 
+  // Auto-fill absences
+  $effect(() => {
+    // Explicitly depend on props and relevant derived values to trigger sync
+    const _ = {
+      serverAbsences,
+      serverAssignments,
+      serverSlots,
+      PREACHERS_FLAT,
+      slots,
+    };
+
+    untrack(() => {
+      // Build optimized lookup for absences: personId -> Set<dateString>
+      const absenceLookup = new Map<string, Set<string>>();
+
+      serverAbsences.forEach((a) => {
+        const key = a.fullName || String(a.personId);
+        if (!absenceLookup.has(key)) absenceLookup.set(key, new Set());
+
+        const [y, m, d] = a.startDate.split("-").map(Number);
+        let curr = new Date(y, m - 1, d);
+
+        const [ey, em, ed] = a.endDate.split("-").map(Number);
+        const end = new Date(ey, em - 1, ed);
+
+        let steps = 0;
+        while (curr <= end && steps < 365) {
+          absenceLookup.get(key)?.add(format(curr, "yyyy-MM-dd"));
+          curr.setDate(curr.getDate() + 1);
+          steps++;
+        }
+      });
+
+      let hasUpdates = false;
+      const newGridData = { ...gridData };
+
+      // 1. Clean up outdated data
+      for (const slotId in newGridData) {
+        const slotData = { ...newGridData[slotId] };
+        let rowChanged = false;
+
+        const parts = slotId.split("-");
+        const slotDateStr = parts.length >= 4 ? parts.slice(parts.length - 3).join("-") : "";
+
+        for (const preacherName in slotData) {
+          const val = slotData[preacherName];
+          if (val === "-") {
+            if (!absenceLookup.get(preacherName)?.has(slotDateStr)) {
+              slotData[preacherName] = "";
+              rowChanged = true;
+            }
+          } else if (val === "X") {
+            if (!serverAssignments[slotId] || !serverAssignments[slotId][preacherName]) {
+              slotData[preacherName] = "";
+              rowChanged = true;
+            }
+          }
+        }
+
+        if (rowChanged) {
+          newGridData[slotId] = slotData;
+          hasUpdates = true;
+        }
+      }
+
+      // 2. Apply current absences
+      for (const slot of slots) {
+        const slotDateStr = format(new Date(slot.date), "yyyy-MM-dd");
+        for (const preacherName of PREACHERS_FLAT) {
+          if (absenceLookup.get(preacherName)?.has(slotDateStr)) {
+            if (!newGridData[slot.id]) newGridData[slot.id] = {};
+            if (!newGridData[slot.id][preacherName] || newGridData[slot.id][preacherName] === "X") {
+              newGridData[slot.id][preacherName] = "-";
+              hasUpdates = true;
+            }
+          }
+        }
+      }
+
+      // 3. Apply server assignments
+      for (const slotId in serverAssignments) {
+        if (!newGridData[slotId]) newGridData[slotId] = {};
+        const slotData = { ...newGridData[slotId] };
+        let rowChanged = false;
+
+        for (const preacherName in serverAssignments[slotId]) {
+          if (slotData[preacherName] === undefined) {
+            slotData[preacherName] = serverAssignments[slotId][preacherName];
+            rowChanged = true;
+          }
+        }
+
+        if (rowChanged) {
+          newGridData[slotId] = slotData;
+          hasUpdates = true;
+        }
+      }
+
+      if (hasUpdates) {
+        gridData = newGridData;
+      }
+    });
+  });
+
   // Get allowed service types for a specific slot based on day/time rules
   function getAllowedTypesForSlot(slot: Slot): string[] {
     const rule = getRuleForSlot(slot);
@@ -903,7 +895,7 @@
     preacherName: string,
   ): string[] {
     const preacher = ([...serverPreachers, ...fallbackPreachers] as any[]).find(
-      (p) => `${p.firstName} ${p.lastName}` === preacherName,
+      (p) => `${p.firstName} ${p.lastName}`.trim() === preacherName.trim(),
     );
 
     const allowed = preacher?.allowed_services;
@@ -965,7 +957,6 @@
     let nextIndex = currentIndex === -1 ? 0 : currentIndex + 1;
 
     // Cycle through allowed types, skipping those that are "full"
-    // We try at most allowedTypes.length + 1 times (to include the 'clear' state)
     let tries = 0;
     while (tries <= allowedTypes.length) {
       if (nextIndex >= allowedTypes.length) {
@@ -976,6 +967,7 @@
 
       const candidate = allowedTypes[nextIndex];
       if (!takenInSlot.has(candidate)) {
+        // Update the specific property
         gridData[slotId][preacher] = candidate;
         return;
       }
@@ -984,7 +976,7 @@
       tries++;
     }
 
-    // If we're here, all allowed types are taken. Clear.
+    // Fallback: Clear
     gridData[slotId][preacher] = "";
   }
 
@@ -1274,11 +1266,11 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-          class="fixed inset-0 z-[150] no-print"
+          class="fixed inset-0 z-[250] no-print bg-black/5"
           onclick={() => (showFormatting = false)}
         ></div>
         <div
-          class="absolute top-11 right-0 w-80 bg-white dark:bg-zinc-700 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-600 p-4 z-[200] animate-in fade-in slide-in-from-top-2 duration-200"
+          class="fixed top-20 right-6 w-80 bg-white dark:bg-zinc-700 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-zinc-200 dark:border-zinc-600 p-6 z-[300] animate-in fade-in slide-in-from-top-4 duration-300"
         >
           <div class="flex items-center justify-between mb-4">
             <h3
