@@ -1,6 +1,7 @@
 import PocketBase from 'pocketbase';
 import { writable } from 'svelte/store';
 import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
+import { dev } from '$app/environment';
 
 export const pb = new PocketBase(PUBLIC_POCKETBASE_URL || 'https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io');
 
@@ -13,6 +14,6 @@ export const user = writable(pb.authStore.model);
 pb.authStore.onChange((auth) => {
     user.set(pb.authStore.model);
     if (typeof document !== 'undefined') {
-        document.cookie = pb.authStore.exportToCookie({ httpOnly: false, secure: false, sameSite: 'Lax', path: '/' });
+        document.cookie = pb.authStore.exportToCookie({ httpOnly: false, secure: !dev, sameSite: 'Lax', path: '/' });
     }
 });

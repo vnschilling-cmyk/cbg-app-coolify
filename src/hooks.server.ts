@@ -31,7 +31,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     // Export authStore to cookie
     // httpOnly: false allows client-side JS to read the cookie (needed for hydration in lib/pocketbase.ts if not using server load)
     // secure: false is required for localhost http dev
-    response.headers.append('set-cookie', event.locals.pb.authStore.exportToCookie({ httpOnly: false, secure: false, sameSite: 'Lax', path: '/' }));
+    response.headers.append('set-cookie', event.locals.pb.authStore.exportToCookie({ httpOnly: false, secure: !dev, sameSite: 'Lax', path: '/' }));
 
     return response;
 };
