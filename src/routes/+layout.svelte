@@ -28,86 +28,64 @@
     <!-- Navigation (Hidden on print) -->
     <header
       id="main-header"
-      class="bg-zinc-50/80 dark:bg-zinc-800/80 backdrop-blur-md border-zinc-200 dark:border-zinc-700 print:hidden flex-none z-[200] transition-colors duration-300 {$page.url.pathname.includes(
-        '/editor/',
-      )
-        ? ''
-        : 'border-b'}"
+      class="bg-dark-bg text-white border-dark-border print:hidden flex-none z-[200] transition-colors duration-300"
     >
-      <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between"
-      >
+      <div class="px-6 h-16 flex items-center justify-between gap-8">
         <a
           href="/"
-          class="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          class="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <img
-            src="/logo-light.png"
-            alt="Logo"
-            class="h-10 w-auto dark:hidden"
-          />
-          <img
-            src="/logo-dark.png"
-            alt="Logo"
-            class="h-10 w-auto hidden dark:block"
-          />
-          <div>
-            <h1
-              class="text-2xl font-normal text-zinc-900 dark:text-white leading-none tracking-tight"
-            >
-              διάκονος
-            </h1>
+          <div class="w-10 h-10 rounded-xl bg-dark-surface flex items-center justify-center border border-dark-border">
+            <img
+              src="/logo-dark.png"
+              alt="Logo"
+              class="h-8 w-auto"
+            />
           </div>
+          <h1 class="text-xl font-bold tracking-tight">
+            διά코νος
+          </h1>
         </a>
 
-        <!-- Spacer to push nav to right -->
-        <div class="flex-1"></div>
-
-        <!-- Page-specific controls (slots) -->
-        <div id="header-controls" class="flex items-center gap-4">
+        <!-- Middle: Page-specific controls -->
+        <div id="header-controls" class="flex-1 flex justify-center items-center">
           <!-- Will be populated by pages -->
         </div>
 
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2 pl-4">
-            <!-- User Info Card -->
+        <div class="flex items-center gap-3">
+          <!-- User Info Pill -->
+          <div
+            class="flex items-center gap-3 bg-dark-surface px-3 py-1.5 rounded-2xl border border-dark-border shadow-lg"
+          >
             <div
-              class="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 rounded-2xl border border-zinc-100 dark:border-zinc-700/50 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-blue-500/20"
             >
-              <div
-                class="w-8 h-8 rounded-xl bg-primary-600 text-white flex items-center justify-center font-bold text-xs shadow-lg shadow-primary-500/20"
-              >
-                {($user.name || $user.username || "U").charAt(0).toUpperCase()}
-              </div>
-              <div class="hidden sm:block text-left">
-                <p
-                  class="text-xs font-bold text-zinc-900 dark:text-white leading-tight"
-                >
-                  {$user.name || $user.username}
-                </p>
-                <p
-                  class="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight capitalize"
-                >
-                  {$user.role || "Mitglied"}
-                </p>
-              </div>
+              {($user.name || $user.username || "U").charAt(0).toUpperCase()}
+            </div>
+            <div class="hidden md:block text-left">
+              <p class="text-xs font-bold text-white leading-tight">
+                {$user.name || $user.username}
+              </p>
+              <p class="text-[9px] text-zinc-400 leading-tight uppercase tracking-wider">
+                {$user.role || "Mitglied"}
+              </p>
+            </div>
 
-              <div class="flex items-center gap-1 ml-1 pl-1">
-                <a
-                  href="/settings"
-                  title="Einstellungen"
-                  class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-500 text-white hover:bg-slate-600 shadow-sm hover:shadow-slate-500/20 transition-all border border-transparent"
-                >
-                  <Settings size={18} />
-                </a>
-                <button
-                  onclick={logout}
-                  title="Abmelden"
-                  class="w-9 h-9 flex items-center justify-center rounded-xl bg-red-500 text-white hover:bg-red-600 shadow-sm hover:shadow-red-500/20 transition-all border border-transparent"
-                >
-                  <LogOut size={18} />
-                </button>
-              </div>
+            <div class="flex items-center gap-1.5 ml-2">
+              <a
+                href="/settings"
+                title="Einstellungen"
+                class="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-700/50 text-zinc-300 hover:text-white hover:bg-zinc-600 transition-all"
+              >
+                <Settings size={16} />
+              </a>
+              <button
+                onclick={logout}
+                title="Abmelden"
+                class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           </div>
         </div>

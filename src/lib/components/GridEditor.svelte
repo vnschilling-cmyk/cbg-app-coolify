@@ -1266,35 +1266,35 @@
   class="flex-1 h-full flex flex-col p-0 bg-white dark:bg-zinc-700 overflow-hidden transition-colors duration-300"
 >
   <!-- Toolbar - will be portaled to header -->
-  <div bind:this={toolbarRef} class="flex items-center gap-4 bg-zinc-100/50 dark:bg-zinc-800/50 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm no-print">
+  <div bind:this={toolbarRef} class="flex items-center gap-3 no-print">
     <!-- Month Navigation -->
-    <div class="flex items-center gap-1 bg-white dark:bg-zinc-700 p-0.5 rounded-xl border border-zinc-200 dark:border-zinc-600 shadow-sm">
+    <div class="flex items-center gap-2 bg-dark-surface p-1 rounded-xl border border-dark-border shadow-lg">
       <button
         onclick={prevMonth}
-        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-500 text-white hover:bg-zinc-600 transition-all"
+        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
         title="Vorheriger Monat"
       >
         <ChevronLeft size={14} />
       </button>
-      <div class="px-3 text-[11px] font-black text-zinc-800 dark:text-zinc-200 min-w-[120px] text-center uppercase tracking-wider">
+      <div class="px-2 text-[10px] font-black text-white min-w-[100px] text-center uppercase tracking-[0.1em]">
         {format(selectedMonth, "MMM", { locale: de })} - {format(addMonths(selectedMonth, 1), "MMM yy", { locale: de })}
       </div>
       <button
         onclick={nextMonth}
-        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-500 text-white hover:bg-zinc-600 transition-all"
+        class="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-white hover:bg-zinc-600 transition-all active:scale-95"
         title="Nächster Monat"
       >
         <ChevronRight size={14} />
       </button>
     </div>
 
-    <div class="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+    <div class="w-px h-6 bg-dark-border mx-1"></div>
 
     <!-- Actions -->
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1.5">
       <button
         onclick={() => (showExport = true)}
-        class="flex items-center justify-center w-8 h-8 rounded-xl bg-orange-500 text-white hover:bg-orange-600 shadow-sm transition-all"
+        class="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
         title="Als PDF Exportieren"
       >
         <FileText size={16} />
@@ -1303,7 +1303,7 @@
       <button
         onclick={syncData}
         disabled={syncing}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
         title="Synchronisieren"
       >
         <RefreshCw size={16} class={syncing ? "animate-spin" : ""} />
@@ -1312,11 +1312,11 @@
       <button
         onclick={savePlan}
         disabled={saving}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
         title="Speichern"
       >
         {#if saving}
-          <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         {:else}
           <Save size={16} />
         {/if}
@@ -1325,21 +1325,21 @@
       <button
         onclick={exportToChurchTools}
         disabled={exporting}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95 disabled:opacity-50"
         title="Nach ChurchTools exportieren"
       >
         {#if exporting}
-          <div class="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
         {:else}
           <Share size={16} />
         {/if}
       </button>
 
-      <div class="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+      <div class="w-px h-6 bg-dark-border mx-1"></div>
 
       <button
         onclick={() => (showPreacherFilter = true)}
-        class="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+        class="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-surface text-zinc-400 hover:text-white border border-dark-border transition-all active:scale-95"
         title="Gruppen & Sichtbarkeit"
       >
         <UsersIcon size={16} />
@@ -1347,7 +1347,7 @@
 
       <button
         onclick={() => (showFormatting = !showFormatting)}
-        class="flex items-center justify-center w-8 h-8 rounded-xl transition-all {showFormatting ? 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/20' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}"
+        class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 {showFormatting ? 'bg-fuchsia-500 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-500/20' : 'bg-dark-surface text-zinc-400 border-dark-border hover:text-white'}"
         title="Formatierung"
       >
         <Settings2 size={16} />
