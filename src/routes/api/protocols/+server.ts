@@ -12,6 +12,7 @@ import {
     ensureProtocols,
     extractDocxText,
     geminiRework,
+    getActivePrompt,
 } from '$lib/server/admin';
 import { env } from '$env/dynamic/private';
 
@@ -85,7 +86,8 @@ export async function POST({ request }) {
             update.original_text = text.slice(0, 1900000);
             const key = env.GEMINI_API_KEY;
             if (key && text.trim()) {
-                const reworked = await geminiRework(text, key);
+                const tmpl = await getActivePrompt(pb);
+                const reworked = await geminiRework(text, key, tmpl);
                 update.reworked_text = reworked.slice(0, 1900000);
                 update.status = 'fertig';
             } else {
