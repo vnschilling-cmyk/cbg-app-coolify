@@ -107,21 +107,30 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             const title = ev.name || ev.caption || 'Gottesdienst';
             if (/reinig/i.test(title)) continue;
 
-            const roles = _emptyRoles();
+            // Pro Rolle sammeln + nach CT-Reihenfolge (sortKey) ordnen, damit
+            // „Predigt 1/2", „Verteiler 1–5" usw. wie in ChurchTools stehen.
+            const buckets: Record<string, { p: Person; key: number }[]> = {};
+            let order = 0;
             for (const es of ev.eventServices || []) {
                 if (isArchived(es.person)) continue;
                 const nm = personName(es.person);
                 if (!nm) continue;
                 const sname = svcName.get(es.serviceId) || '';
                 const r = roleOf(sname);
-                if (r === 'sonstige') {
-                    roles.sonstige.push(
-                        personObj(es.person, sname ? `${nm} (${sname})` : nm));
-                } else {
-                    roles[r].push(personObj(es.person));
-                }
+                const key = typeof es.sortKey === 'number'
+                    ? es.sortKey
+                    : (typeof es.id === 'number' ? es.id : order);
+                order++;
+                const p = r === 'sonstige'
+                    ? personObj(es.person, sname ? `${nm} (${sname})` : nm)
+                    : personObj(es.person);
+                (buckets[r] ||= []).push({ p, key });
             }
-            for (const k of Object.keys(roles)) roles[k] = dedupByName(roles[k]);
+            const roles = _emptyRoles();
+            for (const k of Object.keys(buckets)) {
+                buckets[k].sort((a, b) => a.key - b.key);
+                roles[k] = dedupByName(buckets[k].map((e) => e.p));
+            }
 
             const anyone = Object.values(roles).some((a) => a.length > 0);
             if (!anyone) continue;
