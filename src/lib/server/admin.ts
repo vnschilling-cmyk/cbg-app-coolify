@@ -62,6 +62,48 @@ export async function adminPb(): Promise<PocketBase> {
     return pb;
 }
 
+const _AUTH_RULES = {
+    listRule: '@request.auth.id != ""',
+    viewRule: '@request.auth.id != ""',
+    createRule: '@request.auth.id != ""',
+    updateRule: '@request.auth.id != ""',
+    deleteRule: '@request.auth.id != ""',
+};
+
+/**
+ * Legt eine Collection an – formatunabhängig: erst das neue `fields`-Format
+ * (PocketBase ≥ 0.23), bei Fehler das alte `schema`-Format (≤ 0.22).
+ * `fields` = Liste { name, type, required?, ...optionen }.
+ */
+async function createCollection(
+    pb: PocketBase,
+    name: string,
+    fields: any[],
+): Promise<void> {
+    try {
+        await pb.collections.create({
+            name, type: 'base', fields, ..._AUTH_RULES,
+        });
+        return;
+    } catch (eNew: any) {
+        // Altes Format: { schema: [{ name, type, required, options }] }
+        const schema = fields.map((f: any) => {
+            const { name: fn, type, required, ...rest } = f;
+            return { name: fn, type, required: !!required, options: rest };
+        });
+        try {
+            await pb.collections.create({
+                name, type: 'base', schema, ..._AUTH_RULES,
+            });
+        } catch (eOld: any) {
+            console.error(
+                `createCollection ${name} failed (new):`, eNew?.message,
+                '| (old):', eOld?.message);
+            throw eOld;
+        }
+    }
+}
+
 /** Legt die `app_config`-Collection an, falls sie noch nicht existiert. */
 export async function ensureAppConfig(pb: PocketBase): Promise<void> {
     try {
@@ -70,27 +112,10 @@ export async function ensureAppConfig(pb: PocketBase): Promise<void> {
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
     }
-    try {
-        await pb.collections.create({
-            name: 'app_config',
-            type: 'base',
-            fields: [
-                { name: 'key', type: 'text', required: true },
-                { name: 'value', type: 'json', maxSize: 2000000 },
-            ],
-            indexes: [
-                'CREATE UNIQUE INDEX `idx_app_config_key` ON `app_config` (`key`)',
-            ],
-            listRule: '@request.auth.id != ""',
-            viewRule: '@request.auth.id != ""',
-            createRule: '@request.auth.id != ""',
-            updateRule: '@request.auth.id != ""',
-            deleteRule: '@request.auth.id != ""',
-        });
-    } catch (e: any) {
-        // z. B. wenn parallel angelegt – ignorieren, sonst weiterreichen.
-        console.error('ensureAppConfig:', e?.message || e);
-    }
+    await createCollection(pb, 'app_config', [
+        { name: 'key', type: 'text', required: true },
+        { name: 'value', type: 'json', maxSize: 2000000 },
+    ]);
 }
 
 /** Legt die `protocols`-Collection an, falls sie noch nicht existiert. */
@@ -101,32 +126,14 @@ export async function ensureProtocols(pb: PocketBase): Promise<void> {
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
     }
-    try {
-        await pb.collections.create({
-            name: 'protocols',
-            type: 'base',
-            fields: [
-                { name: 'title', type: 'text', required: true },
-                { name: 'date', type: 'text' },
-                { name: 'status', type: 'text' },
-                {
-                    name: 'original_file',
-                    type: 'file',
-                    maxSelect: 1,
-                    maxSize: 26214400,
-                },
-                { name: 'original_text', type: 'text', maxSize: 2000000 },
-                { name: 'reworked_text', type: 'text', maxSize: 2000000 },
-            ],
-            listRule: '@request.auth.id != ""',
-            viewRule: '@request.auth.id != ""',
-            createRule: '@request.auth.id != ""',
-            updateRule: '@request.auth.id != ""',
-            deleteRule: '@request.auth.id != ""',
-        });
-    } catch (e: any) {
-        console.error('ensureProtocols:', e?.message || e);
-    }
+    await createCollection(pb, 'protocols', [
+        { name: 'title', type: 'text', required: true },
+        { name: 'date', type: 'text' },
+        { name: 'status', type: 'text' },
+        { name: 'original_file', type: 'file', maxSelect: 1, maxSize: 26214400 },
+        { name: 'original_text', type: 'text', maxSize: 2000000 },
+        { name: 'reworked_text', type: 'text', maxSize: 2000000 },
+    ]);
 }
 
 export async function getConfig(pb: PocketBase, key: string): Promise<any> {
