@@ -41,25 +41,25 @@ export async function GET({ request }) {
 }
 
 export async function POST({ request }) {
-    const { user } = await pbFromRequest(request);
-    if (!user) return json({ error: 'Unauthorized' }, 401);
-
-    let form: FormData;
+    // Komplett umschlossen, damit JEDE Antwort die CORS-Header trägt
+    // (sonst meldet der Browser nur „Failed to fetch").
     try {
-        form = await request.formData();
-    } catch {
-        return json({ error: 'Ungültiger Upload' }, 400);
-    }
-    const file = form.get('file');
-    if (!(file instanceof File)) {
-        return json({ error: 'Keine Datei übermittelt' }, 400);
-    }
+        const { user } = await pbFromRequest(request);
+        if (!user) return json({ error: 'Unauthorized' }, 401);
 
-    try {
+        const form = await request.formData();
+        const file: any = form.get('file');
+        // Kein `instanceof File` (im Node-Runtime evtl. kein globales File):
+        // per Duck-Typing prüfen.
+        if (!file || typeof file === 'string' ||
+            typeof file.arrayBuffer !== 'function') {
+            return json({ error: 'Keine Datei übermittelt' }, 400);
+        }
+
         const pb = await adminPb();
         await ensureProtocols(pb);
 
-        const name = file.name || 'Protokoll.docx';
+        const name: string = file.name || 'Protokoll.docx';
         const title = name.replace(/\.[^.]+$/, '');
         const today = new Date().toISOString().slice(0, 10);
 
@@ -73,6 +73,7 @@ export async function POST({ request }) {
         const rec = await pb.collection('protocols').create(fd);
         return json({ protocol: mapRecord(rec) });
     } catch (e: any) {
+        console.error('POST /api/protocols failed:', e?.message || e);
         return json({ error: e?.message || 'Upload fehlgeschlagen' }, 500);
     }
 }
