@@ -95,7 +95,12 @@ export async function POST({ request }) {
         });
         return json({ protocol: mapRecord(rec) });
     } catch (e: any) {
-        console.error('POST /api/protocols failed:', e?.message || e);
-        return json({ error: e?.message || 'Upload fehlgeschlagen' }, 500);
+        const detail = e?.response?.data ?? e?.data;
+        console.error('POST /api/protocols failed:', e?.message,
+            JSON.stringify(e?.response || {}));
+        return json({
+            error: (e?.message || 'Upload fehlgeschlagen') +
+                (detail ? ' | ' + JSON.stringify(detail) : ''),
+        }, 500);
     }
 }
