@@ -1,13 +1,10 @@
 /**
  * Zusammenfassung der anstehenden Gottesdienste für die Gottesdienstleitung.
- * Alle Daten kommen aus ChurchTools (Events + eventServices + Personen).
+ * Alle Daten kommen aus ChurchTools (Events + eventServices + Personen + Abwesenheiten).
  *
- * Rollen werden über den DIENST-NAMEN erkannt (robust gegenüber IDs):
- *  - "Predigt"            -> predigt
- *  - "Leitung"/"Moderation" -> leitung
- *  - "Beitrag"/"frei"     -> beitraege (freie Beiträge)
- *  - "Abendmahl"/"verteil" -> abendmahl
- *  - sonst                -> sonstige (mit Dienstnamen)
+ * Rollen werden über den DIENST-NAMEN erkannt (robust gegenüber IDs).
+ * Personen werden als Objekt geliefert: { name, initials, id }.
+ * Das Avatar-Bild lädt die Flutter-App über /api/person-image/{id} (Proxy).
  */
 import { ChurchToolsClient } from '$lib/server/churchtools';
 import { CHURCHTOOLS_TOKEN, CHURCHTOOLS_BASE_URL } from '$env/static/private';
@@ -15,6 +12,8 @@ import { format, addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 const TZ = 'Europe/Berlin';
+
+type Person = { name: string; initials: string; id: string | null };
 
 function roleOf(serviceName: string): string {
     const n = (serviceName || '').toLowerCase();
@@ -34,6 +33,26 @@ function personName(person: any): string {
     return person.title || '';
 }
 
+function initialsOf(name: string): string {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    const f = parts[0][0] || '';
+    const l = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (f + l).toUpperCase();
+}
+
+function personObj(person: any, nameOverride?: string): Person {
+    const name = nameOverride ?? personName(person);
+    const id = person?.domainIdentifier ?? person?.id ?? null;
+    return { name, initials: initialsOf(name), id: id != null ? String(id) : null };
+}
+
+function dedupByName(list: Person[]): Person[] {
+    const map = new Map<string, Person>();
+    for (const p of list) if (!map.has(p.name)) map.set(p.name, p);
+    return [...map.values()];
+}
+
 export async function loadLeadership(user: any, fromStr?: string, toStr?: string) {
     const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
@@ -42,11 +61,9 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
     const from = fromStr || format(today, 'yyyy-MM-dd');
     const to = toStr || format(addDays(today, 14), 'yyyy-MM-dd');
 
-    // Dienst-IDs -> Name
     const svcName = new Map<number, string>();
     try {
-        const servicesRaw = await client.getServices();
-        for (const s of servicesRaw) {
+        for (const s of await client.getServices()) {
             svcName.set(s.id, s.name || s.nameTranslated || '');
         }
     } catch (e) {
@@ -59,7 +76,7 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
         for (const ev of events) {
             if (!ev.startDate) continue;
             const d = new Date(ev.startDate);
-            const weekday = Number(formatInTimeZone(d, TZ, 'i')); // 1=Mo..7=So
+            const weekday = Number(formatInTimeZone(d, TZ, 'i'));
             const hour = Number(formatInTimeZone(d, TZ, 'H'));
 
             let slot: string | null = null;
@@ -68,10 +85,9 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             if (!slot) continue;
 
             const title = ev.name || ev.caption || 'Gottesdienst';
-            // Reinigungskalender ausklammern.
-            if (/reinig/i.test(title)) continue;
+            if (/reinig/i.test(title)) continue; // Reinigung ausklammern
 
-            const roles: Record<string, string[]> = {
+            const roles: Record<string, Person[]> = {
                 predigt: [],
                 leitung: [],
                 beitraege: [],
@@ -84,17 +100,15 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 const sname = svcName.get(es.serviceId) || '';
                 const r = roleOf(sname);
                 if (r === 'sonstige') {
-                    roles.sonstige.push(sname ? `${nm} (${sname})` : nm);
+                    roles.sonstige.push(
+                        personObj(es.person, sname ? `${nm} (${sname})` : nm),
+                    );
                 } else {
-                    roles[r].push(nm);
+                    roles[r].push(personObj(es.person));
                 }
             }
+            for (const k of Object.keys(roles)) roles[k] = dedupByName(roles[k]);
 
-            // Doppelte Namen je Rolle entfernen.
-            for (const k of Object.keys(roles)) {
-                roles[k] = Array.from(new Set(roles[k]));
-            }
-            // Termine ohne jegliche Mitwirkende überspringen.
             const anyone = Object.values(roles).some((a) => a.length > 0);
             if (!anyone) continue;
 
@@ -114,7 +128,34 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
         console.error('Leadership: events failed', e);
     }
 
-    // Geburtstage der über-80-Jährigen im 2-Wochen-Fenster (best effort)
+    // Abwesenheiten im Zeitraum
+    let absences: any[] = [];
+    try {
+        const raw = await client.getAbsences(from, to);
+        absences = raw
+            .map((a: any) => {
+                const name =
+                    a.person?.title ||
+                    `${a.person?.domainAttributes?.firstName || ''} ${a.person?.domainAttributes?.lastName || ''}`.trim();
+                const id = a.person?.domainIdentifier ?? a.personId ?? null;
+                return {
+                    name,
+                    initials: initialsOf(name),
+                    id: id != null ? String(id) : null,
+                    startDate: a.startDate,
+                    endDate: a.endDate,
+                    reason: a.absenceReason?.nameTranslated || a.reason || '',
+                };
+            })
+            .filter((a: any) => a.name)
+            .sort((a: any, b: any) =>
+                (a.startDate || '').localeCompare(b.startDate || ''),
+            );
+    } catch (e) {
+        console.error('Leadership: absences failed', e);
+    }
+
+    // Geburtstage der über-80-Jährigen im 2-Wochen-Fenster
     let birthdays: any[] = [];
     try {
         birthdays = await loadBirthdays(client, today, addDays(today, 14));
@@ -122,7 +163,7 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
         console.error('Leadership: birthdays failed', e);
     }
 
-    return { from, to, services, birthdays };
+    return { from, to, services, absences, birthdays };
 }
 
 async function loadBirthdays(client: ChurchToolsClient, fromD: Date, toD: Date) {
@@ -133,8 +174,6 @@ async function loadBirthdays(client: ChurchToolsClient, fromD: Date, toD: Date) 
         persons.push(...batch);
         if (batch.length < 100) break;
     }
-
-    const nowYear = new Date().getFullYear();
     const out: any[] = [];
     for (const p of persons) {
         const bday: string | undefined = p.birthday || p.domainAttributes?.birthday;
@@ -142,20 +181,17 @@ async function loadBirthdays(client: ChurchToolsClient, fromD: Date, toD: Date) 
         const parts = bday.split('-').map(Number);
         if (parts.length < 3 || !parts[0]) continue;
         const [by, bm, bd] = parts;
-
-        const age = nowYear - by;
+        const age = new Date().getFullYear() - by;
         if (age < 80) continue;
-
-        // Geburtstag dieses Jahr; ggf. nächstes Jahr, falls schon vorbei vor Fenster
         let bdayThis = new Date(fromD.getFullYear(), bm - 1, bd);
         if (bdayThis < fromD) bdayThis = new Date(fromD.getFullYear() + 1, bm - 1, bd);
         if (bdayThis >= fromD && bdayThis <= toD) {
-            const name =
-                `${p.firstName || ''} ${p.lastName || ''}`.trim() ||
-                p.domainAttributes?.firstName ||
-                '';
+            const name = `${p.firstName || ''} ${p.lastName || ''}`.trim();
+            const id = p.domainIdentifier ?? p.id ?? null;
             out.push({
                 name,
+                initials: initialsOf(name),
+                id: id != null ? String(id) : null,
                 age,
                 date: `${String(bd).padStart(2, '0')}.${String(bm).padStart(2, '0')}.`,
             });
