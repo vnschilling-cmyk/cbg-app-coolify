@@ -76,9 +76,21 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
     const to = toStr || format(addDays(today, 14), 'yyyy-MM-dd');
 
     const svcName = new Map<number, string>();
+    const svcGroup = new Map<number, string>(); // serviceId -> Gruppenname (z. B. „Kindersegnung")
     try {
+        const groupName = new Map<number, string>();
+        try {
+            const gr = await client.request('servicegroups');
+            for (const g of (gr.data || [])) {
+                groupName.set(g.id, g.name || g.nameTranslated || '');
+            }
+        } catch (e) {
+            console.error('Leadership: servicegroups failed', e);
+        }
         for (const s of await client.getServices()) {
             svcName.set(s.id, s.name || s.nameTranslated || '');
+            const gid = s.serviceGroupId;
+            if (gid != null) svcGroup.set(s.id, groupName.get(gid) || '');
         }
     } catch (e) {
         console.error('Leadership: getServices failed', e);
@@ -118,7 +130,20 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 const nm = personName(es.person);
                 if (!nm) continue;
                 const sname = svcName.get(es.serviceId) || '';
-                const r = roleOf(sname);
+                const gname = (svcGroup.get(es.serviceId) || '').toLowerCase();
+                // Rolle bevorzugt über die Dienst-GRUPPE (Spalte in CT),
+                // sonst über den Dienstnamen. Wichtig: „Kindersegnung" (Dienst
+                // dort heißt „Gebet") darf NICHT als Gebetstunde gelten.
+                let r: string;
+                let kind = sname;
+                if (gname.includes('kindersegnung')) {
+                    r = 'beitraege';
+                    kind = 'Kindersegnung';
+                } else if (gname.includes('beitr') || gname.includes('frei')) {
+                    r = 'beitraege';
+                } else {
+                    r = roleOf(sname);
+                }
                 const key = typeof es.sortKey === 'number'
                     ? es.sortKey
                     : (typeof es.id === 'number' ? es.id : order);
@@ -126,7 +151,7 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 const p = r === 'sonstige'
                     ? personObj(es.person, sname ? `${nm} (${sname})` : nm)
                     : personObj(es.person);
-                (buckets[r] ||= []).push({ p, key, kind: sname });
+                (buckets[r] ||= []).push({ p, key, kind });
             }
             const roles = _emptyRoles();
             let beitragKinds: string[] | undefined;
