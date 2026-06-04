@@ -221,14 +221,16 @@ export async function ensureProtocols(pb: PocketBase): Promise<void> {
     }
     // Kein Datei-Feld (auf älterem PocketBase beim Anlegen problematisch);
     // die Original-Datei wird als Base64 in einem Textfeld abgelegt.
+    // Text-Felder ohne maxSize (das gilt nur für json/file; auf Text-Feldern
+    // ließ es das Anlegen scheitern -> 500). Text ist ohnehin unbegrenzt.
     await createCollection(pb, 'protocols', [
         { name: 'title', type: 'text', required: true },
         { name: 'date', type: 'text' },
         { name: 'status', type: 'text' },
         { name: 'file_name', type: 'text' },
-        { name: 'original_b64', type: 'text', maxSize: 30000000 },
-        { name: 'original_text', type: 'text', maxSize: 2000000 },
-        { name: 'reworked_text', type: 'text', maxSize: 2000000 },
+        { name: 'original_b64', type: 'text' },
+        { name: 'original_text', type: 'text' },
+        { name: 'reworked_text', type: 'text' },
     ]);
 }
 
