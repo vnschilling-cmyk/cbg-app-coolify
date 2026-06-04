@@ -93,6 +93,42 @@ export async function ensureAppConfig(pb: PocketBase): Promise<void> {
     }
 }
 
+/** Legt die `protocols`-Collection an, falls sie noch nicht existiert. */
+export async function ensureProtocols(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('protocols');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    try {
+        await pb.collections.create({
+            name: 'protocols',
+            type: 'base',
+            fields: [
+                { name: 'title', type: 'text', required: true },
+                { name: 'date', type: 'text' },
+                { name: 'status', type: 'text' },
+                {
+                    name: 'original_file',
+                    type: 'file',
+                    maxSelect: 1,
+                    maxSize: 26214400,
+                },
+                { name: 'original_text', type: 'text', maxSize: 2000000 },
+                { name: 'reworked_text', type: 'text', maxSize: 2000000 },
+            ],
+            listRule: '@request.auth.id != ""',
+            viewRule: '@request.auth.id != ""',
+            createRule: '@request.auth.id != ""',
+            updateRule: '@request.auth.id != ""',
+            deleteRule: '@request.auth.id != ""',
+        });
+    } catch (e: any) {
+        console.error('ensureProtocols:', e?.message || e);
+    }
+}
+
 export async function getConfig(pb: PocketBase, key: string): Promise<any> {
     try {
         const rec = await pb
