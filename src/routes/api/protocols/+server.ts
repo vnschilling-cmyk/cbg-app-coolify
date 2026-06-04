@@ -43,7 +43,14 @@ export async function GET({ request }) {
             .getFullList({ sort: '-created' });
         return json({ protocols: list.map(mapRecord) });
     } catch (e: any) {
-        return json({ error: e?.message || 'Fehler beim Laden' }, 500);
+        // PB-Detailfehler (Feldfehler etc.) durchreichen, um die Ursache zu sehen.
+        const detail = e?.response?.data ?? e?.response?.message ?? e?.data;
+        console.error('GET /api/protocols failed:', e?.message,
+            JSON.stringify(e?.response || {}));
+        return json({
+            error: (e?.message || 'Fehler beim Laden') +
+                (detail ? ' | ' + JSON.stringify(detail) : ''),
+        }, 500);
     }
 }
 
