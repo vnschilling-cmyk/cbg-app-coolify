@@ -111,7 +111,7 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
 
             // Pro Rolle sammeln + nach CT-Reihenfolge (sortKey) ordnen, damit
             // „Predigt 1/2", „Verteiler 1–5" usw. wie in ChurchTools stehen.
-            const buckets: Record<string, { p: Person; key: number }[]> = {};
+            const buckets: Record<string, { p: Person; key: number; kind: string }[]> = {};
             let order = 0;
             for (const es of ev.eventServices || []) {
                 if (isArchived(es.person)) continue;
@@ -126,12 +126,25 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 const p = r === 'sonstige'
                     ? personObj(es.person, sname ? `${nm} (${sname})` : nm)
                     : personObj(es.person);
-                (buckets[r] ||= []).push({ p, key });
+                (buckets[r] ||= []).push({ p, key, kind: sname });
             }
             const roles = _emptyRoles();
+            let beitragKinds: string[] | undefined;
             for (const k of Object.keys(buckets)) {
                 buckets[k].sort((a, b) => a.key - b.key);
                 roles[k] = dedupByName(buckets[k].map((e) => e.p));
+                // Art (Dienstname) je Beitrag, ausgerichtet an der dedup. Liste.
+                if (k === 'beitraege') {
+                    const seen = new Set<string>();
+                    const kinds: string[] = [];
+                    for (const e of buckets[k]) {
+                        if (!seen.has(e.p.name)) {
+                            seen.add(e.p.name);
+                            kinds.push(e.kind || '');
+                        }
+                    }
+                    beitragKinds = kinds;
+                }
             }
 
             const anyone = Object.values(roles).some((a) => a.length > 0);
@@ -146,6 +159,7 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 title,
                 roles,
             };
+            if (beitragKinds && beitragKinds.length) svc.beitragKinds = beitragKinds;
             // Ü80-Geburtstage der Woche Mo–So vor diesem Sonntag-Vormittag.
             if (slot === 'so_vm') svc.birthdays = birthdaysForSunday(bdayPool, dateStr);
             services.push(svc);
