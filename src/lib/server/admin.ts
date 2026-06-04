@@ -65,18 +65,33 @@ function xmlToText(xml: string): string {
         .trim();
 }
 
-/** Überarbeitet ein Protokoll per Google Gemini (Best-Practice-Struktur). */
-export async function geminiRework(text: string, apiKey: string): Promise<string> {
+/** Standard-Prompt (Best Practice) für Sitzungs-/Besprechungsprotokolle. */
+export const DEFAULT_PROMPT =
+    'Du bist ein erfahrener Assistent für Sitzungs- und Besprechungsprotokolle '
+    + '(z. B. Bruderrat/Gemeindeleitung). Überarbeite das folgende Rohprotokoll '
+    + 'zu einem klaren, professionellen Protokoll nach Best Practices:\n'
+    + '- Kopf: Datum, Anlass/Gremium, Anwesende/Entschuldigte (sofern im Text).\n'
+    + '- Gliederung nach Tagesordnungspunkten (TOP) mit Überschriften.\n'
+    + '- Pro TOP: kurze Zusammenfassung der Diskussion, dann klar getrennt die '
+    + 'Beschlüsse.\n'
+    + '- Aufgaben/To-dos als Liste mit Verantwortlichem und (falls genannt) Frist.\n'
+    + '- Abschnitt „Offene Punkte / Vertagt".\n'
+    + '- Sachlicher, neutraler Stil; indirekte Rede.\n\n'
+    + 'Wichtig: Behalte ALLE inhaltlichen Informationen bei, erfinde nichts hinzu '
+    + 'und interpretiere nicht über das Geschriebene hinaus. Fehlt eine Angabe, '
+    + 'lasse die Rubrik weg. Antworte auf Deutsch in sauberem Markdown.';
+
+/** Überarbeitet ein Protokoll per Google Gemini (mit konfigurierbarem Prompt). */
+export async function geminiRework(
+    text: string,
+    apiKey: string,
+    template?: string,
+): Promise<string> {
     const model = env.GEMINI_MODEL || 'gemini-1.5-flash';
     const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const prompt =
-        'Du bist ein Assistent für Besprechungsprotokolle einer Kirchengemeinde. ' +
-        'Überarbeite das folgende Protokoll nach Best Practices: klare Struktur ' +
-        '(Datum/Anwesende falls vorhanden, Tagesordnungspunkte, Beschlüsse, ' +
-        'To-dos mit Verantwortlichen, offene Punkte). Behalte ALLE Inhalte bei, ' +
-        'erfinde nichts dazu, verbessere nur Sprache und Gliederung. Antworte auf ' +
-        'Deutsch in sauberem Markdown.\n\nORIGINAL-PROTOKOLL:\n' + text;
+    const instruction = (template && template.trim()) ? template : DEFAULT_PROMPT;
+    const prompt = `${instruction}\n\n--- ROHPROTOKOLL ---\n${text}`;
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -246,6 +261,21 @@ export async function setConfig(
             throw e;
         }
     }
+}
+
+/** Aktiver Auswertungs-Prompt aus app_config ('llm_prompts'); sonst Default. */
+export async function getActivePrompt(pb: PocketBase): Promise<string> {
+    try {
+        const cfg = await getConfig(pb, 'llm_prompts');
+        const list = cfg?.prompts;
+        const active = typeof cfg?.active === 'number' ? cfg.active : 0;
+        if (Array.isArray(list) && list[active]?.text?.trim()) {
+            return list[active].text;
+        }
+    } catch (e: any) {
+        console.error('getActivePrompt:', e?.message || e);
+    }
+    return DEFAULT_PROMPT;
 }
 
 /** Effektive Rolle eines Nutzers: manuelle Zuweisung vor Sync-Default. */

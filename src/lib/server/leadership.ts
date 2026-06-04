@@ -19,7 +19,9 @@ function roleOf(serviceName: string): string {
     const n = (serviceName || '').toLowerCase();
     if (n.includes('predigt')) return 'predigt';
     if (n.includes('abendmahl') || n.includes('verteil')) return 'abendmahl';
-    if (n.includes('beitr') || n.includes('frei')) return 'beitraege';
+    if (n.includes('beitr') || n.includes('frei') || n.includes('segnung')) {
+        return 'beitraege';
+    }
     if (n.includes('bibel')) return 'leitung_bs';
     if (n.includes('gebet')) return 'leitung_gs';
     if (n.includes('leit') || n.includes('moderation')) return 'leitung';

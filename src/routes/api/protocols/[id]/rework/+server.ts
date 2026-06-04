@@ -6,6 +6,7 @@ import {
     adminPb,
     extractDocxText,
     geminiRework,
+    getActivePrompt,
 } from '$lib/server/admin';
 import { env } from '$env/dynamic/private';
 
@@ -33,7 +34,8 @@ export async function POST({ request, params }) {
             return json({ error: 'Kein Text aus dem Dokument extrahierbar.' }, 422);
         }
 
-        const reworked = await geminiRework(text, key);
+        const tmpl = await getActivePrompt(pb);
+        const reworked = await geminiRework(text, key, tmpl);
         const update = {
             original_text: text.slice(0, 1900000),
             reworked_text: reworked.slice(0, 1900000),
