@@ -126,11 +126,14 @@ export async function ensureProtocols(pb: PocketBase): Promise<void> {
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
     }
+    // Kein Datei-Feld (auf älterem PocketBase beim Anlegen problematisch);
+    // die Original-Datei wird als Base64 in einem Textfeld abgelegt.
     await createCollection(pb, 'protocols', [
         { name: 'title', type: 'text', required: true },
         { name: 'date', type: 'text' },
         { name: 'status', type: 'text' },
-        { name: 'original_file', type: 'file', maxSelect: 1, maxSize: 26214400 },
+        { name: 'file_name', type: 'text' },
+        { name: 'original_b64', type: 'text', maxSize: 30000000 },
         { name: 'original_text', type: 'text', maxSize: 2000000 },
         { name: 'reworked_text', type: 'text', maxSize: 2000000 },
     ]);

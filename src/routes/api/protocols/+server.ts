@@ -17,8 +17,8 @@ function mapRecord(r: any) {
         title: r.title || '',
         date: r.date || '',
         status: r.status || 'neu',
-        hasFile: !!r.original_file,
-        fileName: r.original_file || '',
+        hasFile: !!r.original_b64,
+        fileName: r.file_name || '',
         originalText: r.original_text || '',
         reworkedText: r.reworked_text || '',
         created: r.created || '',
@@ -64,13 +64,13 @@ export async function POST({ request }) {
         const today = new Date().toISOString().slice(0, 10);
 
         const buf = Buffer.from(await file.arrayBuffer());
-        const fd = new FormData();
-        fd.append('title', title);
-        fd.append('date', today);
-        fd.append('status', 'neu');
-        fd.append('original_file', new Blob([buf]), name);
-
-        const rec = await pb.collection('protocols').create(fd);
+        const rec = await pb.collection('protocols').create({
+            title,
+            date: today,
+            status: 'neu',
+            file_name: name,
+            original_b64: buf.toString('base64'),
+        });
         return json({ protocol: mapRecord(rec) });
     } catch (e: any) {
         console.error('POST /api/protocols failed:', e?.message || e);
