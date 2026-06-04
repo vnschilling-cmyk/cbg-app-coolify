@@ -60,23 +60,20 @@ export async function POST({ request }) {
         const { user } = await pbFromRequest(request);
         if (!user) return json({ error: 'Unauthorized' }, 401);
 
-        const form = await request.formData();
-        const file: any = form.get('file');
-        // Kein `instanceof File` (im Node-Runtime evtl. kein globales File):
-        // per Duck-Typing prüfen.
-        if (!file || typeof file === 'string' ||
-            typeof file.arrayBuffer !== 'function') {
-            return json({ error: 'Keine Datei übermittelt' }, 400);
-        }
+        // JSON-Body { name, b64 } (kein Multipart – Flutter-Web-kompatibel).
+        let body: any;
+        try { body = await request.json(); } catch { body = {}; }
+        const b64: string = (body?.b64 || '').toString();
+        if (!b64) return json({ error: 'Keine Datei übermittelt' }, 400);
 
         const pb = await adminPb();
         await ensureProtocols(pb);
 
-        const name: string = file.name || 'Protokoll.docx';
+        const name: string = (body?.name || 'Protokoll.docx').toString();
         const title = name.replace(/\.[^.]+$/, '');
         const today = new Date().toISOString().slice(0, 10);
 
-        const buf = Buffer.from(await file.arrayBuffer());
+        const buf = Buffer.from(b64, 'base64');
 
         // Word-Text direkt extrahieren (schnell) – aber KEINE KI im Upload!
         // Die Gemini-Auswertung läuft separat über /rework, damit der Upload
@@ -93,7 +90,7 @@ export async function POST({ request }) {
             date: today,
             status: 'neu',
             file_name: name,
-            original_b64: buf.toString('base64'),
+            original_b64: b64,
             original_text: originalText,
         });
         return json({ protocol: mapRecord(rec) });
