@@ -28,17 +28,21 @@ async function requireAdmin(request: Request) {
     const roleMap = (await getConfig(pb, 'user_roles')) || {};
     const role = effectiveRole(user.id, user.role, roleMap);
     if (role !== 'admin') return { error: json({ error: 'Forbidden' }, 403) };
-    return { pb, roleMap };
+    return { pb, roleMap, user };
 }
 
 export async function GET({ request }) {
     const ctx = await requireAdmin(request);
     if ('error' in ctx) return ctx.error;
-    const { pb, roleMap } = ctx;
+    const { pb, roleMap, user } = ctx;
 
     try {
         const list = await pb.collection('users').getFullList({ sort: 'name' });
-        const users = list.map((u: any) => ({
+        // Nur Nutzer zeigen, die mind. einer konfigurierten Gruppe angehören
+        // (Bruderrat/Prediger). Der aktuelle Nutzer ist immer dabei.
+        const filtered = list.filter((u: any) =>
+            (Array.isArray(u.groups) && u.groups.length > 0) || u.id === user.id);
+        const users = filtered.map((u: any) => ({
             id: u.id,
             name: u.name || u.username || u.email || '',
             email: u.email || '',
