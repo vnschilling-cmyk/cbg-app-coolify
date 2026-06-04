@@ -7,7 +7,13 @@
  * POST /api/protocols/[id]/rework, sobald ein LLM hinterlegt ist.
  */
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { adminPb, ensureProtocols } from '$lib/server/admin';
+import {
+    adminPb,
+    ensureProtocols,
+    extractDocxText,
+    geminiRework,
+} from '$lib/server/admin';
+import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
@@ -71,6 +77,31 @@ export async function POST({ request }) {
             file_name: name,
             original_b64: buf.toString('base64'),
         });
+
+        // Auswertung versuchen (Original bleibt in jedem Fall gespeichert).
+        const update: any = {};
+        try {
+            const text = extractDocxText(buf);
+            update.original_text = text.slice(0, 1900000);
+            const key = env.GEMINI_API_KEY;
+            if (key && text.trim()) {
+                const reworked = await geminiRework(text, key);
+                update.reworked_text = reworked.slice(0, 1900000);
+                update.status = 'fertig';
+            } else {
+                update.status = key ? 'kein_text' : 'kein_llm';
+            }
+        } catch (e: any) {
+            update.status = 'fehler';
+            update.reworked_text = '';
+            console.error('Auswertung fehlgeschlagen:', e?.message || e);
+        }
+        try {
+            await pb.collection('protocols').update(rec.id, update);
+            Object.assign(rec, update);
+        } catch (e: any) {
+            console.error('Update nach Auswertung:', e?.message || e);
+        }
         return json({ protocol: mapRecord(rec) });
     } catch (e: any) {
         console.error('POST /api/protocols failed:', e?.message || e);

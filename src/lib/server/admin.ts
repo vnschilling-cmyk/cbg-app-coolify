@@ -7,10 +7,88 @@
  * - Konfig-Werte (Rollen, Rechte-Matrix) zu lesen/schreiben.
  */
 import PocketBase from 'pocketbase';
+import zlib from 'node:zlib';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
 
 const PB_URL = PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
+
+/**
+ * Extrahiert den Fließtext aus einer .docx (ohne externe Library):
+ * .docx ist ein ZIP; word/document.xml wird über das Central Directory
+ * gefunden, per inflateRaw entpackt und von XML-Tags befreit.
+ */
+export function extractDocxText(buf: Buffer): string {
+    // End Of Central Directory (Signatur 0x06054b50) vom Ende her suchen.
+    let eocd = -1;
+    const min = Math.max(0, buf.length - 22 - 65536);
+    for (let i = buf.length - 22; i >= min; i--) {
+        if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('Keine gültige .docx (ZIP nicht erkannt)');
+    const cdCount = buf.readUInt16LE(eocd + 10);
+    let p = buf.readUInt32LE(eocd + 16);
+    for (let n = 0; n < cdCount; n++) {
+        if (buf.readUInt32LE(p) !== 0x02014b50) break;
+        const method = buf.readUInt16LE(p + 10);
+        const compSize = buf.readUInt32LE(p + 20);
+        const nameLen = buf.readUInt16LE(p + 28);
+        const extraLen = buf.readUInt16LE(p + 30);
+        const commentLen = buf.readUInt16LE(p + 32);
+        const localOffset = buf.readUInt32LE(p + 42);
+        const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
+        if (name === 'word/document.xml') {
+            const lhNameLen = buf.readUInt16LE(localOffset + 26);
+            const lhExtraLen = buf.readUInt16LE(localOffset + 28);
+            const dataStart = localOffset + 30 + lhNameLen + lhExtraLen;
+            const comp = buf.subarray(dataStart, dataStart + compSize);
+            const xml = method === 0 ? comp : zlib.inflateRawSync(comp);
+            return xmlToText(xml.toString('utf8'));
+        }
+        p += 46 + nameLen + extraLen + commentLen;
+    }
+    throw new Error('word/document.xml nicht gefunden');
+}
+
+function xmlToText(xml: string): string {
+    return xml
+        .replace(/<w:tab\b[^>]*\/?>/g, '\t')
+        .replace(/<\/w:p>/g, '\n')
+        .replace(/<w:br\b[^>]*\/?>/g, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+/** Überarbeitet ein Protokoll per Google Gemini (Best-Practice-Struktur). */
+export async function geminiRework(text: string, apiKey: string): Promise<string> {
+    const model = env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const url =
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const prompt =
+        'Du bist ein Assistent für Besprechungsprotokolle einer Kirchengemeinde. ' +
+        'Überarbeite das folgende Protokoll nach Best Practices: klare Struktur ' +
+        '(Datum/Anwesende falls vorhanden, Tagesordnungspunkte, Beschlüsse, ' +
+        'To-dos mit Verantwortlichen, offene Punkte). Behalte ALLE Inhalte bei, ' +
+        'erfinde nichts dazu, verbessere nur Sprache und Gliederung. Antworte auf ' +
+        'Deutsch in sauberem Markdown.\n\nORIGINAL-PROTOKOLL:\n' + text;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3 },
+        }),
+    });
+    const j: any = await res.json();
+    if (!res.ok) throw new Error(j?.error?.message || `Gemini-Fehler ${res.status}`);
+    return j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
 
 /** Die App-Rollen. */
 export type AppRole = 'admin' | 'leiter' | 'prediger';
