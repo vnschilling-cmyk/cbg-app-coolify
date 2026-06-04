@@ -29,6 +29,11 @@ export async function POST({ request }) {
         return json({ success: false, message: 'Unauthorized' }, 401);
     }
 
+    // Optional: nur eine bestimmte Gruppe synchronisieren ({ groupId }).
+    let reqBody: any = {};
+    try { reqBody = await request.json(); } catch { /* leer = alle Gruppen */ }
+    const onlyGroupId: string | undefined = reqBody?.groupId;
+
     if (!CT_BASE_URL || !CT_TOKEN) {
         return json({ success: false, message: 'Missing ChurchTools configuration' }, 500);
     }
@@ -63,11 +68,11 @@ export async function POST({ request }) {
         // Fetch all configured groups
         const groups = await pb.collection('groups').getFullList();
 
-        // Check if Prediger (164) is missing and add it if so
+        // Check if Prediger (164) is missing and add it if so (nur bei Voll-Sync)
         const PREACHER_CT_ID = '164';
         const hasPreacherGroup = groups.some(g => g.ct_id === PREACHER_CT_ID);
 
-        if (!hasPreacherGroup) {
+        if (!onlyGroupId && !hasPreacherGroup) {
             log('Prediger group (ID 164) not found in PocketBase. Adding it...');
             try {
                 const newGroup = await pb.collection('groups').create({
@@ -81,18 +86,27 @@ export async function POST({ request }) {
             }
         }
 
-        log(`Found ${groups.length} configured groups to sync.`);
+        const groupsToSync = onlyGroupId
+            ? groups.filter((g) => g.id === onlyGroupId)
+            : groups;
+        log(`Syncing ${groupsToSync.length} of ${groups.length} group(s).`);
 
         let updated = 0;
         let created = 0;
+        let deleted = 0;
 
-        for (const group of groups) {
+        for (const group of groupsToSync) {
             log(`Syncing group '${group.name}' (ID: ${group.ct_id})...`);
             try {
                 const members = await ctClient.getGroupMembers(group.ct_id);
                 log(`Found ${members.length} members in Group ${group.name}.`);
 
+                const syncedCtIds = new Set<string>();
+
                 for (const member of members) {
+                    if (member.personId != null) {
+                        syncedCtIds.add(String(member.personId));
+                    }
                     let person = member.person || member;
                     let email = person.email;
 
@@ -241,6 +255,23 @@ export async function POST({ request }) {
                         log(`Failed to sync member ${firstName} ${lastName} to group ${group.name}: ${e.message}`);
                     }
                 }
+
+                // Verwaiste Mitglieder entfernen: in PB vorhanden, aber nicht
+                // mehr in der ChurchTools-Gruppe (per ct_id abgeglichen).
+                const existingMembers = await pb
+                    .collection('members')
+                    .getFullList({ filter: `group="${group.id}"` });
+                for (const m of existingMembers) {
+                    if (m.ct_id && !syncedCtIds.has(String(m.ct_id))) {
+                        try {
+                            await pb.collection('members').delete(m.id);
+                            deleted++;
+                            log(` Removed stale member: ${m.name}`);
+                        } catch (delErr: any) {
+                            log(`Failed to remove ${m.name}: ${delErr.message}`);
+                        }
+                    }
+                }
             } catch (groupError: any) {
                 log(`Failed to process group ${group.name}: ${groupError.message}`);
             }
@@ -249,7 +280,7 @@ export async function POST({ request }) {
 
         return json({
             success: true,
-            message: `Sync complete. Updated: ${updated}, Created: ${created}`,
+            message: `Sync complete. Updated: ${updated}, Created: ${created}, Deleted: ${deleted}`,
             logs
         });
 
