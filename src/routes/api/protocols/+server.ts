@@ -11,10 +11,7 @@ import {
     adminPb,
     ensureProtocols,
     extractDocxText,
-    geminiRework,
-    getActivePrompt,
 } from '$lib/server/admin';
-import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
@@ -80,39 +77,25 @@ export async function POST({ request }) {
         const today = new Date().toISOString().slice(0, 10);
 
         const buf = Buffer.from(await file.arrayBuffer());
+
+        // Word-Text direkt extrahieren (schnell) – aber KEINE KI im Upload!
+        // Die Gemini-Auswertung läuft separat über /rework, damit der Upload
+        // nicht durch lange Laufzeiten (Proxy-Timeout) abbricht.
+        let originalText = '';
+        try {
+            originalText = extractDocxText(buf).slice(0, 1900000);
+        } catch (e: any) {
+            console.error('Textextraktion fehlgeschlagen:', e?.message || e);
+        }
+
         const rec = await pb.collection('protocols').create({
             title,
             date: today,
             status: 'neu',
             file_name: name,
             original_b64: buf.toString('base64'),
+            original_text: originalText,
         });
-
-        // Auswertung versuchen (Original bleibt in jedem Fall gespeichert).
-        const update: any = {};
-        try {
-            const text = extractDocxText(buf);
-            update.original_text = text.slice(0, 1900000);
-            const key = env.GEMINI_API_KEY;
-            if (key && text.trim()) {
-                const tmpl = await getActivePrompt(pb);
-                const reworked = await geminiRework(text, key, tmpl);
-                update.reworked_text = reworked.slice(0, 1900000);
-                update.status = 'fertig';
-            } else {
-                update.status = key ? 'kein_text' : 'kein_llm';
-            }
-        } catch (e: any) {
-            update.status = 'fehler';
-            update.reworked_text = '';
-            console.error('Auswertung fehlgeschlagen:', e?.message || e);
-        }
-        try {
-            await pb.collection('protocols').update(rec.id, update);
-            Object.assign(rec, update);
-        } catch (e: any) {
-            console.error('Update nach Auswertung:', e?.message || e);
-        }
         return json({ protocol: mapRecord(rec) });
     } catch (e: any) {
         console.error('POST /api/protocols failed:', e?.message || e);
