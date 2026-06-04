@@ -67,6 +67,10 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             else if (weekday === 5) slot = 'fr';
             if (!slot) continue;
 
+            const title = ev.name || ev.caption || 'Gottesdienst';
+            // Reinigungskalender ausklammern.
+            if (/reinig/i.test(title)) continue;
+
             const roles: Record<string, string[]> = {
                 predigt: [],
                 leitung: [],
@@ -86,12 +90,20 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 }
             }
 
+            // Doppelte Namen je Rolle entfernen.
+            for (const k of Object.keys(roles)) {
+                roles[k] = Array.from(new Set(roles[k]));
+            }
+            // Termine ohne jegliche Mitwirkende überspringen.
+            const anyone = Object.values(roles).some((a) => a.length > 0);
+            if (!anyone) continue;
+
             services.push({
                 slot,
                 date: formatInTimeZone(d, TZ, 'yyyy-MM-dd'),
                 time: formatInTimeZone(d, TZ, 'HH:mm'),
                 weekday,
-                title: ev.name || ev.caption || 'Gottesdienst',
+                title,
                 roles,
             });
         }
@@ -102,10 +114,10 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
         console.error('Leadership: events failed', e);
     }
 
-    // Geburtstage der über-80-Jährigen im Zeitfenster (best effort)
+    // Geburtstage der über-80-Jährigen im 2-Wochen-Fenster (best effort)
     let birthdays: any[] = [];
     try {
-        birthdays = await loadBirthdays(client, addDays(today, -7), addDays(today, 14));
+        birthdays = await loadBirthdays(client, today, addDays(today, 14));
     } catch (e) {
         console.error('Leadership: birthdays failed', e);
     }
