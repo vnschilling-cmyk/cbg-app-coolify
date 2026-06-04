@@ -38,9 +38,11 @@ export async function GET({ request }) {
     try {
         const pb = await adminPb();
         await ensureProtocols(pb);
+        // KEIN sort:'-created' — Base-Collections in PB v0.38 haben kein
+        // created-Feld; das war die Ursache des 500. Neueste zuerst über id.
         const list = await pb
             .collection('protocols')
-            .getFullList({ sort: '-created' });
+            .getFullList({ sort: '-id' });
         return json({ protocols: list.map(mapRecord) });
     } catch (e: any) {
         // PB-Detailfehler (Feldfehler etc.) durchreichen, um die Ursache zu sehen.
