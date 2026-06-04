@@ -87,7 +87,7 @@ export async function geminiRework(
     apiKey: string,
     template?: string,
 ): Promise<string> {
-    const model = env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
     const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const instruction = (template && template.trim()) ? template : DEFAULT_PROMPT;
