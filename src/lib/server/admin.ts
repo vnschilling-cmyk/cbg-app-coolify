@@ -166,6 +166,12 @@ export function effectiveRole(
     syncRole: string | undefined,
     roleMap: Record<string, string>,
 ): AppRole {
+    // Bootstrap: Solange KEIN Nutzer explizit als Admin gesetzt ist, gilt jeder
+    // als Admin – damit die Rechteverwaltung erreichbar ist und überhaupt Rollen
+    // vergeben werden können. Sobald ein Admin existiert, greifen die Regeln.
+    const hasAdmin = roleMap && Object.values(roleMap).includes('admin');
+    if (!hasAdmin) return 'admin';
+
     const manual = roleMap?.[userId];
     if (manual === 'admin' || manual === 'leiter' || manual === 'prediger') {
         return manual;
