@@ -1,9 +1,9 @@
 
-import { json } from '@sveltejs/kit';
 import { ChurchToolsClient } from '$lib/server/churchtools';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
+import { json, preflight, pbFromRequest } from '$lib/server/api';
 
 // ENV variables should be loaded from $env/dynamic/private or process.env depending on setup
 // utilizing env from $env/dynamic/private for runtime env vars
@@ -20,17 +20,17 @@ if (PB_ADMIN_PASSWORD && PB_ADMIN_PASSWORD.startsWith("'") && PB_ADMIN_PASSWORD.
 
 
 
-export async function POST({ locals }) {
-    // Optional: Check if user is admin
-    if (!locals.user) {
-        return json({ success: false, message: 'Unauthorized' }, { status: 401 });
+export const OPTIONS = async () => preflight();
+
+export async function POST({ request }) {
+    // Auth via Bearer-Token (Flutter-App) statt Cookie.
+    const { pb: caller } = await pbFromRequest(request);
+    if (!caller.authStore.isValid) {
+        return json({ success: false, message: 'Unauthorized' }, 401);
     }
 
-    // If strict admin check is needed:
-    // if (locals.user.role !== 'admin') { return json({ ... }, { status: 403 }); }
-
     if (!CT_BASE_URL || !CT_TOKEN) {
-        return json({ success: false, message: 'Missing ChurchTools configuration' }, { status: 500 });
+        return json({ success: false, message: 'Missing ChurchTools configuration' }, 500);
     }
 
     const logs: string[] = [];
@@ -53,11 +53,11 @@ export async function POST({ locals }) {
             } catch (e: any) {
                 log(`Failed to auth as PB Admin: ${e.message}`);
                 const details = e.response ? JSON.stringify(e.response) : e.message;
-                return json({ success: false, message: `PB Admin Auth failed: ${details}`, logs }, { status: 500 });
+                return json({ success: false, message: `PB Admin Auth failed: ${details}`, logs }, 500);
             }
         } else {
             log('Missing PB_ADMIN credentials.');
-            return json({ success: false, message: 'Missing PocketBase Admin credentials', logs }, { status: 500 });
+            return json({ success: false, message: 'Missing PocketBase Admin credentials', logs }, 500);
         }
 
         // Fetch all configured groups
@@ -255,6 +255,6 @@ export async function POST({ locals }) {
 
     } catch (e: any) {
         console.error(e);
-        return json({ success: false, message: e.message, logs }, { status: 500 });
+        return json({ success: false, message: e.message, logs }, 500);
     }
 }
