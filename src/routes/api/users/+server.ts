@@ -24,7 +24,9 @@ async function requireAdmin(request: Request) {
     const { user } = await pbFromRequest(request);
     if (!user) return { error: json({ error: 'Unauthorized' }, 401) };
     const pb = await adminPb();
-    await ensureAppConfig(pb);
+    try { await ensureAppConfig(pb); } catch (e: any) {
+        console.error('ensureAppConfig (users):', e?.message || e);
+    }
     const roleMap = (await getConfig(pb, 'user_roles')) || {};
     const role = effectiveRole(user.id, user.role, roleMap);
     if (role !== 'admin') return { error: json({ error: 'Forbidden' }, 403) };
@@ -38,10 +40,24 @@ export async function GET({ request }) {
 
     try {
         const list = await pb.collection('users').getFullList({ sort: 'name' });
-        // Nur Nutzer zeigen, die mind. einer konfigurierten Gruppe angehören
-        // (Bruderrat/Prediger). Der aktuelle Nutzer ist immer dabei.
-        const filtered = list.filter((u: any) =>
-            (Array.isArray(u.groups) && u.groups.length > 0) || u.id === user.id);
+
+        // Nur Nutzer der konfigurierten Gruppen zeigen. Quelle: members-Collection
+        // (bildet nach dem Sync die echte Gruppen-Mitgliedschaft ab). Abgleich
+        // über den Namen (Suffixe wie „(Jun.)"/„(123)" entfernt). Der aktuelle
+        // Nutzer ist immer dabei.
+        const norm = (s: string) =>
+            (s || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+        let memberNames = new Set<string>();
+        try {
+            const members = await pb.collection('members').getFullList();
+            memberNames = new Set(members.map((m: any) => norm(m.name)));
+        } catch { /* ignore */ }
+
+        const filtered = memberNames.size === 0
+            ? list // kein Mitgliederabgleich möglich -> alle zeigen
+            : list.filter((u: any) =>
+                memberNames.has(norm(u.name)) || u.id === user.id);
+
         const users = filtered.map((u: any) => ({
             id: u.id,
             name: u.name || u.username || u.email || '',
