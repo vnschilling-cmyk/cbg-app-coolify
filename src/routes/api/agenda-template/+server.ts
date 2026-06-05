@@ -56,6 +56,7 @@ export async function GET({ request }) {
                 title: `${tmpl.date} Agenda BR`,
                 date: tmpl.date,
                 moderator: tmpl.moderator,
+                moderatorId: tmpl.moderatorId,
                 opener: tmpl.opener,
                 closer: tmpl.closer,
                 items,
