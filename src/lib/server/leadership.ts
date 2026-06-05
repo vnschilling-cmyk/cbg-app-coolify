@@ -365,10 +365,28 @@ export async function loadAgendaTemplate(user: any) {
         console.error('loadAgendaTemplate failed', e);
     }
     if (!moderator) { moderator = opener; moderatorId = openerId; }
+
+    // CT-Abwesenheiten am Sitzungstag -> diese Personen-IDs gelten als abwesend.
+    const absentIds: string[] = [];
+    try {
+        const abs = await client.getAbsences(date, date);
+        for (const a of abs || []) {
+            const s = (a.startDate || '').slice(0, 10);
+            const e = (a.endDate || '').slice(0, 10);
+            if ((!s || s <= date) && (!e || e >= date)) {
+                const id = a.person?.domainIdentifier ?? a.personId ?? a.person?.id;
+                if (id != null) absentIds.push(String(id));
+            }
+        }
+    } catch (e) {
+        console.error('loadAgendaTemplate absences failed', e);
+    }
+
     return {
         date,
         opener, openerId,
         closer, closerId,
         moderator, moderatorId,
+        absentIds,
     };
 }
