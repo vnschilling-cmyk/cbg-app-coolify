@@ -92,14 +92,34 @@ export async function POST({ request }) {
         const { user } = await pbFromRequest(request);
         if (!user) return json({ error: 'Unauthorized' }, 401);
 
-        // JSON-Body { name, b64 } (kein Multipart – Flutter-Web-kompatibel).
+        // JSON-Body. Zwei Wege:
+        //  - Word-Upload:   { name, b64 }
+        //  - Agenda-Gerüst: { name, text }  (Protokoll-Entwurf aus einer Agenda)
         let body: any;
         try { body = await request.json(); } catch { body = {}; }
         const b64: string = (body?.b64 || '').toString();
-        if (!b64) return json({ error: 'Keine Datei übermittelt' }, 400);
+        const skeleton: string = (body?.text || '').toString();
+        if (!b64 && !skeleton) {
+            return json({ error: 'Keine Datei oder Vorlage übermittelt' }, 400);
+        }
 
         const pb = await adminPb();
         await ensureProtocols(pb);
+
+        // Agenda-Gerüst: kein Word-Upload, Text dient als Rohprotokoll-Entwurf.
+        if (!b64) {
+            const name = (body?.name || 'Agenda').toString();
+            const { title, date } = normalizeProtocol(name, skeleton);
+            const rec = await pb.collection('protocols').create({
+                title,
+                date,
+                status: 'entwurf',
+                file_name: '',
+                original_b64: '',
+                original_text: skeleton.slice(0, 1900000),
+            });
+            return json({ protocol: mapRecord(rec) });
+        }
 
         const name: string = (body?.name || 'Protokoll.docx').toString();
 
