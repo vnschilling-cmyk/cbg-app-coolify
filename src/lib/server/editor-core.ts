@@ -81,6 +81,20 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         })
         .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
+    // Spalten begrenzen auf die tatsächlichen Gottesdienst-Tage:
+    //  - Mittwoch (3), Freitag (5), Sonntag (0; vormittags + nachmittags)
+    //  - PLUS alle Termine aus „Sondergemeinschaften" (Kalender 90) als
+    //    Sondergottesdienste – egal an welchem Wochentag.
+    //  - „Gemeindestunde" wird nicht als Spalte gezeigt.
+    const SERVICE_WEEKDAYS = new Set([0, 3, 5]); // So, Mi, Fr
+    const visibleSlots = slots.filter((s: any) => {
+        const label = (s.label || '').toString().toLowerCase();
+        if (label.includes('gemeindestunde')) return false;
+        if (s.calendarId === 90) return true; // Sondergottesdienste
+        const wd = new Date(`${s.date}T12:00:00`).getDay();
+        return SERVICE_WEEKDAYS.has(wd);
+    });
+
     // Prediger aus PocketBase (mit allowed_services)
     let preachers: any[] = [];
     try {
@@ -193,7 +207,7 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
 
     return {
         plan,
-        slots,
+        slots: visibleSlots,
         preachers,
         calendars,
         absences,
