@@ -299,9 +299,13 @@ export async function loadAgendaTemplate(user: any) {
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
 
     let date = nextSaturdayIso();
-    let moderator = ''; // Dienst „Moderation"
-    let opener = '';    // Dienst „Einleitung" (Gebetszeit Eröffnung)
-    let closer = '';    // Dienst „Abschluss" (Gebetszeit Abschluss)
+    let moderator = '', moderatorId: string | null = null; // Dienst „Moderation"
+    let opener = '', openerId: string | null = null; // „Einleitung" (Eröffnung)
+    let closer = '', closerId: string | null = null; // „Abschluss"
+    const pid = (p: any): string | null => {
+        const v = p?.domainIdentifier ?? p?.id;
+        return v != null ? String(v) : null;
+    };
     try {
         const svcName = new Map<number, string>();
         for (const s of await client.getServices()) {
@@ -321,26 +325,29 @@ export async function loadAgendaTemplate(user: any) {
             // Dienst-Namen im Bruderrat-Termin (siehe ChurchTools):
             //   Moderation -> Moderator, Einleitung -> Eröffnung,
             //   Abschluss -> Abschluss. „Predigt 1/2"/„Anfang" als Fallback.
-            const predigt: { nm: string; key: number }[] = [];
+            const predigt: { nm: string; id: string | null; key: number }[] = [];
             for (const es of ev.eventServices || []) {
                 const nm = personName(es.person);
                 if (!nm) continue;
+                const id = pid(es.person);
                 const sname = (svcName.get(es.serviceId) || '').toLowerCase();
                 if (sname.includes('moderation') || sname.includes('moderator')) {
-                    moderator ||= nm;
+                    if (!moderator) { moderator = nm; moderatorId = id; }
                 } else if (sname.includes('einleitung') ||
                     sname.includes('anfang') || sname.includes('eröffnung') ||
                     sname.includes('eroeffnung')) {
-                    opener ||= nm;
+                    if (!opener) { opener = nm; openerId = id; }
                 } else if (sname.includes('abschluss') ||
                     sname.includes('schluss')) {
-                    closer ||= nm;
+                    if (!closer) { closer = nm; closerId = id; }
                 } else if (sname.includes('predigt')) {
-                    if (/1/.test(sname)) opener ||= nm;
-                    else if (/2/.test(sname)) closer ||= nm;
-                    else {
+                    if (/1/.test(sname)) {
+                        if (!opener) { opener = nm; openerId = id; }
+                    } else if (/2/.test(sname)) {
+                        if (!closer) { closer = nm; closerId = id; }
+                    } else {
                         predigt.push({
-                            nm,
+                            nm, id,
                             key: typeof es.sortKey === 'number' ? es.sortKey : 0,
                         });
                     }
@@ -348,12 +355,20 @@ export async function loadAgendaTemplate(user: any) {
             }
             if (predigt.length) {
                 predigt.sort((a, b) => a.key - b.key);
-                if (!opener) opener = predigt[0].nm;
-                if (!closer && predigt.length > 1) closer = predigt[1].nm;
+                if (!opener) { opener = predigt[0].nm; openerId = predigt[0].id; }
+                if (!closer && predigt.length > 1) {
+                    closer = predigt[1].nm; closerId = predigt[1].id;
+                }
             }
         }
     } catch (e) {
         console.error('loadAgendaTemplate failed', e);
     }
-    return { date, opener, closer, moderator: moderator || opener };
+    if (!moderator) { moderator = opener; moderatorId = openerId; }
+    return {
+        date,
+        opener, openerId,
+        closer, closerId,
+        moderator, moderatorId,
+    };
 }
