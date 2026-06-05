@@ -50,7 +50,8 @@ export async function GET({ request }) {
                 (r as any).file_name || '',
                 (r as any).original_text || '',
             );
-            if ((r as any).title !== norm.title) {
+            if ((r as any).title !== norm.title ||
+                (r as any).date !== norm.date) {
                 try {
                     await pb.collection('protocols').update(r.id, {
                         title: norm.title,
