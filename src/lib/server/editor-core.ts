@@ -229,7 +229,12 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         console.error('Failed to fetch event assignments:', e);
     }
 
-    const finalAssignments = { ...assignments, ...(plan.data || {}) };
+    // Manuelle-Spalten-Meta aus data herauslösen (nicht als „Slot" mischen).
+    const planData: any = { ...(plan.data || {}) };
+    const meta = planData.__meta || { hiddenSlots: [], extraSlots: [] };
+    delete planData.__meta;
+
+    const finalAssignments = { ...assignments, ...planData };
     const formatting = plan.formatting || null;
 
     let serviceRules: any[] = [];
@@ -256,6 +261,7 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         assignments: finalAssignments,
         formatting,
         serviceRules,
+        meta,
         fromDate,
         toDate,
     };
@@ -270,9 +276,20 @@ export async function savePlanData(
         formatting?: unknown;
         specialServices?: unknown;
         hidden_preachers?: unknown;
+        hidden_slots?: unknown;
+        extra_slots?: unknown;
     },
 ) {
-    const updateData: any = { data: body.data };
+    // Manuelle Spalten (extra/ausgeblendet) ohne PB-Schemaänderung im
+    // JSON-Feld `data` unter dem reservierten Schlüssel __meta ablegen.
+    const data: any = { ...(body.data || {}) };
+    if (body.hidden_slots !== undefined || body.extra_slots !== undefined) {
+        data.__meta = {
+            hiddenSlots: body.hidden_slots ?? [],
+            extraSlots: body.extra_slots ?? [],
+        };
+    }
+    const updateData: any = { data };
     if (body.formatting !== undefined) updateData.formatting = body.formatting;
     if (body.specialServices !== undefined)
         updateData.special_services = body.specialServices;
