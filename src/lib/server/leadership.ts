@@ -280,3 +280,74 @@ function birthdaysForSunday(pool: any[], sundayIso: string) {
     out.sort((a, b) => a.date.localeCompare(b.date));
     return out;
 }
+
+/** Nächster Samstag (ISO yyyy-MM-dd); ist heute Samstag, der in 7 Tagen. */
+function nextSaturdayIso(): string {
+    const now = new Date();
+    let add = (6 - now.getDay() + 7) % 7; // getDay: 0=So..6=Sa
+    if (add === 0) add = 7;
+    return format(addDays(now, add), 'yyyy-MM-dd');
+}
+
+/**
+ * Vorlage-Daten für eine neue Bruderrat-Agenda aus ChurchTools:
+ * Datum (nächster Bruderrat-Termin bzw. nächster Samstag), Moderator/Eröffnung
+ * (Predigt 1 bzw. „Anfang") und Abschluss (Predigt 2 bzw. „Schluss").
+ */
+export async function loadAgendaTemplate(user: any) {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+
+    let date = nextSaturdayIso();
+    let opener = '';
+    let closer = '';
+    try {
+        const svcName = new Map<number, string>();
+        for (const s of await client.getServices()) {
+            svcName.set(s.id, s.name || s.nameTranslated || '');
+        }
+        const today = new Date();
+        const from = format(today, 'yyyy-MM-dd');
+        const to = format(addDays(today, 35), 'yyyy-MM-dd');
+        const events = await client.getEventsWithServices(from, to);
+        const brs = (events || []).filter((ev: any) =>
+            /bruder\s*-?\s*rat/i.test(`${ev?.name || ''} ${ev?.caption || ''}`));
+        brs.sort((a: any, b: any) =>
+            String(a.startDate || '').localeCompare(String(b.startDate || '')));
+        const ev = brs[0];
+        if (ev?.startDate) {
+            date = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
+            const predigt: { nm: string; key: number }[] = [];
+            for (const es of ev.eventServices || []) {
+                const nm = personName(es.person);
+                if (!nm) continue;
+                const sname = (svcName.get(es.serviceId) || '').toLowerCase();
+                if (sname.includes('anfang')) {
+                    opener ||= nm;
+                } else if (sname.includes('schluss')) { // „Schluss"/„Abschluss"
+                    closer ||= nm;
+                } else if (sname.includes('moderation') ||
+                    sname.includes('moderator')) {
+                    opener ||= nm;
+                } else if (sname.includes('predigt')) {
+                    if (/1/.test(sname)) opener ||= nm;
+                    else if (/2/.test(sname)) closer ||= nm;
+                    else {
+                        predigt.push({
+                            nm,
+                            key: typeof es.sortKey === 'number' ? es.sortKey : 0,
+                        });
+                    }
+                }
+            }
+            if (predigt.length) {
+                predigt.sort((a, b) => a.key - b.key);
+                if (!opener) opener = predigt[0].nm;
+                if (!closer && predigt.length > 1) closer = predigt[1].nm;
+            }
+        }
+    } catch (e) {
+        console.error('loadAgendaTemplate failed', e);
+    }
+    return { date, opener, closer, moderator: opener };
+}
