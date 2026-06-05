@@ -11,6 +11,8 @@ import {
     effectiveRole,
     permsForRole,
 } from '$lib/server/admin';
+import { ChurchToolsClient } from '$lib/server/churchtools';
+import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
@@ -25,10 +27,11 @@ export async function GET({ request }) {
         const rolePerms = (await getConfig(pb, 'role_perms')) || {};
         const role = effectiveRole(user.id, user.role, roleMap);
 
-        // CT-Personen-ID über Namens-Treffer in `members` (für den Avatar).
+        // CT-Personen-ID für den Avatar: zuerst schneller Namens-Treffer in
+        // `members`, sonst robust über ChurchTools (Namenssuche + E-Mail-Abgleich).
         let personId: string | null = null;
+        const nm = (user.name || '').toString().trim();
         try {
-            const nm = (user.name || '').toString().trim();
             if (nm) {
                 const m = await pb
                     .collection('members')
@@ -36,7 +39,31 @@ export async function GET({ request }) {
                 if (m?.ct_id) personId = String(m.ct_id);
             }
         } catch (_) {
-            // kein Treffer -> Avatar fällt auf Initialen zurück
+            // kein PB-Treffer -> CT-Suche unten
+        }
+        if (!personId && nm) {
+            try {
+                const base = env.CHURCHTOOLS_BASE_URL;
+                const token = env.CHURCHTOOLS_TOKEN;
+                if (base && token) {
+                    const client = new ChurchToolsClient(base, token);
+                    const r: any = await client.request(
+                        `persons?query=${encodeURIComponent(nm)}&limit=25`);
+                    const list: any[] = r.data || [];
+                    const email = (user.email || '').toString().toLowerCase();
+                    let hit = email
+                        ? list.find((p) =>
+                            (p.email || '').toString().toLowerCase() === email)
+                        : null;
+                    hit ??= list.find((p) =>
+                        `${p.firstName || ''} ${p.lastName || ''}`.trim()
+                            .toLowerCase() === nm.toLowerCase());
+                    if (!hit && list.length === 1) hit = list[0];
+                    if (hit) personId = String(hit.id ?? hit.domainIdentifier);
+                }
+            } catch (_) {
+                // Avatar fällt auf Initialen zurück
+            }
         }
 
         return json({
