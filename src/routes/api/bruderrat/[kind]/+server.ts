@@ -14,7 +14,7 @@ import { adminPb, ensureAppConfig, getConfig, setConfig, genId } from '$lib/serv
 
 export const OPTIONS = async () => preflight();
 
-const KINDS = new Set(['agendas', 'decisions', 'tasks']);
+const KINDS = new Set(['agendas', 'decisions', 'tasks', 'agenda_protocols']);
 const keyFor = (kind: string) => `bruderrat_${kind}`;
 
 function badKind(kind: string) {
