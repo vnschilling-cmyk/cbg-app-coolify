@@ -39,6 +39,15 @@ async function loadRoleNames(
     };
     const gtId = grp?.groupTypeId ?? grp?.information?.groupTypeId;
 
+    // 0) Kanonische Rollen-Tabelle (alle Gruppentyp-Rollen, id -> name).
+    for (const ep of ['grouptyperoles?limit=200', 'group/grouptyperoles?limit=200']) {
+        try {
+            const r: any = await client.request(ep);
+            add(r.data || r);
+            if (map.size) return map;
+        } catch { /* nächster */ }
+    }
+
     // 1) Rollen direkt aus dem Grouptype (zuverlässigste Quelle).
     if (gtId != null) {
         for (const ep of [
