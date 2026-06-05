@@ -24,7 +24,7 @@ export async function GET() {
                 id: grp.id,
                 name: grp.name,
                 groupTypeId: grp.groupTypeId ?? grp.information?.groupTypeId,
-                keys: Object.keys(grp),
+                roles: grp.roles,
               }
             : null;
         if (grp) {
