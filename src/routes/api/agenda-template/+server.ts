@@ -37,13 +37,17 @@ export async function GET({ request }) {
         const items = [
             {
                 title: 'Gebetszeit (Eröffnung)',
-                points: tmpl.opener ? [`Leitung: ${tmpl.opener}`] : [],
+                points: tmpl.opener
+                    ? [{ text: 'Leitung', name: tmpl.opener, id: tmpl.openerId }]
+                    : [],
             },
             { title: 'Offene Aufgaben', points: taskPoints },
             { title: '', points: [] },
             {
                 title: 'Gebetszeit (Abschluss)',
-                points: tmpl.closer ? [`Leitung: ${tmpl.closer}`] : [],
+                points: tmpl.closer
+                    ? [{ text: 'Leitung', name: tmpl.closer, id: tmpl.closerId }]
+                    : [],
             },
         ];
 
