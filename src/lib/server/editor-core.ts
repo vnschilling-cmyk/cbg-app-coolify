@@ -90,6 +90,10 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
     const kept = slots.filter((s: any) => {
         const wd = wdOf(s.date);
         const time = (s.time || '').toString();
+        // Am Sonntag bekommt ein Alsfeld-Gottesdienst NIE eine eigene Spalte
+        // (die Predigt dort wird über den Dienst-Code „Als" zugewiesen).
+        const text = `${s.label || ''} ${s.calendar || ''}`.toLowerCase();
+        if (wd === 0 && text.includes('alsfeld')) return false;
         if (wd === 0) {
             return time === '09:30' || time === '16:00' || time === '17:00';
         }
