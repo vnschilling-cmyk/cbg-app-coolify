@@ -41,6 +41,30 @@ export async function GET({ request }) {
         const list = await pb
             .collection('protocols')
             .getFullList({ sort: '-id' });
+
+        // Einmaliger, idempotenter Backfill: Alt-Titel auf das einheitliche
+        // Schema „YYYY-MM-DD Protokoll BR" bringen. Nur schreiben, wenn sich
+        // etwas ändert – danach passiert hier nur noch ein Vergleich.
+        for (const r of list) {
+            const norm = normalizeProtocol(
+                (r as any).file_name || '',
+                (r as any).original_text || '',
+            );
+            if ((r as any).title !== norm.title) {
+                try {
+                    await pb.collection('protocols').update(r.id, {
+                        title: norm.title,
+                        date: norm.date,
+                    });
+                    (r as any).title = norm.title;
+                    (r as any).date = norm.date;
+                } catch (e: any) {
+                    console.error('Backfill-Umbenennung fehlgeschlagen:',
+                        r.id, e?.message || e);
+                }
+            }
+        }
+
         return json({ protocols: list.map(mapRecord) });
     } catch (e: any) {
         // PB-Detailfehler (Feldfehler etc.) durchreichen, um die Ursache zu sehen.
