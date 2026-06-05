@@ -295,8 +295,9 @@ function normTitle(s: string): string {
 /**
  * Telegram-Nachrichten via Gemini in echte Agenda-Themen zerlegen und als
  * eigene TOPs (Titel = Themenname) in die neueste Agenda einfügen – jeweils
- * VOR der „Gebetszeit (Abschluss)". Kein Telegram-Vermerk, kein Absender.
- * Dedup gegen vorhandene TOP-Titel.
+ * VOR der „Gebetszeit (Abschluss)". Der Einsender wird als verstecktes
+ * Markierungs-Element (leerer Text + name + tgUserId) am TOP hinterlegt und
+ * in der Titelzeile als Pille angezeigt. Dedup gegen vorhandene TOP-Titel.
  */
 export async function appendAgendaSuggestions(
     pb: PocketBase,
@@ -311,14 +312,16 @@ export async function appendAgendaSuggestions(
     const ag = list[0];
     ag.items = Array.isArray(ag.items) ? ag.items : [];
 
-    // Jede Nachricht per KI in echte Themen-Titel zerlegen.
+    // Jede Nachricht per KI in echte Themen-Titel zerlegen – Einsender behalten.
     const apiKey = env.GEMINI_API_KEY || '';
-    const titles: string[] = [];
+    const themes: { title: string; name: string; tgUserId: string }[] = [];
     for (const s of suggestions) {
         const pts = await geminiAgendaPoints(s.text, apiKey);
-        titles.push(...pts);
+        for (const t of pts) {
+            themes.push({ title: t, name: s.name || '', tgUserId: s.tgUserId || '' });
+        }
     }
-    if (!titles.length) return 0;
+    if (!themes.length) return 0;
 
     // Bereits vorhandene TOP-Titel (Dedup).
     const seen = new Set(
@@ -330,11 +333,15 @@ export async function appendAgendaSuggestions(
     if (insertAt < 0) insertAt = ag.items.length;
 
     let added = 0;
-    for (const t of titles) {
-        const key = normTitle(t);
+    for (const th of themes) {
+        const key = normTitle(th.title);
         if (!key || seen.has(key)) continue;
         seen.add(key);
-        ag.items.splice(insertAt, 0, { id: genId(), title: t, points: [] });
+        // Einsender als verstecktes Markierungs-Element (leerer Text).
+        const points = (th.name || th.tgUserId)
+            ? [{ id: genId(), text: '', name: th.name, tgUserId: th.tgUserId }]
+            : [];
+        ag.items.splice(insertAt, 0, { id: genId(), title: th.title, points });
         insertAt++; // weitere Themen direkt dahinter, weiterhin vor Abschluss
         added++;
     }
