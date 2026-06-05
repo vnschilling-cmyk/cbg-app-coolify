@@ -23,34 +23,53 @@ function classifyRole(roleName: string): 'leiter' | 'mitglied' | 'sonder' {
     return 'mitglied';
 }
 
-/** roleId -> Rollenname (aus Gruppe bzw. Grouptypes). */
+/** roleId -> Rollenname. Robust über mehrere CT-Endpunkte/Formate. */
 async function loadRoleNames(
     client: ChurchToolsClient,
     grp: any,
 ): Promise<Map<number, string>> {
     const map = new Map<number, string>();
+    const add = (roles: any) => {
+        if (!Array.isArray(roles)) return;
+        for (const r of roles) {
+            if (r?.id != null) {
+                map.set(Number(r.id), (r.name || r.nameTranslated || '').toString());
+            }
+        }
+    };
+    const gtId = grp?.groupTypeId ?? grp?.information?.groupTypeId;
+
+    // 1) Rollen direkt aus dem Grouptype (zuverlässigste Quelle).
+    if (gtId != null) {
+        for (const ep of [
+            `grouptypes/${gtId}/roles`,
+            `group/grouptypes/${gtId}/roles`,
+        ]) {
+            try {
+                const r: any = await client.request(ep);
+                add(r.data || r);
+                if (map.size) return map;
+            } catch { /* nächster */ }
+        }
+    }
+    // 2) Alle Grouptypes durchgehen und Rollen flach einsammeln.
+    for (const ep of ['grouptypes', 'group/grouptypes']) {
+        try {
+            const r: any = await client.request(ep);
+            for (const t of (r.data || r || [])) {
+                if (gtId == null || Number(t.id) === Number(gtId)) {
+                    add(t.roles || t.groupTypeRoles);
+                }
+            }
+            if (map.size) return map;
+        } catch { /* nächster */ }
+    }
+    // 3) Rollen aus dem Gruppenobjekt selbst.
     try {
         const g: any = await client.request(`groups/${grp.id}`);
         const gg = g.data || g;
-        const roles = gg.roles || gg.information?.roles;
-        if (Array.isArray(roles)) {
-            for (const r of roles) {
-                if (r?.id != null) map.set(r.id, r.name || r.nameTranslated || '');
-            }
-        }
-    } catch { /* weiter */ }
-    if (map.size === 0) {
-        try {
-            const gt: any = await client.request('grouptypes');
-            for (const t of (gt.data || [])) {
-                for (const r of (t.roles || [])) {
-                    if (r?.id != null) {
-                        map.set(r.id, r.name || r.nameTranslated || '');
-                    }
-                }
-            }
-        } catch { /* ignore */ }
-    }
+        add(gg.roles || gg.information?.roles);
+    } catch { /* ignore */ }
     return map;
 }
 
@@ -87,7 +106,7 @@ export async function GET({ request }) {
                     }
                     if (!name) continue;
                     const role = classifyRole(
-                        roleNames.get(m.groupTypeRoleId) || '');
+                        roleNames.get(Number(m.groupTypeRoleId)) || '');
                     members.push({ name, id: pid, role });
                 }
                 members.sort((a, b) => a.name.localeCompare(b.name));
