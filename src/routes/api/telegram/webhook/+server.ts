@@ -8,6 +8,7 @@ import {
     adminPb,
     ensureAppConfig,
     getConfig,
+    setConfig,
     agendaSuggestionFromMessage,
     appendAgendaSuggestions,
 } from '$lib/server/admin';
@@ -31,14 +32,32 @@ export async function POST({ request }) {
         let update: any;
         try { update = await request.json(); } catch { update = {}; }
         const agendaThread = (env.TELEGRAM_TOPIC_AGENDA || '').toString();
-        const s = agendaSuggestionFromMessage(update?.message, agendaThread);
+        const m = update?.message;
+        const s = agendaSuggestionFromMessage(m, agendaThread);
+        let added = 0;
         if (s) {
             try {
-                await appendAgendaSuggestions(pb, [s]);
+                added = await appendAgendaSuggestions(pb, [s]);
             } catch (e: any) {
                 console.error('webhook append failed:', e?.message || e);
             }
         }
+        // Diagnose: letzte empfangene Nachricht festhalten.
+        try {
+            await setConfig(pb, 'telegram_last_update', {
+                at: new Date().toISOString(),
+                thread: (m?.message_thread_id ?? '').toString(),
+                expectedThread: agendaThread,
+                threadMatch: !agendaThread ||
+                    (m?.message_thread_id ?? '').toString() === agendaThread,
+                text: (m?.text ?? '').toString(),
+                from: `${m?.from?.first_name || ''} ${m?.from?.last_name || ''}`.trim(),
+                isBot: !!m?.from?.is_bot,
+                chatId: (m?.chat?.id ?? '').toString(),
+                accepted: !!s,
+                added,
+            });
+        } catch { /* Diagnose ist optional */ }
         return json({ ok: true });
     } catch (e: any) {
         console.error('telegram webhook:', e?.message || e);
