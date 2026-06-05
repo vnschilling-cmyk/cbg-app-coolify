@@ -13,12 +13,6 @@ export const OPTIONS = async () => preflight();
 export async function GET({ url }) {
     const token = env.TELEGRAM_BOT_TOKEN;
     if (!token) return json({ error: 'Kein Telegram-Token.' }, 400);
-    if (url.protocol !== 'https:') {
-        return json({
-            error: 'Bitte über die HTTPS-Adresse aufrufen '
-                + `(aktuell: ${url.origin}). Telegram-Webhooks brauchen HTTPS.`,
-        }, 400);
-    }
     try {
         const pb = await adminPb();
         await ensureAppConfig(pb);
@@ -27,7 +21,11 @@ export async function GET({ url }) {
             secret = genId() + genId();
             await setConfig(pb, 'telegram_webhook_secret', { secret });
         }
-        const hookUrl = `${url.origin}/api/telegram/webhook`;
+        // Hinter dem Proxy ist das interne Protokoll http -> HTTPS erzwingen.
+        // Optionaler Override per ?base=https://...
+        const base = (url.searchParams.get('base') || `https://${url.host}`)
+            .replace(/\/+$/, '');
+        const hookUrl = `${base}/api/telegram/webhook`;
         const r = await fetch(
             `https://api.telegram.org/bot${token}/setWebhook`,
             {
