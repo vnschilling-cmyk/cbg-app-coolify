@@ -33,6 +33,18 @@ export async function POST({ request }) {
                 ? env.TELEGRAM_TOPIC_PROTOKOLL
                 : '';
 
+        // Optionaler Begleittext VOR dem PDF.
+        const intro = (body?.intro || '').toString();
+        if (intro) {
+            const msg: any = { chat_id: String(chat), text: intro };
+            if (thread) msg.message_thread_id = Number(thread);
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(msg),
+            });
+        }
+
         const buf = Buffer.from(b64, 'base64');
         const form = new FormData();
         form.append('chat_id', String(chat));
