@@ -267,6 +267,65 @@ export function genId(): string {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/** Aus einer Telegram-Nachricht einen Agenda-Vorschlag ableiten (oder null). */
+export function agendaSuggestionFromMessage(
+    m: any,
+    agendaThread: string,
+): { text: string; name: string; tgUserId: string } | null {
+    if (!m) return null;
+    const thread = (m.message_thread_id ?? '').toString();
+    if (agendaThread && thread !== agendaThread) return null;
+    if (!m.text) return null;
+    if (m.from?.is_bot) return null;
+    if (m.forum_topic_created || m.forum_topic_edited) return null;
+    const name = `${m.from?.first_name || ''} ${m.from?.last_name || ''}`.trim() ||
+        (m.from?.username || '').toString();
+    return {
+        text: m.text.toString(),
+        name,
+        tgUserId: m.from?.id != null ? String(m.from.id) : '',
+    };
+}
+
+/** Vorschläge als Punkte in die neueste Agenda übernehmen (dedup). */
+export async function appendAgendaSuggestions(
+    pb: PocketBase,
+    suggestions: { text: string; name: string; tgUserId: string }[],
+): Promise<number> {
+    if (!suggestions.length) return 0;
+    const agendas = (await getConfig(pb, 'bruderrat_agendas')) as any[];
+    const list = Array.isArray(agendas) ? agendas : [];
+    if (!list.length) return 0;
+    list.sort((a, b) =>
+        (b?.date || '').toString().localeCompare((a?.date || '').toString()));
+    const ag = list[0];
+    ag.items = Array.isArray(ag.items) ? ag.items : [];
+    let top = ag.items.find((it: any) =>
+        /weitere punkte/i.test((it?.title || '').toString()));
+    if (!top) {
+        top = { title: 'Weitere Punkte (aus Telegram)', points: [] };
+        ag.items.push(top);
+    }
+    top.points = Array.isArray(top.points) ? top.points : [];
+    const seen = new Set(top.points.map((p: any) =>
+        `${(p?.text || '').toString()}|${(p?.tgUserId || '').toString()}`));
+    let added = 0;
+    for (const s of suggestions) {
+        const k = `${s.text}|${s.tgUserId}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        top.points.push({
+            id: genId(),
+            text: s.text,
+            name: s.name,
+            tgUserId: s.tgUserId,
+        });
+        added++;
+    }
+    if (added) await setConfig(pb, 'bruderrat_agendas', list);
+    return added;
+}
+
 /** Prompt zur Extraktion von Beschlüssen und Aufgaben aus einem Protokoll. */
 const EXTRACT_PROMPT =
     'Du extrahierst aus einem Sitzungsprotokoll (Bruderrat) strukturierte '
