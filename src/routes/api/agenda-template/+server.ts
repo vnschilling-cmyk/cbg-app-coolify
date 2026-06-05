@@ -59,6 +59,7 @@ export async function GET({ request }) {
                 moderatorId: tmpl.moderatorId,
                 opener: tmpl.opener,
                 closer: tmpl.closer,
+                absentIds: tmpl.absentIds,
                 items,
             },
         });
