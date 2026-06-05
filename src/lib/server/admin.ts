@@ -205,53 +205,9 @@ function firstDate(s: string): string | null {
     return null;
 }
 
-/** Bekannte Gremiums-Vollnamen → Kürzel (im Rest-String ersetzen). */
-function abbrevGremium(s: string): string {
-    return s
-        .replace(/bruderrat/gi, 'BR')
-        .replace(/gemeindeleitung/gi, 'GL')
-        .replace(/gemeindeversammlung/gi, 'GV')
-        .replace(/mitarbeiter(kreis|versammlung)?/gi, 'MA')
-        .replace(/(ä|ae)ltesten(rat|kreis)?/gi, 'ÄR')
-        .replace(/vorstand/gi, 'VS')
-        .replace(/diakon(e|enkreis)?/gi, 'DK');
-}
-
-/** Gremium aus dem Dateinamen ableiten (Datum + „Protokoll" entfernen). */
-function gremiumFromName(name: string): string {
-    let s = name.replace(/\.[^.]+$/, ''); // Endung
-    s = s.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ');
-    s = s.replace(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, ' ');
-    s = s.replace(
-        /\b\d{1,2}\.?\s+(januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\s+\d{4}\b/gi,
-        ' ',
-    );
-    s = s.replace(/protokoll/gi, ' ');
-    s = abbrevGremium(s);
-    s = s.replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
-    s = s.replace(/^[-\s]+|[-\s]+$/g, '').trim();
-    return s;
-}
-
-/** Gremium aus dem Dokumenttext erkennen (Schlüsselwörter → Kürzel). */
-function gremiumFromText(text: string): string {
-    const t = (text || '').toLowerCase();
-    const map: [RegExp, string][] = [
-        [/bruderrat/, 'BR'],
-        [/gemeindeleitung/, 'GL'],
-        [/gemeindeversammlung/, 'GV'],
-        [/mitarbeiter(kreis|versammlung)?/, 'MA'],
-        [/(ä|ae)ltesten/, 'ÄR'],
-        [/vorstand/, 'VS'],
-        [/diakon/, 'DK'],
-    ];
-    for (const [re, ab] of map) if (re.test(t)) return ab;
-    return '';
-}
-
 /**
  * Einheitlicher Protokoll-Titel + Datum aus Dateiname und Dokumenttext.
- * Titel: „YYYY-MM-DD Protokoll <Gremium>" (Gremium ggf. leer).
+ * Titel: „YYYY-MM-DD Protokoll BR" (Gremium ist immer der Bruderrat).
  */
 export function normalizeProtocol(
     name: string,
@@ -261,9 +217,7 @@ export function normalizeProtocol(
     // Sitzungsdatum bevorzugt aus dem Dokumentanfang, dann Dateiname, dann heute.
     const date = firstDate((text || '').slice(0, 1500)) ||
         firstDate(name) || today;
-    let g = gremiumFromName(name);
-    if (!g) g = gremiumFromText(text);
-    const title = `${date} Protokoll${g ? ' ' + g : ''}`;
+    const title = `${date} Protokoll BR`;
     return { title, date };
 }
 
