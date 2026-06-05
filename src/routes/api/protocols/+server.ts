@@ -11,6 +11,7 @@ import {
     adminPb,
     ensureProtocols,
     extractDocxText,
+    normalizeProtocol,
 } from '$lib/server/admin';
 
 export const OPTIONS = async () => preflight();
@@ -70,8 +71,6 @@ export async function POST({ request }) {
         await ensureProtocols(pb);
 
         const name: string = (body?.name || 'Protokoll.docx').toString();
-        const title = name.replace(/\.[^.]+$/, '');
-        const today = new Date().toISOString().slice(0, 10);
 
         const buf = Buffer.from(b64, 'base64');
 
@@ -85,9 +84,12 @@ export async function POST({ request }) {
             console.error('Textextraktion fehlgeschlagen:', e?.message || e);
         }
 
+        // Einheitlicher Titel „YYYY-MM-DD Protokoll <Gremium>" + Sitzungsdatum.
+        const { title, date } = normalizeProtocol(name, originalText);
+
         const rec = await pb.collection('protocols').create({
             title,
-            date: today,
+            date,
             status: 'neu',
             file_name: name,
             original_b64: b64,

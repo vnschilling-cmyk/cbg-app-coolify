@@ -165,6 +165,62 @@ export async function geminiRework(
     throw new Error(lastMsg);
 }
 
+// ---------------------------------------------------------------------------
+// Einheitliche Protokoll-Benennung
+//   Titel:  „YYYY-MM-DD Protokoll <Gremium>"
+//   Datum:  Sitzungsdatum aus dem Dokument, sonst aus dem Dateinamen,
+//           sonst Upload-Datum (heute).
+// ---------------------------------------------------------------------------
+
+const _MONTHS: Record<string, string> = {
+    januar: '01', februar: '02', 'märz': '03', maerz: '03', april: '04',
+    mai: '05', juni: '06', juli: '07', august: '08', september: '09',
+    oktober: '10', november: '11', dezember: '12',
+};
+
+/** Erstes erkennbares Datum in einem Text → ISO „YYYY-MM-DD" (oder null). */
+function firstDate(s: string): string | null {
+    if (!s) return null;
+    // ISO 2026-01-24
+    let m = s.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    // „24. Januar 2026" / „24 Januar 2026"
+    m = s.match(
+        /\b(\d{1,2})\.?\s+(januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\s+(\d{4})\b/i,
+    );
+    if (m) {
+        const mo = _MONTHS[m[2].toLowerCase()];
+        if (mo) return `${m[3]}-${mo}-${String(+m[1]).padStart(2, '0')}`;
+    }
+    // „24.01.2026" / „24.1.26"
+    m = s.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/);
+    if (m) {
+        const d = +m[1], mon = +m[2];
+        let y = +m[3];
+        if (y < 100) y += 2000;
+        if (mon >= 1 && mon <= 12 && d >= 1 && d <= 31) {
+            return `${y}-${String(mon).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+    }
+    return null;
+}
+
+/**
+ * Einheitlicher Protokoll-Titel + Datum aus Dateiname und Dokumenttext.
+ * Titel: „YYYY-MM-DD Protokoll BR" (Gremium ist immer der Bruderrat).
+ */
+export function normalizeProtocol(
+    name: string,
+    text: string,
+): { title: string; date: string } {
+    const today = new Date().toISOString().slice(0, 10);
+    // Sitzungsdatum bevorzugt aus dem Dokumentanfang, dann Dateiname, dann heute.
+    const date = firstDate((text || '').slice(0, 1500)) ||
+        firstDate(name) || today;
+    const title = `${date} Protokoll BR`;
+    return { title, date };
+}
+
 /** Die App-Rollen. */
 export type AppRole = 'admin' | 'leiter' | 'prediger';
 
