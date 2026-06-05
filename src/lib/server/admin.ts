@@ -228,7 +228,7 @@ export type AppRole = 'admin' | 'leiter' | 'prediger';
 export const MENU_KEYS = [
     'overview',
     'prediger',
-    'besprechungen',
+    'bruderrat',
     'gottesdienstleitung',
     'einstellungen',
 ] as const;
@@ -261,6 +261,75 @@ export const DEFAULT_ROLE_PERMS: Record<AppRole, RolePerms> = {
         konfiguration: false,
     },
 };
+
+/** Einfache, kollisionsarme ID (für JSON-Datensätze in app_config). */
+export function genId(): string {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/** Prompt zur Extraktion von Beschlüssen und Aufgaben aus einem Protokoll. */
+const EXTRACT_PROMPT =
+    'Du extrahierst aus einem Sitzungsprotokoll (Bruderrat) strukturierte '
+    + 'Daten. Gib AUSSCHLIESSLICH gültiges JSON zurück (keine Erklärung, kein '
+    + 'Markdown, keine Code-Zäune) mit exakt dieser Form:\n'
+    + '{"decisions":[{"title":"kurzer Titel","text":"vollständiger Beschluss"}],'
+    + '"tasks":[{"title":"Aufgabe","assignee":"Verantwortlicher oder leer",'
+    + '"due":"YYYY-MM-DD oder leer"}]}\n'
+    + 'Regeln: Nur tatsächlich gefasste Beschlüsse bzw. konkrete Aufgaben/To-dos '
+    + 'aufnehmen. Nichts erfinden. Wenn nichts vorhanden ist, leere Arrays. '
+    + 'Antworte auf Deutsch.';
+
+/** Erstes JSON-Objekt aus einem Text herauslösen (robust gegen Code-Zäune). */
+function parseJsonLoose(s: string): any {
+    if (!s) return null;
+    let t = s.trim();
+    // Code-Zäune entfernen.
+    t = t.replace(/^```(json)?/i, '').replace(/```$/i, '').trim();
+    try { return JSON.parse(t); } catch { /* weiter versuchen */ }
+    const a = t.indexOf('{');
+    const b = t.lastIndexOf('}');
+    if (a >= 0 && b > a) {
+        try { return JSON.parse(t.slice(a, b + 1)); } catch { /* ignore */ }
+    }
+    return null;
+}
+
+/**
+ * Extrahiert Beschlüsse + Aufgaben aus einem Protokolltext via Gemini.
+ * Liefert { decisions: [{title,text}], tasks: [{title,assignee,due}] }.
+ */
+export async function geminiExtract(
+    text: string,
+    apiKey: string,
+): Promise<{ decisions: any[]; tasks: any[] }> {
+    const prompt = `${EXTRACT_PROMPT}\n\n--- PROTOKOLL ---\n${text}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                return {
+                    decisions: Array.isArray(j?.decisions) ? j.decisions : [],
+                    tasks: Array.isArray(j?.tasks) ? j.tasks : [],
+                };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429 ||
+                /high demand|overloaded|unavailable|try again/i.test(lastMsg);
+            if (!transient) break;
+            if (attempt < 3) await sleep(attempt * 1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
 
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
 export async function adminPb(): Promise<PocketBase> {
