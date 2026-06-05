@@ -38,7 +38,7 @@ export async function GET({ request }) {
             {
                 title: 'Gebetszeit (Eröffnung)',
                 points: tmpl.opener
-                    ? [{ text: 'Leitung', name: tmpl.opener, id: tmpl.openerId }]
+                    ? [{ text: '', name: tmpl.opener, id: tmpl.openerId }]
                     : [],
             },
             { title: 'Offene Aufgaben', points: taskPoints },
@@ -46,7 +46,7 @@ export async function GET({ request }) {
             {
                 title: 'Gebetszeit (Abschluss)',
                 points: tmpl.closer
-                    ? [{ text: 'Leitung', name: tmpl.closer, id: tmpl.closerId }]
+                    ? [{ text: '', name: tmpl.closer, id: tmpl.closerId }]
                     : [],
             },
         ];
