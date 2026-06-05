@@ -299,8 +299,9 @@ export async function loadAgendaTemplate(user: any) {
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
 
     let date = nextSaturdayIso();
-    let opener = '';
-    let closer = '';
+    let moderator = ''; // Dienst „Moderation"
+    let opener = '';    // Dienst „Einleitung" (Gebetszeit Eröffnung)
+    let closer = '';    // Dienst „Abschluss" (Gebetszeit Abschluss)
     try {
         const svcName = new Map<number, string>();
         for (const s of await client.getServices()) {
@@ -317,18 +318,23 @@ export async function loadAgendaTemplate(user: any) {
         const ev = brs[0];
         if (ev?.startDate) {
             date = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
+            // Dienst-Namen im Bruderrat-Termin (siehe ChurchTools):
+            //   Moderation -> Moderator, Einleitung -> Eröffnung,
+            //   Abschluss -> Abschluss. „Predigt 1/2"/„Anfang" als Fallback.
             const predigt: { nm: string; key: number }[] = [];
             for (const es of ev.eventServices || []) {
                 const nm = personName(es.person);
                 if (!nm) continue;
                 const sname = (svcName.get(es.serviceId) || '').toLowerCase();
-                if (sname.includes('anfang')) {
+                if (sname.includes('moderation') || sname.includes('moderator')) {
+                    moderator ||= nm;
+                } else if (sname.includes('einleitung') ||
+                    sname.includes('anfang') || sname.includes('eröffnung') ||
+                    sname.includes('eroeffnung')) {
                     opener ||= nm;
-                } else if (sname.includes('schluss')) { // „Schluss"/„Abschluss"
+                } else if (sname.includes('abschluss') ||
+                    sname.includes('schluss')) {
                     closer ||= nm;
-                } else if (sname.includes('moderation') ||
-                    sname.includes('moderator')) {
-                    opener ||= nm;
                 } else if (sname.includes('predigt')) {
                     if (/1/.test(sname)) opener ||= nm;
                     else if (/2/.test(sname)) closer ||= nm;
@@ -349,5 +355,5 @@ export async function loadAgendaTemplate(user: any) {
     } catch (e) {
         console.error('loadAgendaTemplate failed', e);
     }
-    return { date, opener, closer, moderator: opener };
+    return { date, opener, closer, moderator: moderator || opener };
 }
