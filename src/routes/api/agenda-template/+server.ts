@@ -28,23 +28,22 @@ export async function GET({ request }) {
         } catch (e) {
             console.error('agenda-template tasks failed', e);
         }
-        const tasksNotes = openTasks.length
-            ? openTasks
-                .map((t: any) =>
-                    `- ${t.title}${t.assignee ? ` (${t.assignee})` : ''}`)
-                .join('\n')
-            : 'Keine offenen Aufgaben.';
+        // Jede offene Aufgabe wird ein eigener Punkt unter dem TOP.
+        const taskPoints = openTasks.length
+            ? openTasks.map((t: any) =>
+                `${t.title}${t.assignee ? ` (${t.assignee})` : ''}`)
+            : ['Keine offenen Aufgaben.'];
 
         const items = [
             {
                 title: 'Gebetszeit (Eröffnung)',
-                notes: tmpl.opener ? `Leitung: ${tmpl.opener}` : '',
+                points: tmpl.opener ? [`Leitung: ${tmpl.opener}`] : [],
             },
-            { title: 'Offene Aufgaben', notes: tasksNotes },
-            { title: '', notes: '' },
+            { title: 'Offene Aufgaben', points: taskPoints },
+            { title: '', points: [] },
             {
                 title: 'Gebetszeit (Abschluss)',
-                notes: tmpl.closer ? `Leitung: ${tmpl.closer}` : '',
+                points: tmpl.closer ? [`Leitung: ${tmpl.closer}`] : [],
             },
         ];
 
