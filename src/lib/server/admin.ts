@@ -165,6 +165,108 @@ export async function geminiRework(
     throw new Error(lastMsg);
 }
 
+// ---------------------------------------------------------------------------
+// Einheitliche Protokoll-Benennung
+//   Titel:  „YYYY-MM-DD Protokoll <Gremium>"
+//   Datum:  Sitzungsdatum aus dem Dokument, sonst aus dem Dateinamen,
+//           sonst Upload-Datum (heute).
+// ---------------------------------------------------------------------------
+
+const _MONTHS: Record<string, string> = {
+    januar: '01', februar: '02', 'märz': '03', maerz: '03', april: '04',
+    mai: '05', juni: '06', juli: '07', august: '08', september: '09',
+    oktober: '10', november: '11', dezember: '12',
+};
+
+/** Erstes erkennbares Datum in einem Text → ISO „YYYY-MM-DD" (oder null). */
+function firstDate(s: string): string | null {
+    if (!s) return null;
+    // ISO 2026-01-24
+    let m = s.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    // „24. Januar 2026" / „24 Januar 2026"
+    m = s.match(
+        /\b(\d{1,2})\.?\s+(januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\s+(\d{4})\b/i,
+    );
+    if (m) {
+        const mo = _MONTHS[m[2].toLowerCase()];
+        if (mo) return `${m[3]}-${mo}-${String(+m[1]).padStart(2, '0')}`;
+    }
+    // „24.01.2026" / „24.1.26"
+    m = s.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/);
+    if (m) {
+        const d = +m[1], mon = +m[2];
+        let y = +m[3];
+        if (y < 100) y += 2000;
+        if (mon >= 1 && mon <= 12 && d >= 1 && d <= 31) {
+            return `${y}-${String(mon).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+    }
+    return null;
+}
+
+/** Bekannte Gremiums-Vollnamen → Kürzel (im Rest-String ersetzen). */
+function abbrevGremium(s: string): string {
+    return s
+        .replace(/bruderrat/gi, 'BR')
+        .replace(/gemeindeleitung/gi, 'GL')
+        .replace(/gemeindeversammlung/gi, 'GV')
+        .replace(/mitarbeiter(kreis|versammlung)?/gi, 'MA')
+        .replace(/(ä|ae)ltesten(rat|kreis)?/gi, 'ÄR')
+        .replace(/vorstand/gi, 'VS')
+        .replace(/diakon(e|enkreis)?/gi, 'DK');
+}
+
+/** Gremium aus dem Dateinamen ableiten (Datum + „Protokoll" entfernen). */
+function gremiumFromName(name: string): string {
+    let s = name.replace(/\.[^.]+$/, ''); // Endung
+    s = s.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ');
+    s = s.replace(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, ' ');
+    s = s.replace(
+        /\b\d{1,2}\.?\s+(januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\s+\d{4}\b/gi,
+        ' ',
+    );
+    s = s.replace(/protokoll/gi, ' ');
+    s = abbrevGremium(s);
+    s = s.replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    s = s.replace(/^[-\s]+|[-\s]+$/g, '').trim();
+    return s;
+}
+
+/** Gremium aus dem Dokumenttext erkennen (Schlüsselwörter → Kürzel). */
+function gremiumFromText(text: string): string {
+    const t = (text || '').toLowerCase();
+    const map: [RegExp, string][] = [
+        [/bruderrat/, 'BR'],
+        [/gemeindeleitung/, 'GL'],
+        [/gemeindeversammlung/, 'GV'],
+        [/mitarbeiter(kreis|versammlung)?/, 'MA'],
+        [/(ä|ae)ltesten/, 'ÄR'],
+        [/vorstand/, 'VS'],
+        [/diakon/, 'DK'],
+    ];
+    for (const [re, ab] of map) if (re.test(t)) return ab;
+    return '';
+}
+
+/**
+ * Einheitlicher Protokoll-Titel + Datum aus Dateiname und Dokumenttext.
+ * Titel: „YYYY-MM-DD Protokoll <Gremium>" (Gremium ggf. leer).
+ */
+export function normalizeProtocol(
+    name: string,
+    text: string,
+): { title: string; date: string } {
+    const today = new Date().toISOString().slice(0, 10);
+    // Sitzungsdatum bevorzugt aus dem Dokumentanfang, dann Dateiname, dann heute.
+    const date = firstDate((text || '').slice(0, 1500)) ||
+        firstDate(name) || today;
+    let g = gremiumFromName(name);
+    if (!g) g = gremiumFromText(text);
+    const title = `${date} Protokoll${g ? ' ' + g : ''}`;
+    return { title, date };
+}
+
 /** Die App-Rollen. */
 export type AppRole = 'admin' | 'leiter' | 'prediger';
 
