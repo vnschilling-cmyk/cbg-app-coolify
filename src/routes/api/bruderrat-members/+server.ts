@@ -23,7 +23,10 @@ function classifyRole(roleName: string): 'leiter' | 'mitglied' | 'sonder' {
     return 'mitglied';
 }
 
-/** roleId -> Rollenname. Robust über mehrere CT-Endpunkte/Formate. */
+/**
+ * groupTypeRoleId -> Rollenname. Die Rollen stehen direkt in der Gruppe
+ * (`grp.roles`), gematcht wird über `groupTypeRoleId` (NICHT `id`).
+ */
 async function loadRoleNames(
     client: ChurchToolsClient,
     grp: any,
@@ -32,48 +35,17 @@ async function loadRoleNames(
     const add = (roles: any) => {
         if (!Array.isArray(roles)) return;
         for (const r of roles) {
-            if (r?.id != null) {
-                map.set(Number(r.id), (r.name || r.nameTranslated || '').toString());
+            const key = r?.groupTypeRoleId ?? r?.id;
+            if (key != null) {
+                map.set(Number(key), (r.name || r.nameTranslated || '').toString());
             }
         }
     };
-    const gtId = grp?.groupTypeId ?? grp?.information?.groupTypeId;
-
-    // 0) Kanonische Rollen-Tabelle (alle Gruppentyp-Rollen, id -> name).
-    for (const ep of ['grouptyperoles?limit=200', 'group/grouptyperoles?limit=200']) {
-        try {
-            const r: any = await client.request(ep);
-            add(r.data || r);
-            if (map.size) return map;
-        } catch { /* nächster */ }
+    if (Array.isArray(grp?.roles)) {
+        add(grp.roles);
+        if (map.size) return map;
     }
-
-    // 1) Rollen direkt aus dem Grouptype (zuverlässigste Quelle).
-    if (gtId != null) {
-        for (const ep of [
-            `grouptypes/${gtId}/roles`,
-            `group/grouptypes/${gtId}/roles`,
-        ]) {
-            try {
-                const r: any = await client.request(ep);
-                add(r.data || r);
-                if (map.size) return map;
-            } catch { /* nächster */ }
-        }
-    }
-    // 2) Alle Grouptypes durchgehen und Rollen flach einsammeln.
-    for (const ep of ['grouptypes', 'group/grouptypes']) {
-        try {
-            const r: any = await client.request(ep);
-            for (const t of (r.data || r || [])) {
-                if (gtId == null || Number(t.id) === Number(gtId)) {
-                    add(t.roles || t.groupTypeRoles);
-                }
-            }
-            if (map.size) return map;
-        } catch { /* nächster */ }
-    }
-    // 3) Rollen aus dem Gruppenobjekt selbst.
+    // Fallback: Gruppen-Detail (enthält ebenfalls roles).
     try {
         const g: any = await client.request(`groups/${grp.id}`);
         const gg = g.data || g;
