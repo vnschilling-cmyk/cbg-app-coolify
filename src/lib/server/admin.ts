@@ -81,28 +81,88 @@ export const DEFAULT_PROMPT =
     + 'und interpretiere nicht über das Geschriebene hinaus. Fehlt eine Angabe, '
     + 'lasse die Rubrik weg. Antworte auf Deutsch in sauberem Markdown.';
 
-/** Überarbeitet ein Protokoll per Google Gemini (mit konfigurierbarem Prompt). */
-export async function geminiRework(
-    text: string,
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Ein einzelner Gemini-Aufruf für ein bestimmtes Modell.
+ * Liefert { text } bei Erfolg, sonst { status, message } zur Auswertung
+ * (Überlastung/Rate-Limit vs. echter Fehler) durch den Aufrufer.
+ */
+async function geminiCall(
+    model: string,
+    prompt: string,
     apiKey: string,
-    template?: string,
-): Promise<string> {
-    const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
+): Promise<{ ok: boolean; status: number; text?: string; message?: string }> {
     const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const instruction = (template && template.trim()) ? template : DEFAULT_PROMPT;
-    const prompt = `${instruction}\n\n--- ROHPROTOKOLL ---\n${text}`;
+    // thinkingBudget: 0 schaltet das „Denken" der 2.5-Modelle ab – für
+    // Protokoll-Formatierung unnötig, spart Last (weniger 503) und Zeit.
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3 },
+            generationConfig: {
+                temperature: 0.3,
+                thinkingConfig: { thinkingBudget: 0 },
+            },
         }),
     });
-    const j: any = await res.json();
-    if (!res.ok) throw new Error(j?.error?.message || `Gemini-Fehler ${res.status}`);
-    return j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let j: any = {};
+    try { j = await res.json(); } catch { /* leere/ungültige Antwort */ }
+    if (!res.ok) {
+        return {
+            ok: false,
+            status: res.status,
+            message: j?.error?.message || `Gemini-Fehler ${res.status}`,
+        };
+    }
+    return {
+        ok: true,
+        status: 200,
+        text: j?.candidates?.[0]?.content?.parts?.[0]?.text || '',
+    };
+}
+
+/**
+ * Überarbeitet ein Protokoll per Google Gemini (mit konfigurierbarem Prompt).
+ * Robust gegen Überlastung: Retry mit Backoff + automatischer Fallback auf
+ * stabilere Modelle, falls eines „high demand" (503/429) meldet.
+ */
+export async function geminiRework(
+    text: string,
+    apiKey: string,
+    template?: string,
+): Promise<string> {
+    const instruction = (template && template.trim()) ? template : DEFAULT_PROMPT;
+    const prompt = `${instruction}\n\n--- ROHPROTOKOLL ---\n${text}`;
+
+    // Modell-Kette: konfiguriertes Modell zuerst, dann stabile Alternativen.
+    const preferred = (env.GEMINI_MODEL || '').trim();
+    const chain = [
+        preferred,
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i); // leere/Duplikate raus
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        // Pro Modell bis zu 3 Versuche bei Überlastung (503) / Rate-Limit (429).
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) return r.text || '';
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429 ||
+                /high demand|overloaded|unavailable|try again/i.test(lastMsg);
+            if (!transient) {
+                // Echter Fehler (z. B. Modell unbekannt) → nächstes Modell.
+                break;
+            }
+            if (attempt < 3) await sleep(attempt * 1500); // 1,5s, dann 3s
+        }
+    }
+    throw new Error(lastMsg);
 }
 
 /** Die App-Rollen. */
