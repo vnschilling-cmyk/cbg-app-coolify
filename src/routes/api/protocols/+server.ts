@@ -65,7 +65,14 @@ export async function GET({ request }) {
             }
         }
 
-        return json({ protocols: list.map(mapRecord) });
+        // Neuestes Protokoll immer oben: nach Sitzungsdatum absteigend,
+        // bei Gleichstand nach id (Upload-Reihenfolge) absteigend.
+        const mapped = list.map(mapRecord).sort((a, b) => {
+            const d = (b.date || '').localeCompare(a.date || '');
+            if (d !== 0) return d;
+            return (b.id || '').localeCompare(a.id || '');
+        });
+        return json({ protocols: mapped });
     } catch (e: any) {
         // PB-Detailfehler (Feldfehler etc.) durchreichen, um die Ursache zu sehen.
         const detail = e?.response?.data ?? e?.response?.message ?? e?.data;
