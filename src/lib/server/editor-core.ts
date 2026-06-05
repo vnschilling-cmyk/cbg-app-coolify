@@ -98,7 +98,10 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
             return time === '09:30' || time === '16:00' || time === '17:00';
         }
         if (wd === 3 || wd === 5) return true;
-        return s.calendarId === 90; // Sondergottesdienst an anderem Tag
+        // Sondergottesdienst an anderem Tag – aber Samstag (6) ignorieren
+        // (interne Sondergemeinschafts-Termine).
+        if (wd === 6) return false;
+        return s.calendarId === 90;
     });
     // Sonntag-Nachmittag: pro Datum nur EINE Spalte – 16:00 schlägt 17:00.
     const dropIds = new Set<string>();
