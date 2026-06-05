@@ -14,7 +14,9 @@ import { adminPb, ensureAppConfig, getConfig, setConfig, genId } from '$lib/serv
 
 export const OPTIONS = async () => preflight();
 
-const KINDS = new Set(['agendas', 'decisions', 'tasks', 'agenda_protocols']);
+const KINDS = new Set([
+    'agendas', 'decisions', 'tasks', 'agenda_protocols', 'deferred',
+]);
 const keyFor = (kind: string) => `bruderrat_${kind}`;
 
 function badKind(kind: string) {
@@ -56,6 +58,21 @@ export async function POST({ request, params }) {
         };
         list.unshift(item); // neueste zuerst
         await setConfig(pb, keyFor(params.kind), list);
+        // Beim Anlegen einer Agenda: vertagte Punkte „verbrauchen" (die für
+        // dieses Datum bzw. ohne Datum gemerkten kommen nun in der Agenda vor).
+        if (params.kind === 'agendas') {
+            try {
+                const dlist = await readList(pb, 'deferred');
+                const aDate = ((item as any).date || '').toString();
+                const remain = dlist.filter((d: any) => {
+                    const dd = (d?.date || '').toString();
+                    return dd && dd !== aDate;
+                });
+                if (remain.length !== dlist.length) {
+                    await setConfig(pb, keyFor('deferred'), remain);
+                }
+            } catch { /* Vertagungen optional */ }
+        }
         return json({ item });
     } catch (e: any) {
         return json({ error: e?.message || 'Anlegen fehlgeschlagen' }, 500);
