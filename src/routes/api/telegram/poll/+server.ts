@@ -12,7 +12,8 @@ import {
     ensureAppConfig,
     getConfig,
     setConfig,
-    genId,
+    agendaSuggestionFromMessage,
+    appendAgendaSuggestions,
 } from '$lib/server/admin';
 import { env } from '$env/dynamic/private';
 
@@ -52,58 +53,12 @@ export async function GET({ request, url }) {
             if (typeof u.update_id === 'number' && u.update_id > maxId) {
                 maxId = u.update_id;
             }
-            const m = u.message;
-            if (!m) continue;
-            const thread = (m.message_thread_id ?? '').toString();
-            // Nur Textnachrichten im Agenda-Thema, nicht vom Bot, keine Doks.
-            if (agendaThread && thread !== agendaThread) continue;
-            if (!m.text) continue;
-            if (m.from?.is_bot) continue;
-            if (m.forum_topic_created || m.forum_topic_edited) continue;
-            const name = `${m.from?.first_name || ''} ${m.from?.last_name || ''}`
-                .trim() || (m.from?.username || '').toString();
-            suggestions.push({
-                text: m.text.toString(),
-                name,
-                tgUserId: m.from?.id != null ? String(m.from.id) : '',
-            });
+            const s = agendaSuggestionFromMessage(u.message, agendaThread);
+            if (s) suggestions.push(s);
         }
 
-        let added = 0;
-        if (suggestions.length) {
-            const agendas = ((await getConfig(pb, 'bruderrat_agendas')) as any[]) || [];
-            const list = Array.isArray(agendas) ? agendas : [];
-            if (list.length) {
-                // Neueste Agenda (nach Datum, sonst erste).
-                list.sort((a, b) =>
-                    (b?.date || '').toString().localeCompare((a?.date || '').toString()));
-                const ag = list[0];
-                ag.items = Array.isArray(ag.items) ? ag.items : [];
-                let top = ag.items.find((it: any) =>
-                    /weitere punkte/i.test((it?.title || '').toString()));
-                if (!top) {
-                    top = { title: 'Weitere Punkte (aus Telegram)', points: [] };
-                    ag.items.push(top);
-                }
-                top.points = Array.isArray(top.points) ? top.points : [];
-                const seen = new Set(
-                    top.points.map((p: any) =>
-                        `${(p?.text || '').toString()}|${(p?.tgUserId || '').toString()}`));
-                for (const s of suggestions) {
-                    const k = `${s.text}|${s.tgUserId}`;
-                    if (seen.has(k)) continue;
-                    seen.add(k);
-                    top.points.push({
-                        id: genId(),
-                        text: s.text,
-                        name: s.name,
-                        tgUserId: s.tgUserId,
-                    });
-                    added++;
-                }
-                if (added) await setConfig(pb, 'bruderrat_agendas', list);
-            }
-        }
+        // Zerlegt per KI in echte Themen und fügt sie vor „Abschluss" ein.
+        const added = await appendAgendaSuggestions(pb, suggestions);
 
         if (maxId !== offset) {
             await setConfig(pb, 'telegram_offset', { offset: maxId });
