@@ -81,19 +81,35 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         })
         .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-    // Spalten begrenzen auf die tatsächlichen Gottesdienst-Tage:
-    //  - Mittwoch (3), Freitag (5), Sonntag (0; vormittags + nachmittags)
-    //  - PLUS alle Termine aus „Sondergemeinschaften" (Kalender 90) als
-    //    Sondergottesdienste – egal an welchem Wochentag.
-    //  - „Gemeindestunde" wird nicht als Spalte gezeigt.
-    const SERVICE_WEEKDAYS = new Set([0, 3, 5]); // So, Mi, Fr
-    const visibleSlots = slots.filter((s: any) => {
-        const label = (s.label || '').toString().toLowerCase();
-        if (label.includes('gemeindestunde')) return false;
-        if (s.calendarId === 90) return true; // Sondergottesdienste
-        const wd = new Date(`${s.date}T12:00:00`).getDay();
-        return SERVICE_WEEKDAYS.has(wd);
+    // Spalten auf die tatsächlichen Gottesdienste begrenzen:
+    //  - Mittwoch (3) und Freitag (5): regulär.
+    //  - Sonntag (0): 09:30 (vormittags) + EINE Nachmittagsspalte
+    //      (16:00 = Sondergemeinschaft/Gemeindestunde, sonst 17:00 regulär).
+    //  - andere Wochentage: nur echte Sondergottesdienste (Kalender 90).
+    const wdOf = (d: string) => new Date(`${d}T12:00:00`).getDay();
+    const kept = slots.filter((s: any) => {
+        const wd = wdOf(s.date);
+        const time = (s.time || '').toString();
+        if (wd === 0) {
+            return time === '09:30' || time === '16:00' || time === '17:00';
+        }
+        if (wd === 3 || wd === 5) return true;
+        return s.calendarId === 90; // Sondergottesdienst an anderem Tag
     });
+    // Sonntag-Nachmittag: pro Datum nur EINE Spalte – 16:00 schlägt 17:00.
+    const dropIds = new Set<string>();
+    const sundaysByDate: Record<string, any[]> = {};
+    for (const s of kept) {
+        if (wdOf(s.date) === 0) (sundaysByDate[s.date] ||= []).push(s);
+    }
+    for (const arr of Object.values(sundaysByDate)) {
+        if (arr.some((s: any) => (s.time || '') === '16:00')) {
+            for (const s of arr) {
+                if ((s.time || '') === '17:00') dropIds.add(s.id);
+            }
+        }
+    }
+    const visibleSlots = kept.filter((s: any) => !dropIds.has(s.id));
 
     // Prediger aus PocketBase (mit allowed_services)
     let preachers: any[] = [];
@@ -148,23 +164,28 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
     // Doppelte Prediger zusammenführen (gleiche ChurchTools-Person, z. B. nach
     // Umbenennung). Bevorzugt der Datensatz mit konfigurierten Diensten,
     // sonst der mit dem längeren (spezifischeren) Namen.
-    const byPerson = new Map<string, any>();
-    for (const p of preachers) {
-        const key = String(p.ct_person_id || p.id);
-        const ex = byPerson.get(key);
-        if (!ex) {
-            byPerson.set(key, p);
-            continue;
-        }
-        const exScore = (ex.allowed_services?.length ? 1 : 0);
-        const pScore = (p.allowed_services?.length ? 1 : 0);
-        const exLen = `${ex.firstName} ${ex.lastName}`.trim().length;
-        const pLen = `${p.firstName} ${p.lastName}`.trim().length;
-        if (pScore > exScore || (pScore === exScore && pLen > exLen)) {
-            byPerson.set(key, p);
-        }
+    // Bevorzugt der Datensatz mit konfigurierten Diensten, sonst längerer Name.
+    const ranked = [...preachers].sort((a, b) => {
+        const as = a.allowed_services?.length ? 1 : 0;
+        const bs = b.allowed_services?.length ? 1 : 0;
+        if (as !== bs) return bs - as;
+        const al = `${a.firstName} ${a.lastName}`.trim().length;
+        const bl = `${b.firstName} ${b.lastName}`.trim().length;
+        return bl - al;
+    });
+    const seenCt = new Set<string>();
+    const seenName = new Set<string>();
+    const deduped: any[] = [];
+    for (const p of ranked) {
+        const ct = String(p.ct_person_id || '');
+        const nm = `${p.firstName} ${p.lastName}`.trim().toLowerCase();
+        if (ct && seenCt.has(ct)) continue; // gleiche CT-Person
+        if (nm && seenName.has(nm)) continue; // exakt gleicher Name
+        if (ct) seenCt.add(ct);
+        if (nm) seenName.add(nm);
+        deduped.push(p);
     }
-    preachers = Array.from(byPerson.values());
+    preachers = deduped;
 
     // Abwesenheiten
     let absences: any[] = [];
