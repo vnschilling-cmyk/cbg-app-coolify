@@ -493,8 +493,14 @@ export function permsForRole(
     const def = DEFAULT_ROLE_PERMS[role];
     const s = stored?.[role];
     if (!s) return def;
+    // Alt-Schlüssel migrieren: „besprechungen" wurde zu „bruderrat" umbenannt,
+    // damit zuvor gespeicherte Rechte-Matrizen den neuen Bereich weiter freigeben.
+    const menus = Array.isArray(s.menus)
+        ? [...new Set(s.menus.map((m) =>
+            (m === 'besprechungen' ? 'bruderrat' : m)))]
+        : def.menus;
     return {
-        menus: Array.isArray(s.menus) ? s.menus : def.menus,
+        menus,
         churchtools: typeof s.churchtools === 'boolean' ? s.churchtools : def.churchtools,
         berechtigungen:
             typeof s.berechtigungen === 'boolean' ? s.berechtigungen : def.berechtigungen,
