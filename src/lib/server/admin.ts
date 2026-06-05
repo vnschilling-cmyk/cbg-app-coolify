@@ -287,7 +287,17 @@ export function agendaSuggestionFromMessage(
     };
 }
 
-/** Vorschläge als Punkte in die neueste Agenda übernehmen (dedup). */
+/** Titel normalisieren (für Dedup): klein, getrimmt, Mehrfach-Spaces weg. */
+function normTitle(s: string): string {
+    return (s || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Telegram-Nachrichten via Gemini in echte Agenda-Themen zerlegen und als
+ * eigene TOPs (Titel = Themenname) in die neueste Agenda einfügen – jeweils
+ * VOR der „Gebetszeit (Abschluss)". Kein Telegram-Vermerk, kein Absender.
+ * Dedup gegen vorhandene TOP-Titel.
+ */
 export async function appendAgendaSuggestions(
     pb: PocketBase,
     suggestions: { text: string; name: string; tgUserId: string }[],
@@ -300,26 +310,32 @@ export async function appendAgendaSuggestions(
         (b?.date || '').toString().localeCompare((a?.date || '').toString()));
     const ag = list[0];
     ag.items = Array.isArray(ag.items) ? ag.items : [];
-    let top = ag.items.find((it: any) =>
-        /weitere punkte/i.test((it?.title || '').toString()));
-    if (!top) {
-        top = { title: 'Weitere Punkte (aus Telegram)', points: [] };
-        ag.items.push(top);
-    }
-    top.points = Array.isArray(top.points) ? top.points : [];
-    const seen = new Set(top.points.map((p: any) =>
-        `${(p?.text || '').toString()}|${(p?.tgUserId || '').toString()}`));
-    let added = 0;
+
+    // Jede Nachricht per KI in echte Themen-Titel zerlegen.
+    const apiKey = env.GEMINI_API_KEY || '';
+    const titles: string[] = [];
     for (const s of suggestions) {
-        const k = `${s.text}|${s.tgUserId}`;
-        if (seen.has(k)) continue;
-        seen.add(k);
-        top.points.push({
-            id: genId(),
-            text: s.text,
-            name: s.name,
-            tgUserId: s.tgUserId,
-        });
+        const pts = await geminiAgendaPoints(s.text, apiKey);
+        titles.push(...pts);
+    }
+    if (!titles.length) return 0;
+
+    // Bereits vorhandene TOP-Titel (Dedup).
+    const seen = new Set(
+        ag.items.map((it: any) => normTitle((it?.title || '').toString())));
+
+    // Einfügeposition: vor „Gebetszeit (Abschluss)" / „Abschluss".
+    let insertAt = ag.items.findIndex((it: any) =>
+        /abschluss/i.test((it?.title || '').toString()));
+    if (insertAt < 0) insertAt = ag.items.length;
+
+    let added = 0;
+    for (const t of titles) {
+        const key = normTitle(t);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        ag.items.splice(insertAt, 0, { id: genId(), title: t, points: [] });
+        insertAt++; // weitere Themen direkt dahinter, weiterhin vor Abschluss
         added++;
     }
     if (added) await setConfig(pb, 'bruderrat_agendas', list);
@@ -388,6 +404,59 @@ export async function geminiExtract(
         }
     }
     throw new Error(lastMsg);
+}
+
+/** Prompt: aus einer Telegram-Nachricht echte Agenda-Themen ableiten. */
+const AGENDA_POINTS_PROMPT =
+    'Du wandelst eine kurze Telegram-Nachricht in eine Liste echter '
+    + 'Agenda-Themen für eine Bruderrat-Sitzung um. Eine Nachricht kann '
+    + 'MEHRERE Themen enthalten – trenne sie. Gib AUSSCHLIESSLICH gültiges '
+    + 'JSON zurück (keine Erklärung, kein Markdown, keine Code-Zäune) in '
+    + 'exakt dieser Form: {"points":["Thema 1","Thema 2"]}\n'
+    + 'Regeln: Jeder Punkt ist ein kurzer, prägnanter Themen-Titel (1–5 '
+    + 'Wörter, Nominalform, ohne abschließenden Punkt). Entferne Floskeln '
+    + 'wie „Ich hätte noch", „Bitte", „der Punkt". Erfinde nichts. Enthält '
+    + 'die Nachricht kein echtes Thema (z. B. Smalltalk), gib ein leeres '
+    + 'Array. Antworte auf Deutsch.';
+
+/**
+ * Zerlegt eine Telegram-Nachricht per Gemini in echte Agenda-Themen-Titel.
+ * Fällt bei Fehler/ohne Key auf den (getrimmten) Rohtext zurück.
+ */
+export async function geminiAgendaPoints(
+    text: string,
+    apiKey: string,
+): Promise<string[]> {
+    const clean = (text || '').trim();
+    if (!clean) return [];
+    if (!apiKey) return [clean];
+    const prompt = `${AGENDA_POINTS_PROMPT}\n\n--- NACHRICHT ---\n${clean}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                const pts = Array.isArray(j?.points) ? j.points : [];
+                const titles = pts
+                    .map((p: any) => (p ?? '').toString().trim())
+                    .filter((p: string) => p.length > 0);
+                // Falls die KI nichts Brauchbares liefert: Rohtext behalten.
+                return titles.length ? titles : [clean];
+            }
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    // Gemini nicht erreichbar → Rohtext nicht verlieren.
+    return [clean];
 }
 
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
