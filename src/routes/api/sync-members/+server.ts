@@ -217,39 +217,48 @@ export async function POST({ request }) {
                             }
                         }
 
-                        // Try to find existing member by name AND group
+                        // Bestehenden Datensatz ZUERST per ct_id finden (heilt
+                        // Umbenennungen -> keine Duplikate), sonst per Name
+                        // (Altbestand ohne ct_id), sonst neu anlegen.
+                        let existingMember: any = null;
                         try {
-                            // Note: 'members' collection logic might need adjustment if names collide across groups, 
-                            // but filtering by group is safer.
-                            // Currently assume one member entry per group per person.
-                            const existingMember = await pb.collection('members').getFirstListItem(`name="${memberName}" && group="${group.id}"`);
-
+                            existingMember = await pb
+                                .collection('members')
+                                .getFirstListItem(
+                                    `ct_id="${String(member.personId)}" && group="${group.id}"`);
+                        } catch { /* nicht per ct_id gefunden */ }
+                        if (!existingMember) {
+                            try {
+                                existingMember = await pb
+                                    .collection('members')
+                                    .getFirstListItem(
+                                        `name="${memberName}" && group="${group.id}"`);
+                            } catch { /* auch nicht per Name */ }
+                        }
+                        if (existingMember) {
                             const updateData: any = {};
                             if (existingMember.role !== gridRole) {
                                 updateData.role = gridRole;
                             }
+                            if (existingMember.name !== memberName) {
+                                updateData.name = memberName; // Umbenennung übernehmen
+                            }
                             if (!existingMember.ct_id) {
                                 updateData.ct_id = String(member.personId);
                             }
-
                             if (Object.keys(updateData).length > 0) {
                                 await pb.collection('members').update(existingMember.id, updateData);
                                 log(` Updated member info for: ${memberName}`);
                             }
-                        } catch (e: any) {
-                            // Not found, create
-                            if (e.status === 404) {
-                                await pb.collection('members').create({
-                                    name: memberName,
-                                    role: gridRole,
-                                    group: group.id,
-                                    ct_id: String(member.personId),
-                                    allowed_services: [] // Initialize empty
-                                });
-                                log(` Created member in ${group.name}: ${memberName} (${gridRole})`);
-                            } else {
-                                throw e;
-                            }
+                        } else {
+                            await pb.collection('members').create({
+                                name: memberName,
+                                role: gridRole,
+                                group: group.id,
+                                ct_id: String(member.personId),
+                                allowed_services: [] // Initialize empty
+                            });
+                            log(` Created member in ${group.name}: ${memberName} (${gridRole})`);
                         }
                     } catch (e: any) {
                         log(`Failed to sync member ${firstName} ${lastName} to group ${group.name}: ${e.message}`);
