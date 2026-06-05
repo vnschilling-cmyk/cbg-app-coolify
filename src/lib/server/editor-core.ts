@@ -145,6 +145,27 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         }
     }
 
+    // Doppelte Prediger zusammenführen (gleiche ChurchTools-Person, z. B. nach
+    // Umbenennung). Bevorzugt der Datensatz mit konfigurierten Diensten,
+    // sonst der mit dem längeren (spezifischeren) Namen.
+    const byPerson = new Map<string, any>();
+    for (const p of preachers) {
+        const key = String(p.ct_person_id || p.id);
+        const ex = byPerson.get(key);
+        if (!ex) {
+            byPerson.set(key, p);
+            continue;
+        }
+        const exScore = (ex.allowed_services?.length ? 1 : 0);
+        const pScore = (p.allowed_services?.length ? 1 : 0);
+        const exLen = `${ex.firstName} ${ex.lastName}`.trim().length;
+        const pLen = `${p.firstName} ${p.lastName}`.trim().length;
+        if (pScore > exScore || (pScore === exScore && pLen > exLen)) {
+            byPerson.set(key, p);
+        }
+    }
+    preachers = Array.from(byPerson.values());
+
     // Abwesenheiten
     let absences: any[] = [];
     try {
