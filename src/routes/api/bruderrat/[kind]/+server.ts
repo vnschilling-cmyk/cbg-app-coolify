@@ -19,7 +19,7 @@ export const OPTIONS = async () => preflight();
 
 const KINDS = new Set([
     'meetings', 'agendas', 'decisions', 'tasks', 'infos', 'themes',
-    'agenda_protocols', 'deferred',
+    'gemeindestunden', 'agenda_protocols', 'deferred',
 ]);
 const keyFor = (kind: string) => `bruderrat_${kind}`;
 
