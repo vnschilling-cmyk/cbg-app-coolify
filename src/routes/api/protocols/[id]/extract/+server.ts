@@ -13,8 +13,8 @@ import {
     getConfig,
     setConfig,
     genId,
+    getLlmConfig,
 } from '$lib/server/admin';
-import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
@@ -23,10 +23,14 @@ export async function POST({ request, params }) {
         const { user } = await pbFromRequest(request);
         if (!user) return json({ error: 'Unauthorized' }, 401);
 
-        const key = env.GEMINI_API_KEY;
-        if (!key) return json({ error: 'Kein Gemini-API-Key konfiguriert.' }, 400);
-
         const pb = await adminPb();
+        const llm = await getLlmConfig(pb);
+        if (!llm.enabled) {
+            return json({ error: 'KI ist in den Einstellungen deaktiviert.' }, 503);
+        }
+        const key = llm.key;
+        if (!key) return json({ error: 'Kein KI-Schlüssel konfiguriert.' }, 400);
+
         await ensureAppConfig(pb);
         const rec = await pb.collection('protocols').getOne(params.id);
 

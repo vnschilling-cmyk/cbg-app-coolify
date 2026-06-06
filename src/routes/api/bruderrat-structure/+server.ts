@@ -8,8 +8,7 @@
  *     -> { tops: [{ title, points: [{ text, name }] }] }
  */
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { geminiStructure } from '$lib/server/admin';
-import { env } from '$env/dynamic/private';
+import { adminPb, geminiStructure, getLlmConfig } from '$lib/server/admin';
 
 export const OPTIONS = async () => preflight();
 
@@ -21,10 +20,14 @@ export async function POST({ request }) {
         try { body = await request.json(); } catch { body = {}; }
         const text = (body?.text || '').toString();
         if (!text.trim()) return json({ tops: [] });
-        if (!env.GEMINI_API_KEY) {
+        const llm = await getLlmConfig(await adminPb());
+        if (!llm.enabled) {
+            return json({ error: 'KI ist in den Einstellungen deaktiviert.' }, 503);
+        }
+        if (!llm.key) {
             return json({ error: 'Kein KI-Schlüssel konfiguriert.' }, 503);
         }
-        const res = await geminiStructure(text, env.GEMINI_API_KEY);
+        const res = await geminiStructure(text, llm.key);
         return json(res);
     } catch (e: any) {
         return json({ error: e?.message || 'Strukturierung fehlgeschlagen' }, 500);
