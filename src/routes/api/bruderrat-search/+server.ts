@@ -21,7 +21,7 @@ import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
-const ALL_KINDS = ['meetings', 'protocols', 'decisions', 'tasks'];
+const ALL_KINDS = ['meetings', 'protocols', 'decisions', 'tasks', 'themes'];
 
 /** Sammelt rekursiv alle String-Werte eines Objekts (für Volltext). */
 function collectStrings(v: any, out: string[] = [], depth = 0): string[] {
@@ -82,6 +82,18 @@ async function buildCorpus(pb: any, kinds: string[]): Promise<Entry[]> {
                 title: (t?.title || 'Aufgabe').toString(),
                 date: (t?.due || '').toString(),
                 text, snippet: (t?.notes || t?.title || '').toString().slice(0, 200),
+            });
+        }
+    }
+    if (kinds.includes('themes')) {
+        const list = (await getConfig(pb, 'bruderrat_themes')) || [];
+        for (const th of Array.isArray(list) ? list : []) {
+            const text = [th?.title, th?.text].filter(Boolean).join(' — ');
+            entries.push({
+                kind: 'themes', id: (th?.id || '').toString(),
+                title: (th?.title || 'Thema').toString(),
+                date: (th?.date || '').toString(),
+                text, snippet: (th?.text || th?.title || '').toString().slice(0, 200),
             });
         }
     }
