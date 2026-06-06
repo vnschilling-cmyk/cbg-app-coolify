@@ -8,8 +8,8 @@ import {
     geminiRework,
     geminiReworkPdf,
     getActivePrompt,
+    getLlmConfig,
 } from '$lib/server/admin';
-import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
@@ -18,12 +18,16 @@ export async function POST({ request, params }) {
         const { user } = await pbFromRequest(request);
         if (!user) return json({ error: 'Unauthorized' }, 401);
 
-        const key = env.GEMINI_API_KEY;
+        const pb = await adminPb();
+        const llm = await getLlmConfig(pb);
+        if (!llm.enabled) {
+            return json({ error: 'KI ist in den Einstellungen deaktiviert.' }, 503);
+        }
+        const key = llm.key;
         if (!key) {
-            return json({ error: 'Kein Gemini-API-Key konfiguriert.' }, 400);
+            return json({ error: 'Kein KI-Schlüssel konfiguriert.' }, 400);
         }
 
-        const pb = await adminPb();
         const rec = await pb.collection('protocols').getOne(params.id);
         const tmpl = await getActivePrompt(pb);
         const isPdf = (rec.file_name || '').toLowerCase().endsWith('.pdf');

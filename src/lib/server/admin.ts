@@ -790,6 +790,24 @@ export async function getConfig(pb: PocketBase, key: string): Promise<any> {
     }
 }
 
+/**
+ * Zentrale KI-Konfiguration (app_config `llm_config`): an/aus + eigener
+ * API-Schlüssel. enabled default true; effektiver Schlüssel = eigener Key,
+ * sonst Server-Key (env.GEMINI_API_KEY).
+ */
+export async function getLlmConfig(
+    pb: PocketBase,
+): Promise<{ enabled: boolean; key: string }> {
+    try {
+        const cfg = await getConfig(pb, 'llm_config');
+        const enabled = !(cfg && cfg.enabled === false);
+        const key = ((cfg?.apiKey || '').toString()) || (env.GEMINI_API_KEY || '');
+        return { enabled, key };
+    } catch {
+        return { enabled: true, key: env.GEMINI_API_KEY || '' };
+    }
+}
+
 export async function setConfig(
     pb: PocketBase,
     key: string,

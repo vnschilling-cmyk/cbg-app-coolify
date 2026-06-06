@@ -15,9 +15,8 @@
 import { json, preflight, pbFromRequest } from '$lib/server/api';
 import {
     adminPb, ensureAppConfig, ensureProtocols, ensureBruderratMeetings,
-    getConfig, geminiSearch,
+    getConfig, geminiSearch, getLlmConfig,
 } from '$lib/server/admin';
-import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
@@ -160,9 +159,10 @@ export async function POST({ request }) {
         let ai = false;
         const ordered: Entry[] = [];
         const seen = new Set<string>();
-        if (env.GEMINI_API_KEY) {
+        const llm = await getLlmConfig(pb);
+        if (llm.enabled && llm.key) {
             try {
-                const res = await geminiSearch(q, corpus, env.GEMINI_API_KEY);
+                const res = await geminiSearch(q, corpus, llm.key);
                 summary = res.summary || '';
                 ai = true;
                 for (const id of res.matchIds) {
