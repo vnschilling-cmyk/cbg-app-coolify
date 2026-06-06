@@ -3,7 +3,10 @@
  * Aufgaben). Kombiniert lokale Volltextsuche mit optionaler Gemini-KI-Suche
  * inkl. Kurz-Zusammenfassung.
  *
- *   POST /api/bruderrat/search   { q, kinds?: string[] }
+ * Eigener Pfad (NICHT unter /api/bruderrat/, sonst Kollision mit der
+ * dynamischen Route /api/bruderrat/[kind]).
+ *
+ *   POST /api/bruderrat-search   { q, kinds?: string[] }
  *     -> { matches: [{ kind, id, title, date, snippet }], summary, ai }
  *
  * `kinds` filtert die durchsuchten Bereiche (Default: alle).
@@ -132,7 +135,7 @@ export async function POST({ request }) {
         const pb = await adminPb();
         await ensureAppConfig(pb);
         const corpus = await buildCorpus(pb, reqKinds);
-        const byId = new Map(corpus.map((e) => [e.id, e]));
+        const byId = new Map<string, Entry>(corpus.map((e): [string, Entry] => [e.id, e]));
 
         // Lokale Volltextsuche als Basis (immer vorhanden).
         const local = localMatch(q, corpus);
