@@ -6,6 +6,7 @@ import {
     adminPb,
     extractDocxText,
     geminiRework,
+    geminiReworkPdf,
     getActivePrompt,
 } from '$lib/server/admin';
 import { env } from '$env/dynamic/private';
@@ -24,6 +25,19 @@ export async function POST({ request, params }) {
 
         const pb = await adminPb();
         const rec = await pb.collection('protocols').getOne(params.id);
+        const tmpl = await getActivePrompt(pb);
+        const isPdf = (rec.file_name || '').toLowerCase().endsWith('.pdf');
+
+        // PDF: ohne extrahierten Text direkt das PDF an Gemini geben.
+        if (isPdf && !(rec.original_text || '').trim() && rec.original_b64) {
+            const reworked = await geminiReworkPdf(rec.original_b64, key, tmpl);
+            const update = {
+                reworked_text: reworked.slice(0, 1900000),
+                status: 'fertig',
+            };
+            await pb.collection('protocols').update(rec.id, update);
+            return json({ success: true, reworkedText: update.reworked_text });
+        }
 
         let text: string = rec.original_text || '';
         if (!text && rec.original_b64) {
@@ -34,7 +48,6 @@ export async function POST({ request, params }) {
             return json({ error: 'Kein Text aus dem Dokument extrahierbar.' }, 422);
         }
 
-        const tmpl = await getActivePrompt(pb);
         const reworked = await geminiRework(text, key, tmpl);
         const update = {
             original_text: text.slice(0, 1900000),
