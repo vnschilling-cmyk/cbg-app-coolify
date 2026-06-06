@@ -88,9 +88,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Liefert { text } bei Erfolg, sonst { status, message } zur Auswertung
  * (Überlastung/Rate-Limit vs. echter Fehler) durch den Aufrufer.
  */
-async function geminiCall(
+async function geminiCallParts(
     model: string,
-    prompt: string,
+    parts: any[],
     apiKey: string,
 ): Promise<{ ok: boolean; status: number; text?: string; message?: string }> {
     const url =
@@ -101,7 +101,7 @@ async function geminiCall(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
+            contents: [{ parts }],
             generationConfig: {
                 temperature: 0.3,
                 thinkingConfig: { thinkingBudget: 0 },
@@ -122,6 +122,10 @@ async function geminiCall(
         status: 200,
         text: j?.candidates?.[0]?.content?.parts?.[0]?.text || '',
     };
+}
+
+function geminiCall(model: string, prompt: string, apiKey: string) {
+    return geminiCallParts(model, [{ text: prompt }], apiKey);
 }
 
 /**
@@ -160,6 +164,44 @@ export async function geminiRework(
                 break;
             }
             if (attempt < 3) await sleep(attempt * 1500); // 1,5s, dann 3s
+        }
+    }
+    throw new Error(lastMsg);
+}
+
+/**
+ * Überarbeitet ein PDF-Protokoll per Gemini – das PDF wird direkt als
+ * inlineData mitgeschickt (kein lokaler Text-Extraktor nötig). Liefert die
+ * KI-Fassung (Markdown).
+ */
+export async function geminiReworkPdf(
+    b64: string,
+    apiKey: string,
+    template?: string,
+): Promise<string> {
+    const instruction = (template && template.trim()) ? template : DEFAULT_PROMPT;
+    const parts = [
+        { text: `${instruction}\n\n--- ROHPROTOKOLL (PDF im Anhang) ---` },
+        { inlineData: { mimeType: 'application/pdf', data: b64 } },
+    ];
+    const preferred = (env.GEMINI_MODEL || '').trim();
+    const chain = [
+        preferred,
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            const r = await geminiCallParts(model, parts, apiKey);
+            if (r.ok) return r.text || '';
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429 ||
+                /high demand|overloaded|unavailable|try again/i.test(lastMsg);
+            if (!transient) break;
+            if (attempt < 3) await sleep(attempt * 1500);
         }
     }
     throw new Error(lastMsg);
