@@ -690,6 +690,71 @@ export async function geminiCapture(
     return fallback;
 }
 
+/** Prompt: KI-Sekretär – Anfrage über den Content beantworten + Aktionen. */
+const ASSISTANT_PROMPT =
+    'Du bist der KI-Sekretär einer Gemeinde-Verwaltungs-App (Gremium/Bruderrat). '
+    + 'Beantworte die Anfrage des Nutzers anhand der bereitgestellten Inhalte '
+    + '(Sitzungen, Protokolle, Beschlüsse, Aufgaben, Themen, Infos). Wenn der '
+    + 'Nutzer das Anlegen/Übernehmen von Einträgen wünscht, schlage passende '
+    + 'Aktionen vor. Gib AUSSCHLIESSLICH gültiges JSON zurück (keine Erklärung, '
+    + 'kein Markdown, keine Code-Zäune): {"answer":"kurze hilfreiche Antwort auf '
+    + 'Deutsch","actions":[{"type":"task|decision|theme|info","title":"...",'
+    + '"text":"optional","channel":"gottesdienst|gemeindestunde (nur bei info)"}]}. '
+    + 'Schlage NUR Aktionen vor, die klar gewünscht sind; sonst leeres '
+    + 'actions-Array. Erfinde keine Inhalte; stütze dich auf die Daten.';
+
+/**
+ * KI-Sekretär: beantwortet eine Anfrage über den Content und schlägt
+ * (optional) ausführbare Aktionen vor. Liefert { answer, actions }.
+ */
+export async function geminiAssistant(
+    query: string,
+    corpus: string,
+    apiKey: string,
+): Promise<{ answer: string; actions: any[] }> {
+    const q = (query || '').trim();
+    if (!q) return { answer: '', actions: [] };
+    if (!apiKey) {
+        return { answer: 'KI ist nicht konfiguriert.', actions: [] };
+    }
+    const prompt = `${ASSISTANT_PROMPT}\n\n--- ANFRAGE ---\n${q}\n\n`
+        + `--- INHALTE ---\n${corpus}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    const valid = new Set(['task', 'decision', 'theme', 'info']);
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                const rawActions = Array.isArray(j?.actions) ? j.actions : [];
+                const actions = rawActions
+                    .filter((a: any) => valid.has((a?.type || '').toString()))
+                    .map((a: any) => ({
+                        type: (a.type || '').toString(),
+                        title: (a.title ?? '').toString().trim(),
+                        text: (a.text ?? '').toString().trim(),
+                        channel: (a.channel ?? '').toString().trim(),
+                    }))
+                    .filter((a: { title: string }) => a.title.length > 0);
+                return { answer: (j?.answer ?? '').toString(), actions };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429 ||
+                /high demand|overloaded|unavailable|try again/i.test(lastMsg);
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Prompt: Personen aus einem Dokument (Liste/Tabelle/Text) extrahieren. */
 const PEOPLE_PROMPT =
     'Du extrahierst Personen aus dem beigefügten Dokument (Liste, Tabelle '
