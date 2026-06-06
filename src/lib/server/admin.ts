@@ -755,6 +755,72 @@ export async function geminiAssistant(
     throw new Error(lastMsg);
 }
 
+/** PCM (16-bit mono) → WAV-Container (in allen Browsern abspielbar). */
+function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+    const blockAlign = numChannels * (bitsPerSample / 8);
+    const dataSize = pcm.length;
+    const buf = Buffer.alloc(44 + dataSize);
+    buf.write('RIFF', 0);
+    buf.writeUInt32LE(36 + dataSize, 4);
+    buf.write('WAVE', 8);
+    buf.write('fmt ', 12);
+    buf.writeUInt32LE(16, 16);
+    buf.writeUInt16LE(1, 20); // PCM
+    buf.writeUInt16LE(numChannels, 22);
+    buf.writeUInt32LE(sampleRate, 24);
+    buf.writeUInt32LE(byteRate, 28);
+    buf.writeUInt16LE(blockAlign, 32);
+    buf.writeUInt16LE(bitsPerSample, 34);
+    buf.write('data', 36);
+    buf.writeUInt32LE(dataSize, 40);
+    pcm.copy(buf, 44);
+    return buf;
+}
+
+/**
+ * Text-to-Speech via Gemini-TTS → WAV (base64). Browser-unabhängig abspielbar.
+ * Wirft bei Fehler/ohne Key (Aufrufer kann auf Browser-TTS zurückfallen).
+ */
+export async function geminiTts(
+    text: string,
+    apiKey: string,
+): Promise<{ audioBase64: string; mime: string }> {
+    const clean = (text || '').trim().slice(0, 5000);
+    if (!clean) throw new Error('Kein Text');
+    if (!apiKey) throw new Error('Kein KI-Schlüssel');
+    const model = 'gemini-2.5-flash-preview-tts';
+    const url =
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: clean }] }],
+            generationConfig: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName: 'Kore' },
+                    },
+                },
+            },
+        }),
+    });
+    let j: any = {};
+    try { j = await res.json(); } catch { /* leer */ }
+    if (!res.ok) throw new Error(j?.error?.message || `TTS-Fehler ${res.status}`);
+    const part = j?.candidates?.[0]?.content?.parts?.[0];
+    const data = part?.inlineData?.data;
+    const mime = (part?.inlineData?.mimeType || '').toString();
+    if (!data) throw new Error('Keine Audiodaten erhalten');
+    const rate = parseInt((mime.match(/rate=(\d+)/)?.[1] || '24000'), 10);
+    const wav = pcmToWav(Buffer.from(data, 'base64'), rate);
+    return { audioBase64: wav.toString('base64'), mime: 'audio/wav' };
+}
+
 /** Prompt: Personen aus einem Dokument (Liste/Tabelle/Text) extrahieren. */
 const PEOPLE_PROMPT =
     'Du extrahierst Personen aus dem beigefügten Dokument (Liste, Tabelle '
