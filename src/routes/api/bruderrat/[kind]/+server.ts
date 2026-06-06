@@ -10,12 +10,15 @@
  * kind ∈ { agendas, decisions, tasks }.
  */
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { adminPb, ensureAppConfig, getConfig, setConfig, genId } from '$lib/server/admin';
+import {
+    adminPb, ensureAppConfig, getConfig, setConfig, genId,
+    ensureBruderratMeetings,
+} from '$lib/server/admin';
 
 export const OPTIONS = async () => preflight();
 
 const KINDS = new Set([
-    'agendas', 'decisions', 'tasks', 'agenda_protocols', 'deferred',
+    'meetings', 'agendas', 'decisions', 'tasks', 'agenda_protocols', 'deferred',
 ]);
 const keyFor = (kind: string) => `bruderrat_${kind}`;
 
@@ -35,6 +38,7 @@ export async function GET({ request, params }) {
     try {
         const pb = await adminPb();
         await ensureAppConfig(pb);
+        if (params.kind === 'meetings') await ensureBruderratMeetings(pb);
         return json({ items: await readList(pb, params.kind) });
     } catch (e: any) {
         return json({ error: e?.message || 'Fehler beim Laden' }, 500);
@@ -50,6 +54,7 @@ export async function POST({ request, params }) {
         try { body = await request.json(); } catch { body = {}; }
         const pb = await adminPb();
         await ensureAppConfig(pb);
+        if (params.kind === 'meetings') await ensureBruderratMeetings(pb);
         const list = await readList(pb, params.kind);
         const item = {
             ...body,
@@ -58,9 +63,9 @@ export async function POST({ request, params }) {
         };
         list.unshift(item); // neueste zuerst
         await setConfig(pb, keyFor(params.kind), list);
-        // Beim Anlegen einer Agenda: vertagte Punkte „verbrauchen" (die für
-        // dieses Datum bzw. ohne Datum gemerkten kommen nun in der Agenda vor).
-        if (params.kind === 'agendas') {
+        // Beim Anlegen einer Sitzung (Planung): vertagte Punkte „verbrauchen"
+        // (die für dieses Datum bzw. ohne Datum gemerkten kommen nun vor).
+        if (params.kind === 'meetings') {
             try {
                 const dlist = await readList(pb, 'deferred');
                 const aDate = ((item as any).date || '').toString();
@@ -90,6 +95,7 @@ export async function PATCH({ request, params }) {
         if (!id) return json({ error: 'id fehlt' }, 400);
         const pb = await adminPb();
         await ensureAppConfig(pb);
+        if (params.kind === 'meetings') await ensureBruderratMeetings(pb);
         const list = await readList(pb, params.kind);
         const i = list.findIndex((x: any) => x?.id === id);
         if (i < 0) return json({ error: 'Nicht gefunden' }, 404);
@@ -110,6 +116,7 @@ export async function DELETE({ request, params, url }) {
         if (!id) return json({ error: 'id fehlt' }, 400);
         const pb = await adminPb();
         await ensureAppConfig(pb);
+        if (params.kind === 'meetings') await ensureBruderratMeetings(pb);
         const list = await readList(pb, params.kind);
         const next = list.filter((x: any) => x?.id !== id);
         await setConfig(pb, keyFor(params.kind), next);

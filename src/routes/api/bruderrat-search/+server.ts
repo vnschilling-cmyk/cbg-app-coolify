@@ -14,13 +14,14 @@
  */
 import { json, preflight, pbFromRequest } from '$lib/server/api';
 import {
-    adminPb, ensureAppConfig, ensureProtocols, getConfig, geminiSearch,
+    adminPb, ensureAppConfig, ensureProtocols, ensureBruderratMeetings,
+    getConfig, geminiSearch,
 } from '$lib/server/admin';
 import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
-const ALL_KINDS = ['agendas', 'protocols', 'decisions', 'tasks'];
+const ALL_KINDS = ['meetings', 'protocols', 'decisions', 'tasks'];
 
 /** Sammelt rekursiv alle String-Werte eines Objekts (für Volltext). */
 function collectStrings(v: any, out: string[] = [], depth = 0): string[] {
@@ -46,14 +47,16 @@ type Entry = {
 async function buildCorpus(pb: any, kinds: string[]): Promise<Entry[]> {
     const entries: Entry[] = [];
 
-    if (kinds.includes('agendas')) {
-        const list = (await getConfig(pb, 'bruderrat_agendas')) || [];
+    if (kinds.includes('meetings')) {
+        await ensureBruderratMeetings(pb);
+        const list = (await getConfig(pb, 'bruderrat_meetings')) || [];
         for (const a of Array.isArray(list) ? list : []) {
             const date = (a?.date || '').toString();
             const text = collectStrings(a).join(' · ');
+            const label = (a?.status === 'protokolliert') ? 'Protokoll' : 'Agenda';
             entries.push({
-                kind: 'agendas', id: (a?.id || '').toString(),
-                title: date ? `${date} Agenda` : (a?.title || 'Agenda').toString(),
+                kind: 'meetings', id: (a?.id || '').toString(),
+                title: date ? `${date} ${label}` : (a?.title || 'Sitzung').toString(),
                 date, text, snippet: text.slice(0, 200),
             });
         }

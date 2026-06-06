@@ -304,12 +304,15 @@ export async function appendAgendaSuggestions(
     suggestions: { text: string; name: string; tgUserId: string }[],
 ): Promise<number> {
     if (!suggestions.length) return 0;
-    const agendas = (await getConfig(pb, 'bruderrat_agendas')) as any[];
-    const list = Array.isArray(agendas) ? agendas : [];
+    await ensureBruderratMeetings(pb);
+    const meetings = (await getConfig(pb, 'bruderrat_meetings')) as any[];
+    const list = Array.isArray(meetings) ? meetings : [];
     if (!list.length) return 0;
+    // Neueste GEPLANTE Sitzung bevorzugen (Telegram-Punkte sind Planung);
+    // sonst die neueste Sitzung überhaupt.
     list.sort((a, b) =>
         (b?.date || '').toString().localeCompare((a?.date || '').toString()));
-    const ag = list[0];
+    const ag = list.find((m) => (m?.status || 'geplant') === 'geplant') || list[0];
     ag.items = Array.isArray(ag.items) ? ag.items : [];
 
     // Jede Nachricht per KI in echte Themen-Titel zerlegen – Einsender behalten.
@@ -345,7 +348,7 @@ export async function appendAgendaSuggestions(
         insertAt++; // weitere Themen direkt dahinter, weiterhin vor Abschluss
         added++;
     }
-    if (added) await setConfig(pb, 'bruderrat_agendas', list);
+    if (added) await setConfig(pb, 'bruderrat_meetings', list);
     return added;
 }
 
@@ -708,6 +711,46 @@ export async function setConfig(
             throw e;
         }
     }
+}
+
+/**
+ * Einmalige, idempotente Migration: vereint die getrennten Töpfe
+ * `bruderrat_agendas` (Planung) und `bruderrat_agenda_protocols` (Protokoll)
+ * zu EINEM Lebenszyklus-Datensatz pro Sitzung in `bruderrat_meetings`
+ * (status: 'geplant' | 'protokolliert'). Protokoll gewinnt pro Datum
+ * (spätere Phase, vollständiger). Läuft genau einmal (Flag).
+ */
+export async function ensureBruderratMeetings(pb: PocketBase): Promise<void> {
+    const migrated = await getConfig(pb, 'bruderrat_meetings_migrated');
+    if (migrated === true) return;
+
+    const asList = (v: any) => (Array.isArray(v) ? v : []);
+    const agendas = asList(await getConfig(pb, 'bruderrat_agendas'));
+    const protos = asList(await getConfig(pb, 'bruderrat_agenda_protocols'));
+    const existing = asList(await getConfig(pb, 'bruderrat_meetings'));
+
+    const byKey = new Map<string, any>();
+    const keyOf = (m: any) => ((m?.date || '').toString() || m?.id || genId());
+
+    for (const m of existing) byKey.set(keyOf(m), m);
+    for (const a of agendas) {
+        const k = keyOf(a);
+        if (!byKey.has(k)) byKey.set(k, { ...a, status: 'geplant' });
+    }
+    // Protokoll überschreibt die Agenda desselben Datums.
+    for (const p of protos) byKey.set(keyOf(p), { ...p, status: 'protokolliert' });
+
+    const merged = [...byKey.values()].map((m) => ({
+        ...m,
+        id: m.id || genId(),
+        status: m.status || 'geplant',
+        createdAt: m.createdAt || new Date().toISOString(),
+    }));
+    merged.sort((a, b) =>
+        (b?.date || '').toString().localeCompare((a?.date || '').toString()));
+
+    await setConfig(pb, 'bruderrat_meetings', merged);
+    await setConfig(pb, 'bruderrat_meetings_migrated', true);
 }
 
 /** Aktiver Auswertungs-Prompt aus app_config ('llm_prompts'); sonst Default. */
