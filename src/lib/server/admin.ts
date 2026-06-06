@@ -636,6 +636,60 @@ export async function geminiStructure(
     throw new Error(lastMsg);
 }
 
+/** Prompt: gesprochenen/getippten Gedanken aufbereiten + Ziel bestimmen. */
+const CAPTURE_PROMPT =
+    'Du bekommst einen kurzen, gesprochenen oder getippten Gedanken eines '
+    + 'Bruderratsmitglieds. Formuliere ihn in sauberem, knappem Hochdeutsch. '
+    + 'Entscheide das Ziel: „agenda" = ein Punkt für die NÄCHSTE Besprechung/ '
+    + 'Agenda; „theme" = eine Idee/ein Thema für später (Themen-Pool). '
+    + 'Hinweise wie „für die nächste Besprechung/Agenda/Sitzung" → agenda; '
+    + '„Idee/Thema für später, irgendwann" → theme; im Zweifel theme. '
+    + 'Gib AUSSCHLIESSLICH gültiges JSON zurück (keine Erklärung, kein '
+    + 'Markdown, keine Code-Zäune): {"kind":"agenda|theme","title":"kurzer '
+    + 'prägnanter Titel","text":"1–2 Sätze in sauberem Deutsch"}.';
+
+/**
+ * Wertet einen Sprach-/Text-Schnipsel per Gemini aus → { kind, title, text }.
+ * kind ∈ 'agenda' | 'theme'. Ohne Key/Fehler Fallback auf Rohtext als Thema.
+ */
+export async function geminiCapture(
+    text: string,
+    apiKey: string,
+): Promise<{ kind: string; title: string; text: string }> {
+    const clean = (text || '').trim();
+    const fallback = {
+        kind: 'theme',
+        title: clean.length > 60 ? `${clean.slice(0, 57)}…` : clean,
+        text: clean,
+    };
+    if (!clean || !apiKey) return fallback;
+    const prompt = `${CAPTURE_PROMPT}\n\n--- EINGABE ---\n${clean}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                const kind = (j?.kind === 'agenda') ? 'agenda' : 'theme';
+                const title = (j?.title ?? '').toString().trim();
+                const txt = (j?.text ?? '').toString().trim();
+                if (!title && !txt) return fallback;
+                return { kind, title: title || fallback.title, text: txt || title };
+            }
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    return fallback;
+}
+
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
 export async function adminPb(): Promise<PocketBase> {
     const pb = new PocketBase(PB_URL);
