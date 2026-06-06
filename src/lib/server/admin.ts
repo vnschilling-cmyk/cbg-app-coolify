@@ -530,6 +530,67 @@ export async function geminiAgendaPoints(
     return [clean];
 }
 
+/** Prompt: frei geschriebenes Protokoll in TOPs strukturieren. */
+const STRUCTURE_PROMPT =
+    'Du strukturierst ein frei geschriebenes Bruderrat-Protokoll in '
+    + 'Tagesordnungspunkte (TOPs). Gib AUSSCHLIESSLICH gültiges JSON zurück '
+    + '(keine Erklärung, kein Markdown, keine Code-Zäune) in exakt dieser '
+    + 'Form: {"tops":[{"title":"...","points":[{"text":"...","name":""}]}]}. '
+    + 'Regeln: Jeder TOP hat einen kurzen, prägnanten Titel und eine Liste von '
+    + 'Punkten. „text" ist der Inhalt eines Punktes (knapper, vollständiger '
+    + 'Satz). „name" ist die zuständige Person – NUR wenn eindeutig genannt, '
+    + 'sonst leerer String. Erkenne vorhandene Strukturen (z. B. Zeilen, die '
+    + 'mit „TOP" beginnen) und übernimm deren Titel. Behalte ALLE inhaltlichen '
+    + 'Informationen bei, fasse sinnvoll zusammen, erfinde nichts. Antworte '
+    + 'auf Deutsch.';
+
+/**
+ * Strukturiert einen Protokoll-Freitext per Gemini in TOPs + Punkte.
+ * Liefert { tops: [{ title, points: [{ text, name }] }] }.
+ */
+export async function geminiStructure(
+    text: string,
+    apiKey: string,
+): Promise<{ tops: { title: string; points: { text: string; name: string }[] }[] }> {
+    const clean = (text || '').trim();
+    if (!clean) return { tops: [] };
+    if (!apiKey) throw new Error('Kein KI-Schlüssel konfiguriert.');
+    const prompt = `${STRUCTURE_PROMPT}\n\n--- FREITEXT ---\n${clean}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                const raw = Array.isArray(j?.tops) ? j.tops : [];
+                const tops = raw.map((t: any) => ({
+                    title: (t?.title ?? '').toString(),
+                    points: (Array.isArray(t?.points) ? t.points : [])
+                        .map((p: any) => ({
+                            text: (p?.text ?? '').toString(),
+                            name: (p?.name ?? '').toString(),
+                        }))
+                        .filter((p: { text: string }) => p.text.trim().length > 0),
+                }));
+                return { tops };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429 ||
+                /high demand|overloaded|unavailable|try again/i.test(lastMsg);
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
 export async function adminPb(): Promise<PocketBase> {
     const pb = new PocketBase(PB_URL);
