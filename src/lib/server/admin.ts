@@ -413,6 +413,70 @@ export async function geminiExtract(
     throw new Error(lastMsg);
 }
 
+/** Prompt: semantische Suche über alle Bruderrat-Einträge. */
+const SEARCH_PROMPT =
+    'Du bist eine Suchhilfe für die Bruderrat-Verwaltung einer Kirchengemeinde. '
+    + 'Du bekommst eine Suchanfrage und eine Liste von Einträgen (Agenda-Punkte, '
+    + 'Protokolle, Beschlüsse, Aufgaben), jeweils mit einer id. Finde ALLE '
+    + 'Einträge, die zur Anfrage passen oder damit zu tun haben könnten – auch '
+    + 'thematisch/sinnverwandt, nicht nur wörtlich. Gib AUSSCHLIESSLICH gültiges '
+    + 'JSON zurück (keine Erklärung, kein Markdown, keine Code-Zäune) in exakt '
+    + 'dieser Form: {"matchIds":["id1","id2"],"summary":"..."}. '
+    + 'matchIds: die ids der relevanten Einträge, sortiert nach Relevanz '
+    + '(relevanteste zuerst), höchstens 30. summary: eine kurze deutsche '
+    + 'Zusammenfassung (2–4 Sätze), was die gefundenen Einträge im Hinblick auf '
+    + 'die Anfrage aussagen. Passt nichts, gib ein leeres Array und erkläre das '
+    + 'in summary. Erfinde nichts.';
+
+/**
+ * Semantische Suche über vorbereitete Bruderrat-Einträge via Gemini.
+ * `corpus` = [{ id, kind, text }]. Liefert { matchIds, summary }.
+ * Fällt bei Fehler/ohne Key auf leere Treffer zurück (Aufrufer ergänzt
+ * lokale Textsuche).
+ */
+export async function geminiSearch(
+    query: string,
+    corpus: { id: string; kind: string; text: string }[],
+    apiKey: string,
+): Promise<{ matchIds: string[]; summary: string }> {
+    const q = (query || '').trim();
+    if (!q || !apiKey || corpus.length === 0) {
+        return { matchIds: [], summary: '' };
+    }
+    const lines = corpus
+        .map((c) => `- id=${c.id} (${c.kind}): ${(c.text || '').replace(/\s+/g, ' ').slice(0, 400)}`)
+        .join('\n');
+    const prompt =
+        `${SEARCH_PROMPT}\n\n--- SUCHANFRAGE ---\n${q}\n\n--- EINTRÄGE ---\n${lines}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                const ids = Array.isArray(j?.matchIds) ? j.matchIds : [];
+                return {
+                    matchIds: ids.map((x: any) => (x ?? '').toString()).filter(Boolean),
+                    summary: (j?.summary ?? '').toString(),
+                };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429 ||
+                /high demand|overloaded|unavailable|try again/i.test(lastMsg);
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Prompt: aus einer Telegram-Nachricht echte Agenda-Themen ableiten. */
 const AGENDA_POINTS_PROMPT =
     'Du wandelst eine kurze Telegram-Nachricht in eine Liste echter '
