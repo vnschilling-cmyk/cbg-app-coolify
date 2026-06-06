@@ -11,6 +11,8 @@ import {
     getConfig, geminiAssistant, getLlmConfig,
 } from '$lib/server/admin';
 
+// Hinweis: KI-Routen (#81 Assistant, #82 TTS) brauchen einen frischen
+// Backend-Deploy, um live zu sein.
 export const OPTIONS = async () => preflight();
 
 function clip(s: any, n: number): string {
