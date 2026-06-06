@@ -58,7 +58,9 @@ export async function GET({ request }) {
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Unauthorized' }, 401);
 
-    let members: { name: string; id: string | null; role: string }[] = [];
+    let members: {
+        name: string; id: string | null; role: string; birthday: string;
+    }[] = [];
 
     // 1) LIVE aus ChurchTools (Quelle der Wahrheit, inkl. Rolle).
     try {
@@ -76,19 +78,29 @@ export async function GET({ request }) {
                     let name =
                         `${m.person?.firstName || ''} ${m.person?.lastName || ''}`
                             .trim();
-                    if (!name && m.personId) {
+                    let birthday: string =
+                        m.person?.birthday ||
+                        m.person?.domainAttributes?.birthday || '';
+                    // Name/Geburtstag fehlen im Gruppen-Mitglied oft → Person laden.
+                    if ((!name || !birthday) && m.personId) {
                         try {
                             const pr: any =
                                 await client.request(`persons/${m.personId}`);
                             const p = pr.data || pr;
-                            name = `${p.firstName || ''} ${p.lastName || ''}`
-                                .trim();
+                            if (!name) {
+                                name = `${p.firstName || ''} ${p.lastName || ''}`
+                                    .trim();
+                            }
+                            if (!birthday) {
+                                birthday = p.birthday ||
+                                    p.domainAttributes?.birthday || '';
+                            }
                         } catch { /* ignore */ }
                     }
                     if (!name) continue;
                     const role = classifyRole(
                         roleNames.get(Number(m.groupTypeRoleId)) || '');
-                    members.push({ name, id: pid, role });
+                    members.push({ name, id: pid, role, birthday });
                 }
                 members.sort((a, b) => a.name.localeCompare(b.name));
             }
@@ -113,6 +125,7 @@ export async function GET({ request }) {
                         name: (r.name || '').toString(),
                         id: r.ct_id ? String(r.ct_id) : null,
                         role: 'mitglied',
+                        birthday: (r.birthday || '').toString(),
                     }))
                     .filter((m) => m.name);
             }
