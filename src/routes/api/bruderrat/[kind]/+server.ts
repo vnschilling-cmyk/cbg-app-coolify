@@ -18,7 +18,8 @@ import {
 export const OPTIONS = async () => preflight();
 
 const KINDS = new Set([
-    'meetings', 'agendas', 'decisions', 'tasks', 'agenda_protocols', 'deferred',
+    'meetings', 'agendas', 'decisions', 'tasks', 'infos',
+    'agenda_protocols', 'deferred',
 ]);
 const keyFor = (kind: string) => `bruderrat_${kind}`;
 
