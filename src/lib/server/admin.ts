@@ -690,6 +690,58 @@ export async function geminiCapture(
     return fallback;
 }
 
+/** Prompt: Personen aus einem Dokument (Liste/Tabelle/Text) extrahieren. */
+const PEOPLE_PROMPT =
+    'Du extrahierst Personen aus dem beigefügten Dokument (Liste, Tabelle '
+    + 'oder Fließtext). Gib AUSSCHLIESSLICH gültiges JSON zurück (keine '
+    + 'Erklärung, kein Markdown, keine Code-Zäune): {"people":[{"name":"",'
+    + '"email":"","group":"","role":"","note":""}]}. „name" = vollständiger '
+    + 'Name (Vor- + Nachname). E-Mail/group/role/note nur, wenn klar '
+    + 'erkennbar, sonst leerer String. Erfinde nichts. Antworte auf Deutsch.';
+
+/**
+ * Extrahiert Personen via Gemini aus vorbereiteten Parts (Text und/oder
+ * inlineData-PDF). Liefert [{name,email,group,role,note}].
+ */
+export async function geminiExtractPeople(
+    parts: any[],
+    apiKey: string,
+): Promise<{ name: string; email: string; group: string; role: string; note: string }[]> {
+    if (!apiKey) throw new Error('Kein KI-Schlüssel konfiguriert.');
+    const allParts = [{ text: PEOPLE_PROMPT }, ...parts];
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCallParts(model, allParts, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                const raw = Array.isArray(j?.people) ? j.people : [];
+                return raw
+                    .map((p: any) => ({
+                        name: (p?.name ?? '').toString().trim(),
+                        email: (p?.email ?? '').toString().trim(),
+                        group: (p?.group ?? '').toString().trim(),
+                        role: (p?.role ?? '').toString().trim(),
+                        note: (p?.note ?? '').toString().trim(),
+                    }))
+                    .filter((p: { name: string }) => p.name.length > 0);
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
 export async function adminPb(): Promise<PocketBase> {
     const pb = new PocketBase(PB_URL);
