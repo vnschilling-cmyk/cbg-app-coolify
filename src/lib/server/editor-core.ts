@@ -364,7 +364,7 @@ export async function exportPlanData(
         const datePart = parts.slice(1).join('-');
 
         try {
-            const existingBookings = await client.getEventBookings(eventId);
+            const existingBookings = await client.getEventServices(eventId);
 
             for (const [name, code] of Object.entries(
                 slotAssignments as Record<string, string>,
@@ -404,8 +404,8 @@ export async function exportPlanData(
                         (b) => String(b.serviceId) === String(serviceId),
                     );
                     if (sameService) {
-                        if (sameService.statusId !== 2) {
-                            await client.setAssignment(eventId, serviceId, personId, 2);
+                        if (!sameService.isAccepted) {
+                            await client.setAssignment(eventId, serviceId, personId);
                             results.push(`OK: ${name} als ${code} bestätigt`);
                         } else {
                             results.push(`X: ${name} ist bereits als ${code} eingetragen`);
@@ -418,7 +418,7 @@ export async function exportPlanData(
                     }
 
                     try {
-                        await client.setAssignment(eventId, serviceId, personId, 2);
+                        await client.setAssignment(eventId, serviceId, personId);
                         results.push(`OK: ${name} als ${code} für Event ${eventId}`);
                     } catch (e: any) {
                         results.push(`ERROR: ${name} als ${code}: ${e.message}`);

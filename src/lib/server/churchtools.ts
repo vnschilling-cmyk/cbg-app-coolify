@@ -111,35 +111,61 @@ export class ChurchToolsClient {
     }
 
     /**
-     * Fetch bookings (assignments) for a specific event.
+     * Dienst-Zuweisungen (eventServices) eines Events. Ersetzt das alte
+     * `events/{id}/bookings`-Modell (das in der aktuellen CT-API NUR
+     * Ressourcen-Buchungen sind). Jedes Element trägt
+     * `{ id, personId, serviceId, isAccepted, name }`; noch offene Slots
+     * haben `personId == null`. Verifiziert per MCP 2026-06-07.
      */
-    async getEventBookings(eventId: string | number): Promise<any[]> {
-        const data = await this.request(`events/${eventId}/bookings`);
-        return data.data || [];
+    async getEventServices(eventId: string | number): Promise<any[]> {
+        const data = await this.request(`events/${eventId}`);
+        return data?.data?.eventServices || [];
     }
 
     /**
-     * Create or update a service assignment (booking).
-     * Status IDs: 1 = requested, 2 = confirmed, 3 = rejected
+     * Weist eine Person einem Dienst zu und bestätigt direkt (`isAccepted`).
+     * Modernes Modell: ein freier eventService-Slot der passenden `serviceId`
+     * wird per PUT mit der Person gefüllt. Ist die Person dort bereits
+     * eingetragen, wird nur auf bestätigt gesetzt. Wirft, wenn kein freier
+     * Slot dieser serviceId existiert (die Event-Vorlage sieht den Dienst
+     * nicht vor) – der Aufrufer protokolliert das als SKIP.
      */
-    async setAssignment(eventId: string | number, serviceId: string | number, personId: string | number, statusId: number = 2) {
-        return await this.request(`events/${eventId}/bookings`, {
-            method: 'POST',
-            body: JSON.stringify({
-                personId,
-                serviceId,
-                statusId
-            })
+    async setAssignment(
+        eventId: string | number,
+        serviceId: string | number,
+        personId: string | number,
+    ) {
+        const services = await this.getEventServices(eventId);
+        const sid = String(serviceId);
+        const target =
+            services.find(
+                (s) =>
+                    String(s.personId) === String(personId) &&
+                    String(s.serviceId) === sid,
+            ) || services.find((s) => s.personId == null && String(s.serviceId) === sid);
+        if (!target) {
+            throw new Error(
+                `Kein freier Slot für Dienst ${serviceId} im Event ${eventId}`,
+            );
+        }
+        return await this.request(`events/${eventId}/eventservices/${target.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ personId, isAccepted: true }),
         });
     }
 
     /**
-     * Delete a service assignment.
+     * Entfernt eine Dienst-Zuweisung (eventService-id). CT legt den freien
+     * Slot dieser serviceId anschließend automatisch wieder an.
      */
-    async deleteAssignment(eventId: string | number, bookingId: string | number) {
-        return await this.request(`events/${eventId}/bookings/${bookingId}`, {
-            method: 'DELETE'
-        });
+    async deleteAssignment(
+        eventId: string | number,
+        eventServiceId: string | number,
+    ) {
+        return await this.request(
+            `events/${eventId}/eventservices/${eventServiceId}`,
+            { method: 'DELETE', body: JSON.stringify({}) },
+        );
     }
 
     /**

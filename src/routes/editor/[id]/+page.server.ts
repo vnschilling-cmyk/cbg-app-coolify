@@ -373,8 +373,8 @@ export const actions: Actions = {
                 const datePart = parts.slice(1).join('-');
 
                 try {
-                    // 1. Fetch current bookings for this event to compare
-                    const existingBookings = await client.getEventBookings(eventId);
+                    // 1. Fetch current event services (assignments) to compare
+                    const existingBookings = await client.getEventServices(eventId);
 
                     for (const [name, code] of Object.entries(slotAssignments as Record<string, string>)) {
                         if (code === '-' || code === 'X') continue;
@@ -408,9 +408,9 @@ export const actions: Actions = {
                             // If they already have a booking for the SAME service, maybe skip?
                             const sameService = personsBookings.find(b => String(b.serviceId) === String(serviceId));
                             if (sameService) {
-                                // Already correctly assigned (maybe update status to 2 if not confirmed?)
-                                if (sameService.statusId !== 2) {
-                                    await client.setAssignment(eventId, serviceId, personId, 2);
+                                // Already assigned to this service -> nur ggf. bestätigen
+                                if (!sameService.isAccepted) {
+                                    await client.setAssignment(eventId, serviceId, personId);
                                     results.push(`OK: ${name} als ${code} bestätigt`);
                                 } else {
                                     results.push(`X: ${name} ist bereits als ${code} eingetragen`);
@@ -418,7 +418,7 @@ export const actions: Actions = {
                                 continue;
                             }
 
-                            // If they have OTHER bookings for DIFFERENT services, delete them first
+                            // If they have OTHER services for DIFFERENT roles, delete them first
                             // (Assuming one person, one service per event based on grid logic)
                             for (const b of personsBookings) {
                                 await client.deleteAssignment(eventId, b.id);
@@ -426,7 +426,7 @@ export const actions: Actions = {
 
                             // Add new assignment
                             try {
-                                await client.setAssignment(eventId, serviceId, personId, 2);
+                                await client.setAssignment(eventId, serviceId, personId);
                                 results.push(`OK: ${name} als ${code} für Event ${eventId}`);
                             } catch (e: any) {
                                 results.push(`ERROR: ${name} als ${code}: ${e.message}`);
