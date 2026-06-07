@@ -417,47 +417,34 @@ export async function exportPlanData(
                     (b) => String(b.personId) === String(personId),
                 );
 
-                if (code === '') {
-                    for (const b of personsBookings) {
-                        try {
-                            await client.deleteAssignment(eventId, b.id);
-                            results.push(`OK: ${name} entfernt von Event ${eventId}`);
-                        } catch (e: any) {
-                            results.push(
-                                `ERROR: ${name} konnte nicht entfernt werden: ${e.message}`,
-                            );
-                        }
-                    }
-                } else {
-                    const serviceId = getServiceId(code, datePart);
-                    if (!serviceId) {
-                        results.push(`SKIP: Code ${code} konnte nicht zugeordnet werden`);
-                        continue;
-                    }
+                // SICHERHEIT (2026-06-07): Der Export löscht vorerst NICHTS
+                // mehr — er ist rein ADDITIV. Die frühere Lösch-Logik hat
+                // bestehende CT-Zuweisungen entfernt, sobald eine Zelle leer
+                // war oder die Person anderswo eingetragen war (auch in Diensten
+                // außerhalb des Prediger-Plans, z.B. Reinigung). Bis die
+                // Reichweite sauber begrenzt ist, werden ausschließlich gefüllte
+                // Zellen als bestätigte Zuweisung geschrieben.
+                if (code === '') continue; // leere Zelle: NICHT mehr löschen
 
-                    const sameService = personsBookings.find(
-                        (b) => String(b.serviceId) === String(serviceId),
-                    );
-                    if (sameService) {
-                        if (!sameService.isAccepted) {
-                            await client.setAssignment(eventId, serviceId, personId);
-                            results.push(`OK: ${name} als ${code} bestätigt`);
-                        } else {
-                            results.push(`X: ${name} ist bereits als ${code} eingetragen`);
-                        }
-                        continue;
-                    }
+                const serviceId = getServiceId(code, datePart);
+                if (!serviceId) {
+                    results.push(`SKIP: Code ${code} konnte nicht zugeordnet werden`);
+                    continue;
+                }
 
-                    for (const b of personsBookings) {
-                        await client.deleteAssignment(eventId, b.id);
-                    }
+                const sameService = personsBookings.find(
+                    (b) => String(b.serviceId) === String(serviceId),
+                );
+                if (sameService && sameService.isAccepted) {
+                    results.push(`X: ${name} ist bereits als ${code} eingetragen`);
+                    continue;
+                }
 
-                    try {
-                        await client.setAssignment(eventId, serviceId, personId);
-                        results.push(`OK: ${name} als ${code} für Event ${eventId}`);
-                    } catch (e: any) {
-                        results.push(`ERROR: ${name} als ${code}: ${e.message}`);
-                    }
+                try {
+                    await client.setAssignment(eventId, serviceId, personId);
+                    results.push(`OK: ${name} als ${code} für Event ${eventId}`);
+                } catch (e: any) {
+                    results.push(`ERROR: ${name} als ${code}: ${e.message}`);
                 }
             }
         } catch (e: any) {
