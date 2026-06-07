@@ -156,14 +156,21 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 if (gname.includes('kindersegnung')) {
                     r = 'beitraege';
                     kind = 'Kindersegnung';
-                } else if (gname.includes('beitr') || gname.includes('frei')) {
+                } else if (gname.includes('beitr') || gname.includes('frei') ||
+                    gname.includes('musik')) {
+                    // Musik-Dienste (auch „Leitung Ges." = Gesang-Leitung) sind
+                    // Beiträge, NICHT die Gottesdienst-Leitung.
                     r = 'beitraege';
                 } else {
                     r = roleOf(sname);
                 }
-                const key = typeof es.sortKey === 'number'
-                    ? es.sortKey
-                    : (typeof es.id === 'number' ? es.id : order);
+                // CT-Reihenfolge: explizites `index` (bzw. `counter`) bevorzugen,
+                // erst dann auf die eventService-ID zurückfallen.
+                const key = typeof es.index === 'number'
+                    ? es.index
+                    : typeof es.counter === 'number'
+                        ? es.counter
+                        : (typeof es.id === 'number' ? es.id : order);
                 order++;
                 const p = r === 'sonstige'
                     ? personObj(es.person, sname ? `${nm} (${sname})` : nm)
