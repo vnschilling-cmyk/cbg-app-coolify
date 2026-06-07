@@ -3,14 +3,6 @@
  * Documentation: https://api.church.tools/
  */
 
-export interface CTEvent {
-    id: string;
-    title: string;
-    startDate: string;
-    endDate: string;
-    location?: string;
-}
-
 export interface CTAbsence {
     id: string;
     personId: string;
@@ -53,16 +45,6 @@ export class ChurchToolsClient {
         }
     }
 
-    /**
-     * Fetch events for a specific time range.
-     */
-    async getEvents(from: string, to: string): Promise<CTEvent[]> {
-        // Example endpoint for fetching calendar events
-        // Note: Actual ChurchTools API might differ slightly based on version/setup
-        const data = await this.request(`calendar/events?from=${from}&to=${to}&limit=100`);
-        return data.data || [];
-    }
-
     /** Alle Termin-Kalender (Kalender-Auswahl). */
     async getCalendars(): Promise<any[]> {
         const data = await this.request('calendars');
@@ -103,6 +85,20 @@ export class ChurchToolsClient {
     async getGroupMembers(groupId: string): Promise<any[]> {
         const data = await this.request(`groups/${groupId}/members?limit=100`);
         // Typically ChurchTools returns an array of member objects which contain person details
+        return data.data || [];
+    }
+
+    /**
+     * Personen-Volltextsuche. `/persons` kennt KEINEN `query`-Parameter
+     * (er würde ignoriert → einfach die ersten Treffer liefern); die echte
+     * Suche läuft über die globale `/search` mit domain_types[]=person.
+     * Liefert die rohen Treffer (data[]) mit title/domainIdentifier/imageUrl.
+     */
+    async searchPersons(query: string, limit = 25): Promise<any[]> {
+        const q = encodeURIComponent(query);
+        const data = await this.request(
+            `search?query=${q}&domain_types[]=person&limit=${limit}`,
+        );
         return data.data || [];
     }
 
