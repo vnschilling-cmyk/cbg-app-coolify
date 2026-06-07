@@ -13,19 +13,32 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 const TZ = 'Europe/Berlin';
 
-type Person = { name: string; initials: string; id: string | null };
+type Person = { name: string; initials: string; id: string | null; service?: string };
 
 function roleOf(serviceName: string): string {
     const n = (serviceName || '').toLowerCase();
     if (n.includes('predigt')) return 'predigt';
     if (n.includes('abendmahl') || n.includes('verteil')) return 'abendmahl';
-    if (n.includes('beitr') || n.includes('frei') || n.includes('segnung')) {
+    // „Begleitung" (Musik) darf NICHT als Leitung gelten – daher VOR der
+    // Leitung-Prüfung als Beitrag einsortieren.
+    if (n.includes('begleit')) return 'beitraege';
+    if (n.includes('beitr') || n.includes('frei') || n.includes('segnung') ||
+        n.includes('lied') || n.includes('musik') || n.includes('gedicht') ||
+        n.includes('chor') || n.includes('instrument')) {
         return 'beitraege';
     }
     if (n.includes('bibel')) return 'leitung_bs';
     if (n.includes('gebet')) return 'leitung_gs';
-    if (n.includes('leit') || n.includes('moderation')) return 'leitung';
+    // Bewusst nur „leitung"/„moderation" (NICHT bloß „leit", sonst greift es
+    // fälschlich bei „Begleitung").
+    if (n.includes('leitung') || n.includes('moderation')) return 'leitung';
     return 'sonstige';
+}
+
+/** Zahl aus einem Dienstnamen ziehen (z. B. „Predigt 2" -> 2). */
+function numOf(s: string): number {
+    const m = (s || '').match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
 }
 
 function personName(person: any): string {
@@ -151,12 +164,22 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 const p = r === 'sonstige'
                     ? personObj(es.person, sname ? `${nm} (${sname})` : nm)
                     : personObj(es.person);
+                // Echten ChurchTools-Dienstnamen je Person mitführen (für die
+                // Anzeige „Predigt 1 / Leitung BS / Gedicht …" statt generisch).
+                p.service = kind || sname;
                 (buckets[r] ||= []).push({ p, key, kind });
             }
             const roles = _emptyRoles();
             let beitragKinds: string[] | undefined;
             for (const k of Object.keys(buckets)) {
-                buckets[k].sort((a, b) => a.key - b.key);
+                // Predigt/Abendmahl nach der NUMMER im Dienstnamen ordnen
+                // („Predigt 1" vor „Predigt 2"); sonst nach CT-sortKey.
+                if (k === 'predigt' || k === 'abendmahl') {
+                    buckets[k].sort((a, b) =>
+                        (numOf(a.kind) - numOf(b.kind)) || (a.key - b.key));
+                } else {
+                    buckets[k].sort((a, b) => a.key - b.key);
+                }
                 roles[k] = dedupByName(buckets[k].map((e) => e.p));
                 // Art (Dienstname) je Beitrag, ausgerichtet an der dedup. Liste.
                 if (k === 'beitraege') {
