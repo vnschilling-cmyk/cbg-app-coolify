@@ -347,6 +347,9 @@ export async function loadWeekBirthdays(user: any) {
                     name: nm,
                     initials: initialsOf(nm),
                     id: id != null ? String(id) : null,
+                    // CT-Personenstatus (3 = Mitglied, 8 = Kind) für die
+                    // Aufteilung der Geburtstagsliste im Frontend.
+                    statusId: p.statusId ?? p.domainAttributes?.statusId ?? null,
                     age: cand.getFullYear() - by,
                     date: `${String(bd).padStart(2, '0')}.${String(bm).padStart(2, '0')}.${by}`,
                     iso: `${yr}-${String(bm).padStart(2, '0')}-${String(bd).padStart(2, '0')}`,
