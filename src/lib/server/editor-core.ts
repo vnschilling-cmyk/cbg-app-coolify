@@ -12,7 +12,7 @@ import {
     CHURCHTOOLS_BASE_URL,
     PREACHER_GROUP_ID,
 } from '$env/static/private';
-import { format, addMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, addMonths, addDays, startOfMonth, endOfMonth } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 /** Lädt alle Daten, die der Editor braucht (Slots, Prediger, Abwesenheiten, Zuweisungen). */
@@ -356,12 +356,47 @@ export async function exportPlanData(
         if (p.ct_id && p.name) preacherMap.set(p.name.trim(), p.ct_id);
     });
 
+    // Grid-Slots sind nach `appointmentId` (Kalender-Termin) + Datum gekeyt
+    // (siehe loadEditorData). Die eventServices-API braucht aber die echte
+    // `event.id`. Mapping über den Datumsbereich des Grids auflösen, statt
+    // die appointmentId fälschlich als Event-ID zu verwenden (sonst 404).
+    const TZ = 'Europe/Berlin';
+    const slotDates = Object.keys(gridData)
+        .map((k) => k.split('-').slice(1).join('-'))
+        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .sort();
+    const eventByApptDate = new Map<string, any>();
+    if (slotDates.length) {
+        const from = slotDates[0];
+        // `to` ist in der CT-Events-API exklusiv → einen Tag zugeben.
+        const to = format(addDays(new Date(slotDates[slotDates.length - 1]), 1), 'yyyy-MM-dd');
+        try {
+            const events = await client.getEventsWithServices(from, to);
+            for (const ev of events) {
+                if (!ev.startDate || ev.appointmentId == null) continue;
+                const d = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
+                eventByApptDate.set(`${ev.appointmentId}-${d}`, ev);
+            }
+        } catch (e: any) {
+            results.push(`ERROR: CT-Events konnten nicht geladen werden: ${e.message}`);
+        }
+    }
+
     for (const [slotId, slotAssignments] of Object.entries(gridData)) {
         if (!slotAssignments || typeof slotAssignments !== 'object') continue;
 
-        const parts = (slotId as string).split('-');
-        const eventId = parts[0];
-        const datePart = parts.slice(1).join('-');
+        const datePart = (slotId as string).split('-').slice(1).join('-');
+
+        // appointmentId+Datum → echtes CT-Event auflösen.
+        const slotEvent = eventByApptDate.get(slotId);
+        if (!slotEvent) {
+            const hasWork = Object.values(
+                slotAssignments as Record<string, string>,
+            ).some((c) => c !== '' && c !== '-' && c !== 'X');
+            if (hasWork) results.push(`SKIP: Kein CT-Event für Termin ${slotId}`);
+            continue;
+        }
+        const eventId = slotEvent.id;
 
         try {
             const existingBookings = await client.getEventServices(eventId);
