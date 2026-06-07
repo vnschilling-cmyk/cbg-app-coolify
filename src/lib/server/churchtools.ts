@@ -63,6 +63,20 @@ export class ChurchToolsClient {
         return data.data || [];
     }
 
+    /** Alle Termin-Kalender (Kalender-Auswahl). */
+    async getCalendars(): Promise<any[]> {
+        const data = await this.request('calendars');
+        return data.data || [];
+    }
+
+    /** Termine (appointments) für mehrere Kalender in einem Zeitraum. */
+    async getAppointments(ids: (string | number)[], from: string, to: string): Promise<any[]> {
+        if (!ids.length) return [];
+        const q = ids.map((id) => `calendar_ids[]=${id}`).join('&');
+        const data = await this.request(`calendars/appointments?${q}&from=${from}&to=${to}`);
+        return data.data || [];
+    }
+
     /**
      * Fetch absences. If groupId is provided, fetches absences for that specific group.
      */
