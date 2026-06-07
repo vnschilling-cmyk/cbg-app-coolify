@@ -281,6 +281,56 @@ function birthdaysForSunday(pool: any[], sundayIso: string) {
     return out;
 }
 
+/** Alle Gemeindemitglieder mit Geburtstag in der aktuellen Woche (Mo–So). */
+export async function loadWeekBirthdays(user: any) {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    const persons: any[] = [];
+    for (let page = 1; page <= 12; page++) {
+        const r = await client.request(`persons?page=${page}&limit=100`);
+        const batch = r.data || [];
+        persons.push(...batch);
+        if (batch.length < 100) break;
+    }
+    // Aktuelle Woche Montag–Sonntag (lokal).
+    const today = new Date();
+    const dow = (today.getDay() + 6) % 7; // 0 = Montag
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dow);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const out: any[] = [];
+    for (const p of persons) {
+        if (isArchived(p)) continue;
+        const bday: string | undefined = p.birthday || p.domainAttributes?.birthday;
+        if (!bday) continue;
+        const parts = String(bday).split('-').map(Number);
+        if (parts.length < 3 || !parts[0]) continue;
+        const [by, bm, bd] = parts;
+        const name = `${p.firstName || p.domainAttributes?.firstName || ''} `
+            + `${p.lastName || p.domainAttributes?.lastName || ''}`;
+        const nm = name.trim();
+        if (!nm) continue;
+        const id = p.domainIdentifier ?? p.id ?? null;
+        for (const yr of [monday.getFullYear(), sunday.getFullYear()]) {
+            const cand = new Date(yr, bm - 1, bd);
+            if (cand >= monday && cand <= sunday) {
+                out.push({
+                    name: nm,
+                    initials: initialsOf(nm),
+                    id: id != null ? String(id) : null,
+                    age: cand.getFullYear() - by,
+                    date: `${String(bd).padStart(2, '0')}.${String(bm).padStart(2, '0')}.${by}`,
+                    iso: `${yr}-${String(bm).padStart(2, '0')}-${String(bd).padStart(2, '0')}`,
+                });
+                break;
+            }
+        }
+    }
+    out.sort((a, b) => a.iso.localeCompare(b.iso));
+    return out;
+}
+
 /** Nächster Samstag (ISO yyyy-MM-dd); ist heute Samstag, der in 7 Tagen. */
 function nextSaturdayIso(): string {
     const now = new Date();
