@@ -7,7 +7,11 @@
  * Archivierte Personen werden ausgeschlossen.
  */
 import { ChurchToolsClient } from '$lib/server/churchtools';
-import { CHURCHTOOLS_TOKEN, CHURCHTOOLS_BASE_URL } from '$env/static/private';
+import {
+    CHURCHTOOLS_TOKEN,
+    CHURCHTOOLS_BASE_URL,
+    PREACHER_GROUP_ID,
+} from '$env/static/private';
 import { format, addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -218,10 +222,11 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
         console.error('Leadership: events failed', e);
     }
 
-    // Abwesenheiten im Zeitraum (ohne Archiv).
+    // Abwesenheiten im Zeitraum (ohne Archiv). Scope = Prediger-Gruppe (164):
+    // einen globalen Absences-Endpunkt gibt es in CT nicht, nur pro Gruppe/Person.
     let absences: any[] = [];
     try {
-        const raw = await client.getAbsences(from, to);
+        const raw = await client.getAbsences(from, to, PREACHER_GROUP_ID);
         absences = raw
             .filter((a: any) => !isArchived(a.person))
             .map((a: any) => {

@@ -9,9 +9,15 @@ import { env } from '$env/dynamic/private';
 
 export const OPTIONS = async () => preflight();
 
-const fullName = (p: any) =>
-    (`${p?.firstName || ''} ${p?.lastName || ''}`.trim()) ||
-    (p?.title || '').toString();
+// `/search` liefert je Treffer `title` (voller Name) und die Felder unter
+// `domainAttributes`; als Fallback der direkte Personen-Datensatz.
+const fullName = (p: any) => {
+    const a = p?.domainAttributes ?? p ?? {};
+    return (
+        (p?.title || '').toString().trim() ||
+        `${a.firstName || ''} ${a.lastName || ''}`.trim()
+    );
+};
 
 export async function GET({ request, url }) {
     const { user } = await pbFromRequest(request);
@@ -25,13 +31,13 @@ export async function GET({ request, url }) {
         const token = user?.ct_api_key || env.CHURCHTOOLS_TOKEN;
         if (!base || !token) return json({ persons: [] });
         const client = new ChurchToolsClient(base, token);
-        const r: any = await client.request(
-            `persons?query=${encodeURIComponent(q)}&limit=25`);
-        const persons = (r.data || [])
+        const hits = await client.searchPersons(q, 25);
+        const persons = hits
+            .filter((p: any) => !p?.domainAttributes?.isArchived)
             .map((p: any) => ({
                 name: fullName(p),
-                id: (p.id ?? p.domainIdentifier) != null
-                    ? String(p.id ?? p.domainIdentifier)
+                id: (p.domainIdentifier ?? p.id) != null
+                    ? String(p.domainIdentifier ?? p.id)
                     : null,
             }))
             .filter((p: any) => p.name && p.id);
