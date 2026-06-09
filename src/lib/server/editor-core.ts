@@ -253,7 +253,11 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         console.error('Failed to fetch service rules from PB:', e);
     }
 
-    if (!plan.hidden_preachers || !Array.isArray(plan.hidden_preachers)) {
+    // Ausgeblendete Prediger: zuerst aus __meta (zuverlässig persistiert),
+    // dann altes Top-Level-Feld, sonst Default (hidden_by_default).
+    if (Array.isArray(meta.hiddenPreachers)) {
+        plan.hidden_preachers = meta.hiddenPreachers.map((x: any) => String(x));
+    } else if (!plan.hidden_preachers || !Array.isArray(plan.hidden_preachers)) {
         plan.hidden_preachers = preachers
             .filter((p) => p.hidden_by_default)
             .map((p) => String(p.id));
@@ -290,10 +294,15 @@ export async function savePlanData(
     // Manuelle Spalten (extra/ausgeblendet) ohne PB-Schemaänderung im
     // JSON-Feld `data` unter dem reservierten Schlüssel __meta ablegen.
     const data: any = { ...(body.data || {}) };
-    if (body.hidden_slots !== undefined || body.extra_slots !== undefined) {
+    // Manuelle Spalten UND ausgeblendete Prediger im JSON-Feld `data.__meta`
+    // ablegen – das persistiert zuverlässig, ohne PB-Schemafeld.
+    if (body.hidden_slots !== undefined ||
+        body.extra_slots !== undefined ||
+        body.hidden_preachers !== undefined) {
         data.__meta = {
             hiddenSlots: body.hidden_slots ?? [],
             extraSlots: body.extra_slots ?? [],
+            hiddenPreachers: body.hidden_preachers ?? [],
         };
     }
     const updateData: any = { data };
