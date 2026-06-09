@@ -130,13 +130,15 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             const weekday = Number(formatInTimeZone(d, TZ, 'i'));
             const hour = Number(formatInTimeZone(d, TZ, 'H'));
 
+            const title = ev.name || ev.caption || 'Gottesdienst';
+            if (/reinig/i.test(title)) continue;
+
             let slot: string | null = null;
             if (weekday === 7) slot = hour < 12 ? 'so_vm' : 'so_nm';
             else if (weekday === 5) slot = 'fr';
+            // Gemeindestunden unter der Woche (selten) ebenfalls einblenden.
+            else if (/gemeindestunde/i.test(title)) slot = 'gemeindestunde';
             if (!slot) continue;
-
-            const title = ev.name || ev.caption || 'Gottesdienst';
-            if (/reinig/i.test(title)) continue;
 
             // Pro Rolle sammeln + nach CT-Reihenfolge (sortKey) ordnen, damit
             // „Predigt 1/2", „Verteiler 1–5" usw. wie in ChurchTools stehen.
@@ -207,7 +209,8 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             }
 
             const anyone = Object.values(roles).some((a) => a.length > 0);
-            if (!anyone) continue;
+            // Gemeindestunden auch ohne zugewiesene Personen anzeigen.
+            if (!anyone && slot !== 'gemeindestunde') continue;
 
             const dateStr = formatInTimeZone(d, TZ, 'yyyy-MM-dd');
             const svc: any = {
