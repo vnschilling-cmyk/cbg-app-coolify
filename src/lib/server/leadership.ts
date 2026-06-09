@@ -382,11 +382,13 @@ function nextSaturdayIso(): string {
  * Datum (nächster Bruderrat-Termin bzw. nächster Samstag), Moderator/Eröffnung
  * (Predigt 1 bzw. „Anfang") und Abschluss (Predigt 2 bzw. „Schluss").
  */
-export async function loadAgendaTemplate(user: any) {
+export async function loadAgendaTemplate(user: any, targetDate?: string) {
     const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
 
-    let date = nextSaturdayIso();
+    // Kommende Bruderrat-Termine (für die Auswahlliste im Frontend).
+    let upcoming: string[] = [];
+    let date = targetDate || nextSaturdayIso();
     let moderator = '', moderatorId: string | null = null; // Dienst „Moderation"
     let opener = '', openerId: string | null = null; // „Einleitung" (Eröffnung)
     let closer = '', closerId: string | null = null; // „Abschluss"
@@ -401,13 +403,25 @@ export async function loadAgendaTemplate(user: any) {
         }
         const today = new Date();
         const from = format(today, 'yyyy-MM-dd');
-        const to = format(addDays(today, 35), 'yyyy-MM-dd');
+        // Weiter Vorlauf (~4 Monate), damit man 2–3 Bruderräte im Voraus planen kann.
+        const to = format(addDays(today, 120), 'yyyy-MM-dd');
         const events = await client.getEventsWithServices(from, to);
         const brs = (events || []).filter((ev: any) =>
             /bruder\s*-?\s*rat/i.test(`${ev?.name || ''} ${ev?.caption || ''}`));
         brs.sort((a: any, b: any) =>
             String(a.startDate || '').localeCompare(String(b.startDate || '')));
-        const ev = brs[0];
+        upcoming = brs
+            .map((e: any) => e?.startDate
+                ? formatInTimeZone(new Date(e.startDate), TZ, 'yyyy-MM-dd')
+                : '')
+            .filter((d: string, i: number, arr: string[]) =>
+                d !== '' && arr.indexOf(d) === i);
+        // Gewählten Termin nehmen, sonst den nächsten.
+        const ev = targetDate
+            ? brs.find((e: any) => e?.startDate &&
+                formatInTimeZone(new Date(e.startDate), TZ, 'yyyy-MM-dd') ===
+                    targetDate)
+            : brs[0];
         if (ev?.startDate) {
             date = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
             // Dienst-Namen im Bruderrat-Termin (siehe ChurchTools):
@@ -476,5 +490,6 @@ export async function loadAgendaTemplate(user: any) {
         closer, closerId,
         moderator, moderatorId,
         absentIds,
+        upcoming,
     };
 }

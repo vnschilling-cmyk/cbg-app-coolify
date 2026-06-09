@@ -11,11 +11,12 @@ import { adminPb, ensureAppConfig, getConfig } from '$lib/server/admin';
 
 export const OPTIONS = async () => preflight();
 
-export async function GET({ request }) {
+export async function GET({ request, url }) {
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Unauthorized' }, 401);
     try {
-        const tmpl = await loadAgendaTemplate(user);
+        const targetDate = url.searchParams.get('date') || undefined;
+        const tmpl = await loadAgendaTemplate(user, targetDate);
 
         // Offene Aufgaben + vertagte Punkte aus der Sammlung.
         let openTasks: any[] = [];
@@ -80,6 +81,7 @@ export async function GET({ request }) {
                 absentIds: tmpl.absentIds,
                 items,
             },
+            upcoming: tmpl.upcoming ?? [],
         });
     } catch (e: any) {
         return json({ error: e?.message || 'Vorlage fehlgeschlagen' }, 500);
