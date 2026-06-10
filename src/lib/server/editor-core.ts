@@ -263,6 +263,19 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
             .map((p) => String(p.id));
     }
 
+    // Sondergemeinschaften (Kalender 90) als separate Liste fuer den Plan:
+    // echte interne Gemeinschaftstermine OHNE Gottesdienste/Gemeindestunden,
+    // ohne Hochzeiten und ohne Termine, die bereits eine eigene Spalte haben.
+    const columnIds = new Set(visibleSlots.map((s: any) => s.id));
+    const specialFellowships = slots
+        .filter((s: any) => s.calendarId === 90 && !columnIds.has(s.id))
+        .filter((s: any) => {
+            const t = `${s.label || ''}`.toLowerCase();
+            return !t.includes('hochzeit') && !t.includes('gemeindestunde');
+        })
+        .map((s: any) => ({ date: s.date, time: s.time, title: s.label }))
+        .sort((a: any, b: any) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+
     return {
         plan,
         slots: visibleSlots,
@@ -272,6 +285,7 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         assignments: finalAssignments,
         formatting,
         serviceRules,
+        specialFellowships,
         meta,
         fromDate,
         toDate,
