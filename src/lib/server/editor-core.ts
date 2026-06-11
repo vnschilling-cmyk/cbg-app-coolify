@@ -319,34 +319,16 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         console.error('Failed to fetch absences:', e);
     }
 
-    // Bestehende Zuweisungen aus ChurchTools
-    let assignments: Record<string, Record<string, string>> = {};
-    try {
-        const events = await client.getEventsWithServices(fromDate, toDate);
-        for (const event of events) {
-            const services = event.eventServices || [];
-            const eventDate = new Date(event.startDate);
-            const dateStr = formatInTimeZone(eventDate, 'Europe/Berlin', 'yyyy-MM-dd');
-            const slotId = `${event.appointmentId}-${dateStr}`;
-            if (!assignments[slotId]) assignments[slotId] = {};
-            for (const service of services) {
-                const person = service.person;
-                if (person && person.domainAttributes) {
-                    const name = `${person.domainAttributes.firstName} ${person.domainAttributes.lastName}`;
-                    assignments[slotId][name] = 'X';
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Failed to fetch event assignments:', e);
-    }
-
-    // Manuelle-Spalten-Meta aus data herauslösen (nicht als „Slot" mischen).
+    // WICHTIG: Der Editor wird NICHT mehr automatisch mit ChurchTools-
+    // Zuweisungen vorbefüllt. Beim Öffnen zeigt das Grid ausschließlich den
+    // gespeicherten Plan (planData). CT-Daten kommen nur über den manuellen
+    // Import (POST /api/editor/{id}/import) ins Grid – mit Vorschau/Freigabe,
+    // damit ein bereits gespeicherter Plan nicht überschrieben wird.
     const planData: any = { ...(plan.data || {}) };
     const meta = planData.__meta || { hiddenSlots: [], extraSlots: [] };
     delete planData.__meta;
 
-    const finalAssignments = { ...assignments, ...planData };
+    const finalAssignments = planData;
     const formatting = plan.formatting || null;
 
     let serviceRules: any[] = [];
@@ -675,7 +657,7 @@ export interface ImportCandidate {
     serviceName: string;
     currentCode: string; // aktueller Code im Grid ('' = leer)
     newCode: string; // Code aus ChurchTools
-    status: 'new' | 'conflict';
+    status: 'new' | 'conflict' | 'info'; // info = in CT, aber nicht importierbar
 }
 
 /**
@@ -738,10 +720,24 @@ export async function computeImport(
             if (es.personId == null) continue;
             const sid = Number(es.serviceId);
             if (!MANAGED_SERVICE_IDS.has(sid)) continue;
-            const ctId = String(es.personId);
-            if (!preacherCtIds.has(ctId)) continue;
             const newCode = codeForService(sid, cal, date);
             if (!newCode) continue;
+            const serviceName = svcName.get(sid) || `Dienst ${sid}`;
+            const ctId = String(es.personId);
+            // In CT eingetragen, aber nicht im Plan (kein Prediger) → nur Info.
+            if (!preacherCtIds.has(ctId)) {
+                out.push({
+                    slotId,
+                    date,
+                    personId: ctId,
+                    personName: es.name || es.person?.title || `Person ${ctId}`,
+                    serviceName,
+                    currentCode: '',
+                    newCode,
+                    status: 'info',
+                });
+                continue;
+            }
             const name = nameByCtId.get(ctId)!;
             const currentCode = gridData[slotId]?.[name] ?? '';
             if (currentCode) {
@@ -771,6 +767,11 @@ export async function computeImport(
             }
         }
     }
-    out.sort((a, b) => `${a.date}${a.slotId}`.localeCompare(`${b.date}${b.slotId}`));
+    out.sort((a, b) => {
+        const ga = a.status === 'info' ? 1 : 0;
+        const gb = b.status === 'info' ? 1 : 0;
+        if (ga !== gb) return ga - gb; // importierbare zuerst, Info ans Ende
+        return `${a.date}${a.slotId}`.localeCompare(`${b.date}${b.slotId}`);
+    });
     return out;
 }
