@@ -388,49 +388,35 @@ export const actions: Actions = {
                         // Check if this person already has a booking in this event
                         const personsBookings = existingBookings.filter(b => String(b.personId) === String(personId));
 
-                        if (code === "") {
-                            // User cleared the cell -> DELETE all bookings for this person in this event
-                            for (const b of personsBookings) {
-                                try {
-                                    await client.deleteAssignment(eventId, b.id);
-                                    results.push(`OK: ${name} entfernt von Event ${eventId}`);
-                                } catch (e: any) {
-                                    results.push(`ERROR: ${name} konnte nicht entfernt werden: ${e.message}`);
-                                }
-                            }
-                        } else {
-                            const serviceId = getServiceId(code, datePart);
-                            if (!serviceId) {
-                                results.push(`SKIP: Code ${code} konnte nicht zugeordnet werden`);
-                                continue;
-                            }
+                        // SICHERHEIT (2026-06-11): Dieser (Legacy-)Export ist jetzt
+                        // ebenfalls rein ADDITIV – wie der API-Pfad in editor-core.ts.
+                        // Die frühere Lösch-Logik (leere Zelle -> alle Buchungen der
+                        // Person löschen; bzw. „andere Dienste zuerst löschen") hat
+                        // bestehende CT-Zuweisungen entfernt und einen Datenverlust
+                        // verursacht. Es werden ausschließlich gefüllte Zellen als
+                        // bestätigte Zuweisung geschrieben, nichts mehr gelöscht.
+                        if (code === "") continue; // leere Zelle: NICHT mehr löschen
 
-                            // If they already have a booking for the SAME service, maybe skip?
-                            const sameService = personsBookings.find(b => String(b.serviceId) === String(serviceId));
-                            if (sameService) {
-                                // Already assigned to this service -> nur ggf. bestätigen
-                                if (!sameService.isAccepted) {
-                                    await client.setAssignment(eventId, serviceId, personId);
-                                    results.push(`OK: ${name} als ${code} bestätigt`);
-                                } else {
-                                    results.push(`X: ${name} ist bereits als ${code} eingetragen`);
-                                }
-                                continue;
-                            }
+                        const serviceId = getServiceId(code, datePart);
+                        if (!serviceId) {
+                            results.push(`SKIP: Code ${code} konnte nicht zugeordnet werden`);
+                            continue;
+                        }
 
-                            // If they have OTHER services for DIFFERENT roles, delete them first
-                            // (Assuming one person, one service per event based on grid logic)
-                            for (const b of personsBookings) {
-                                await client.deleteAssignment(eventId, b.id);
-                            }
+                        // Bereits für DENSELBEN Dienst gebucht und bestätigt -> nichts tun.
+                        const sameService = personsBookings.find(b => String(b.serviceId) === String(serviceId));
+                        if (sameService && sameService.isAccepted) {
+                            results.push(`X: ${name} ist bereits als ${code} eingetragen`);
+                            continue;
+                        }
 
-                            // Add new assignment
-                            try {
-                                await client.setAssignment(eventId, serviceId, personId);
-                                results.push(`OK: ${name} als ${code} für Event ${eventId}`);
-                            } catch (e: any) {
-                                results.push(`ERROR: ${name} als ${code}: ${e.message}`);
-                            }
+                        // Neue (oder noch unbestätigte) Zuweisung schreiben – ohne
+                        // andere Dienste der Person zu löschen.
+                        try {
+                            await client.setAssignment(eventId, serviceId, personId);
+                            results.push(`OK: ${name} als ${code} für Event ${eventId}`);
+                        } catch (e: any) {
+                            results.push(`ERROR: ${name} als ${code}: ${e.message}`);
                         }
                     }
                 } catch (e: any) {
