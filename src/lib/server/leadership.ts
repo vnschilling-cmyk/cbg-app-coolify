@@ -94,6 +94,7 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
 
     const svcName = new Map<number, string>();
     const svcGroup = new Map<number, string>(); // serviceId -> Gruppenname (z. B. „Kindersegnung")
+    const svcSort = new Map<number, number>(); // serviceId -> sortKey (CT-Reihenfolge)
     try {
         const groupName = new Map<number, string>();
         try {
@@ -106,6 +107,7 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
         }
         for (const s of await client.getServices()) {
             svcName.set(s.id, s.name || s.nameTranslated || '');
+            svcSort.set(s.id, typeof s.sortKey === 'number' ? s.sortKey : 999);
             const gid = s.serviceGroupId;
             if (gid != null) svcGroup.set(s.id, groupName.get(gid) || '');
         }
@@ -145,6 +147,10 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             // Pro Rolle sammeln + nach CT-Reihenfolge (sortKey) ordnen, damit
             // „Predigt 1/2", „Verteiler 1–5" usw. wie in ChurchTools stehen.
             const buckets: Record<string, { p: Person; key: number; kind: string }[]> = {};
+            // Gemeindestunde: echte CT-Dienstnamen (Einleitung/Abschluss/…) je
+            // Person sammeln, statt sie über roleOf in generische Rollen zu
+            // pressen (z. B. „Einleitung" → faelschlich „Leitung").
+            const gsList: { service: string; person: any; sort: number; key: number }[] = [];
             let order = 0;
             for (const es of ev.eventServices || []) {
                 if (isArchived(es.person)) continue;
@@ -182,6 +188,14 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 // Echten ChurchTools-Dienstnamen je Person mitführen (für die
                 // Anzeige „Predigt 1 / Leitung BS / Gedicht …" statt generisch).
                 p.service = kind || sname;
+                if (slot === 'gemeindestunde') {
+                    gsList.push({
+                        service: sname || kind,
+                        person: personObj(es.person),
+                        sort: svcSort.get(es.serviceId) ?? 999,
+                        key,
+                    });
+                }
                 (buckets[r] ||= []).push({ p, key, kind });
             }
             const roles = _emptyRoles();
@@ -224,6 +238,14 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 roles,
             };
             if (beitragKinds && beitragKinds.length) svc.beitragKinds = beitragKinds;
+            // Gemeindestunde: echte Dienste in CT-Reihenfolge (sortKey) anhaengen.
+            if (slot === 'gemeindestunde' && gsList.length) {
+                gsList.sort((a, b) => (a.sort - b.sort) || (a.key - b.key));
+                svc.gsServices = gsList.map((e) => ({
+                    service: e.service,
+                    person: e.person,
+                }));
+            }
             // Ü80-Geburtstage der Woche Mo–So vor diesem Sonntag-Vormittag.
             if (slot === 'so_vm') svc.birthdays = birthdaysForSunday(bdayPool, dateStr);
             services.push(svc);
