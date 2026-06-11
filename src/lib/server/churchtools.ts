@@ -71,6 +71,18 @@ export class ChurchToolsClient {
         return data.data || [];
     }
 
+    /** Abwesenheiten EINER Person in einem Zeitraum (für „Meine Abwesenheiten"). */
+    async getPersonAbsences(
+        personId: string | number,
+        from: string,
+        to: string,
+    ): Promise<any[]> {
+        const data = await this.request(
+            `persons/${personId}/absences?from=${from}&to=${to}&limit=100`,
+        );
+        return data.data || [];
+    }
+
     /**
      * Fetch services (assignments) for events in a specific time range.
      */
