@@ -134,10 +134,12 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             if (/reinig/i.test(title)) continue;
 
             let slot: string | null = null;
-            if (weekday === 7) slot = hour < 12 ? 'so_vm' : 'so_nm';
+            // Gemeindestunde (Sondergemeinschaft) IMMER zuerst – auch am Freitag.
+            // Sonst würde eine Freitags-Gemeindestunde faelschlich als Bibel-Gebet
+            // ('fr') mit „Leitung BS/GS" behandelt.
+            if (/gemeindestunde/i.test(title)) slot = 'gemeindestunde';
+            else if (weekday === 7) slot = hour < 12 ? 'so_vm' : 'so_nm';
             else if (weekday === 5) slot = 'fr';
-            // Gemeindestunden unter der Woche (selten) ebenfalls einblenden.
-            else if (/gemeindestunde/i.test(title)) slot = 'gemeindestunde';
             if (!slot) continue;
 
             // Pro Rolle sammeln + nach CT-Reihenfolge (sortKey) ordnen, damit
