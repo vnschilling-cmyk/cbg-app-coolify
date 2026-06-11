@@ -15,6 +15,77 @@ import {
 import { format, addMonths, addDays, startOfMonth, endOfMonth } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
+const TZ = 'Europe/Berlin';
+
+/** Plan-Code (Zelle) → ChurchTools-serviceId. Datum entscheidet bei „Als". */
+function serviceIdForCode(code: string, dateStr: string): number | null {
+    const date = new Date(dateStr);
+    const isWednesday = date.getDay() === 3;
+    const isSunday = date.getDay() === 0;
+    switch (code) {
+        case 'L':
+            return 3;
+        case '1':
+        case '2':
+            return 1;
+        case 'BS':
+            return 91;
+        case 'GS':
+            return 94;
+        case 'Anf':
+            return 88;
+        case 'Schl':
+            return 117;
+        case 'V':
+            return 61;
+        case 'BN':
+            return 1;
+        case 'Als':
+            if (isWednesday) return 91;
+            if (isSunday) return 1;
+            return 1;
+        case '🍷':
+            return 3;
+        default:
+            return null;
+    }
+}
+
+/**
+ * ChurchTools-serviceIds, die der Prediger-Plan verwaltet (Wertebereich von
+ * serviceIdForCode). NUR diese dürfen je gelöscht/abgeglichen werden – fremde
+ * Dienste (z. B. Reinigung, Musik) bleiben unberührt.
+ */
+const MANAGED_SERVICE_IDS = new Set<number>([1, 3, 61, 88, 91, 94, 117]);
+
+/** Baut die Map `appointmentId-datum → CT-Event (inkl. eventServices)`. */
+async function buildEventByApptDate(
+    client: ChurchToolsClient,
+    gridData: Record<string, Record<string, string>>,
+    results?: string[],
+): Promise<Map<string, any>> {
+    const slotDates = Object.keys(gridData)
+        .map((k) => k.split('-').slice(1).join('-'))
+        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .sort();
+    const map = new Map<string, any>();
+    if (!slotDates.length) return map;
+    const from = slotDates[0];
+    // `to` ist in der CT-Events-API exklusiv → einen Tag zugeben.
+    const to = format(addDays(new Date(slotDates[slotDates.length - 1]), 1), 'yyyy-MM-dd');
+    try {
+        const events = await client.getEventsWithServices(from, to);
+        for (const ev of events) {
+            if (!ev.startDate || ev.appointmentId == null) continue;
+            const d = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
+            map.set(`${ev.appointmentId}-${d}`, ev);
+        }
+    } catch (e: any) {
+        results?.push(`ERROR: CT-Events konnten nicht geladen werden: ${e.message}`);
+    }
+    return map;
+}
+
 /** Lädt alle Daten, die der Editor braucht (Slots, Prediger, Abwesenheiten, Zuweisungen). */
 export async function loadEditorData(pb: PocketBase, user: any, planId: string) {
     const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
@@ -340,39 +411,6 @@ export async function exportPlanData(
     const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, userToken);
 
-    const getServiceId = (code: string, dateStr: string): number | null => {
-        const date = new Date(dateStr);
-        const isWednesday = date.getDay() === 3;
-        const isSunday = date.getDay() === 0;
-        switch (code) {
-            case 'L':
-                return 3;
-            case '1':
-            case '2':
-                return 1;
-            case 'BS':
-                return 91;
-            case 'GS':
-                return 94;
-            case 'Anf':
-                return 88;
-            case 'Schl':
-                return 117;
-            case 'V':
-                return 61;
-            case 'BN':
-                return 1;
-            case 'Als':
-                if (isWednesday) return 91;
-                if (isSunday) return 1;
-                return 1;
-            case '🍷':
-                return 3;
-            default:
-                return null;
-        }
-    };
-
     const preachersRaw = await pb.collection('members').getFullList();
     const preacherMap = new Map<string, any>();
     preachersRaw.forEach((p: any) => {
@@ -383,27 +421,7 @@ export async function exportPlanData(
     // (siehe loadEditorData). Die eventServices-API braucht aber die echte
     // `event.id`. Mapping über den Datumsbereich des Grids auflösen, statt
     // die appointmentId fälschlich als Event-ID zu verwenden (sonst 404).
-    const TZ = 'Europe/Berlin';
-    const slotDates = Object.keys(gridData)
-        .map((k) => k.split('-').slice(1).join('-'))
-        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
-        .sort();
-    const eventByApptDate = new Map<string, any>();
-    if (slotDates.length) {
-        const from = slotDates[0];
-        // `to` ist in der CT-Events-API exklusiv → einen Tag zugeben.
-        const to = format(addDays(new Date(slotDates[slotDates.length - 1]), 1), 'yyyy-MM-dd');
-        try {
-            const events = await client.getEventsWithServices(from, to);
-            for (const ev of events) {
-                if (!ev.startDate || ev.appointmentId == null) continue;
-                const d = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
-                eventByApptDate.set(`${ev.appointmentId}-${d}`, ev);
-            }
-        } catch (e: any) {
-            results.push(`ERROR: CT-Events konnten nicht geladen werden: ${e.message}`);
-        }
-    }
+    const eventByApptDate = await buildEventByApptDate(client, gridData, results);
 
     for (const [slotId, slotAssignments] of Object.entries(gridData)) {
         if (!slotAssignments || typeof slotAssignments !== 'object') continue;
@@ -449,7 +467,7 @@ export async function exportPlanData(
                 // Zellen als bestätigte Zuweisung geschrieben.
                 if (code === '') continue; // leere Zelle: NICHT mehr löschen
 
-                const serviceId = getServiceId(code, datePart);
+                const serviceId = serviceIdForCode(code, datePart);
                 if (!serviceId) {
                     results.push(`SKIP: Code ${code} konnte nicht zugeordnet werden`);
                     continue;
@@ -477,5 +495,140 @@ export async function exportPlanData(
         }
     }
 
+    return results;
+}
+
+export interface DeletionCandidate {
+    eventId: number | string;
+    eventServiceId: number | string;
+    serviceId: number;
+    serviceName: string;
+    date: string; // yyyy-MM-dd
+    personId: string;
+    personName: string;
+}
+
+/**
+ * Ermittelt „verwaiste" ChurchTools-Zuweisungen: Plan-Prediger, die in einem
+ * vom Plan verwalteten Dienst (MANAGED_SERVICE_IDS) eingetragen sind, aber im
+ * aktuellen Grid NICHT (mehr) diese Zuweisung haben. Es wird NICHTS gelöscht –
+ * nur Kandidaten für die Bestätigung zurückgegeben (Dienst · Datum · Person).
+ */
+export async function computeExportDeletions(
+    pb: PocketBase,
+    user: any,
+    gridData: Record<string, Record<string, string>>,
+): Promise<DeletionCandidate[]> {
+    const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, userToken);
+
+    const preachersRaw = await pb.collection('members').getFullList();
+    const ctIdByName = new Map<string, string>(); // Name → ct_id
+    const nameByCtId = new Map<string, string>(); // ct_id → Name
+    const preacherCtIds = new Set<string>();
+    preachersRaw.forEach((p: any) => {
+        if (p.ct_id && p.name) {
+            ctIdByName.set(p.name.trim(), String(p.ct_id));
+            nameByCtId.set(String(p.ct_id), p.name.trim());
+            preacherCtIds.add(String(p.ct_id));
+        }
+    });
+
+    const svcName = new Map<number, string>();
+    try {
+        for (const s of await client.getServices()) {
+            svcName.set(s.id, s.name || s.nameTranslated || '');
+        }
+    } catch {
+        /* Namen optional – Fallback unten */
+    }
+
+    const eventByApptDate = await buildEventByApptDate(client, gridData);
+
+    const out: DeletionCandidate[] = [];
+    for (const [slotId, slotAssignments] of Object.entries(gridData)) {
+        if (!slotAssignments || typeof slotAssignments !== 'object') continue;
+        const ev = eventByApptDate.get(slotId);
+        if (!ev) continue;
+        const eventId = ev.id;
+        const datePart = slotId.split('-').slice(1).join('-');
+
+        // Was das Grid je Person (ct_id) WILL: Menge der gewünschten serviceIds.
+        const desiredByCtId = new Map<string, Set<number>>();
+        for (const [name, code] of Object.entries(
+            slotAssignments as Record<string, string>,
+        )) {
+            if (code === '' || code === '-' || code === 'X') continue;
+            const ctId = ctIdByName.get(name.trim());
+            if (!ctId) continue;
+            const sid = serviceIdForCode(code, datePart);
+            if (sid == null) continue;
+            if (!desiredByCtId.has(ctId)) desiredByCtId.set(ctId, new Set());
+            desiredByCtId.get(ctId)!.add(sid);
+        }
+
+        let existing: any[] = ev.eventServices || [];
+        if (!existing.length) {
+            try {
+                existing = await client.getEventServices(eventId);
+            } catch {
+                existing = [];
+            }
+        }
+        for (const b of existing) {
+            if (b.personId == null) continue;
+            const sid = Number(b.serviceId);
+            if (!MANAGED_SERVICE_IDS.has(sid)) continue; // nur Plan-Dienste
+            const ctId = String(b.personId);
+            if (!preacherCtIds.has(ctId)) continue; // nur Plan-Prediger
+            const wanted = desiredByCtId.get(ctId);
+            if (wanted && wanted.has(sid)) continue; // Grid will das weiterhin
+            out.push({
+                eventId,
+                eventServiceId: b.id,
+                serviceId: sid,
+                serviceName: svcName.get(sid) || `Dienst ${sid}`,
+                date: formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd'),
+                personId: ctId,
+                personName: b.person?.title || b.name || nameByCtId.get(ctId) || `Person ${ctId}`,
+            });
+        }
+    }
+    return out;
+}
+
+/**
+ * Löscht NUR die übergebenen Zuweisungen – und auch nur, wenn sie weiterhin
+ * gültige Kandidaten sind (erneut serverseitig gegen das Grid geprüft, damit
+ * niemals etwas außerhalb der verwalteten Dienste/Prediger gelöscht wird).
+ */
+export async function applyExportDeletions(
+    pb: PocketBase,
+    user: any,
+    gridData: Record<string, Record<string, string>>,
+    requested: Array<{ eventId: number | string; eventServiceId: number | string }>,
+): Promise<string[]> {
+    const results: string[] = [];
+    const candidates = await computeExportDeletions(pb, user, gridData);
+    const allowed = new Set(
+        candidates.map((c) => `${c.eventId}:${c.eventServiceId}`),
+    );
+
+    const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, userToken);
+
+    for (const it of requested) {
+        const key = `${it.eventId}:${it.eventServiceId}`;
+        if (!allowed.has(key)) {
+            results.push(`SKIP: ${key} ist kein gültiger Lösch-Kandidat (übersprungen)`);
+            continue;
+        }
+        try {
+            await client.deleteAssignment(it.eventId, it.eventServiceId);
+            results.push(`OK: Zuweisung ${it.eventServiceId} entfernt`);
+        } catch (e: any) {
+            results.push(`ERROR: ${it.eventServiceId} konnte nicht entfernt werden: ${e.message}`);
+        }
+    }
     return results;
 }
