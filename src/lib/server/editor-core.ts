@@ -58,6 +58,40 @@ function serviceIdForCode(code: string, dateStr: string): number | null {
  */
 const MANAGED_SERVICE_IDS = new Set<number>([1, 3, 61, 88, 91, 94, 117]);
 
+/**
+ * ChurchTools-serviceId → Plan-Code (Umkehrung von serviceIdForCode), so weit
+ * eindeutig. Der Kalender disambiguiert Predigt/Alsfeld/Bad Neustadt. Mehrdeutig
+ * bleiben '1'↔'2' (CT kennt nur „Predigt") und 'L'↔'🍷' – Default ist die
+ * häufige Variante ('1' bzw. 'L'); Abweichungen sieht der Nutzer als Konflikt.
+ */
+function codeForService(
+    serviceId: number,
+    calendarId: number | null,
+    _dateStr: string,
+): string | null {
+    switch (serviceId) {
+        case 1:
+            if (calendarId === 68) return 'BN';
+            if (calendarId === 65) return 'Als';
+            return '1';
+        case 3:
+            return 'L';
+        case 91:
+            if (calendarId === 65) return 'Als';
+            return 'BS';
+        case 94:
+            return 'GS';
+        case 88:
+            return 'Anf';
+        case 117:
+            return 'Schl';
+        case 61:
+            return 'V';
+        default:
+            return null;
+    }
+}
+
 /** Baut die Map `appointmentId-datum → CT-Event (inkl. eventServices)`. */
 async function buildEventByApptDate(
     client: ChurchToolsClient,
@@ -631,4 +665,112 @@ export async function applyExportDeletions(
         }
     }
     return results;
+}
+
+export interface ImportCandidate {
+    slotId: string;
+    date: string; // yyyy-MM-dd
+    personId: string;
+    personName: string;
+    serviceName: string;
+    currentCode: string; // aktueller Code im Grid ('' = leer)
+    newCode: string; // Code aus ChurchTools
+    status: 'new' | 'conflict';
+}
+
+/**
+ * Liest die ChurchTools-Zuweisungen (verwaltete Dienste, Plan-Prediger) im
+ * Plan-Zeitfenster und gleicht sie mit dem aktuellen Grid ab. Liefert nur die
+ * Einträge, die NEU wären ('new') oder vom Grid abweichen ('conflict').
+ * Unverändertes (gleiche serviceId) wird weggelassen. Es wird NICHTS verändert.
+ */
+export async function computeImport(
+    pb: PocketBase,
+    user: any,
+    gridData: Record<string, Record<string, string>>,
+    from: string,
+    to: string,
+    slots: Array<{ id: string; calendarId: number | null }>,
+): Promise<ImportCandidate[]> {
+    const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, userToken);
+
+    const preachersRaw = await pb.collection('members').getFullList();
+    const nameByCtId = new Map<string, string>();
+    const preacherCtIds = new Set<string>();
+    preachersRaw.forEach((p: any) => {
+        if (p.ct_id && p.name) {
+            nameByCtId.set(String(p.ct_id), p.name.trim());
+            preacherCtIds.add(String(p.ct_id));
+        }
+    });
+
+    const svcName = new Map<number, string>();
+    try {
+        for (const s of await client.getServices()) {
+            svcName.set(s.id, s.name || s.nameTranslated || '');
+        }
+    } catch {
+        /* Namen optional */
+    }
+
+    const calById = new Map<string, number | null>();
+    for (const s of slots) calById.set(s.id, s.calendarId ?? null);
+    const slotIdSet = new Set(slots.map((s) => s.id));
+
+    // CT-`to` ist exklusiv → einen Tag zugeben, damit der letzte Tag dabei ist.
+    const toEx = format(addDays(new Date(to), 1), 'yyyy-MM-dd');
+    let events: any[] = [];
+    try {
+        events = await client.getEventsWithServices(from, toEx);
+    } catch {
+        return [];
+    }
+
+    const out: ImportCandidate[] = [];
+    for (const ev of events) {
+        if (!ev.startDate || ev.appointmentId == null) continue;
+        const date = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
+        const slotId = `${ev.appointmentId}-${date}`;
+        if (!slotIdSet.has(slotId)) continue;
+        const cal = calById.get(slotId) ?? null;
+        for (const es of ev.eventServices || []) {
+            if (es.personId == null) continue;
+            const sid = Number(es.serviceId);
+            if (!MANAGED_SERVICE_IDS.has(sid)) continue;
+            const ctId = String(es.personId);
+            if (!preacherCtIds.has(ctId)) continue;
+            const newCode = codeForService(sid, cal, date);
+            if (!newCode) continue;
+            const name = nameByCtId.get(ctId)!;
+            const currentCode = gridData[slotId]?.[name] ?? '';
+            if (currentCode) {
+                // Gleiche CT-serviceId → unverändert (z. B. Grid '2' vs CT-Predigt).
+                if (serviceIdForCode(currentCode, date) === sid) continue;
+                out.push({
+                    slotId,
+                    date,
+                    personId: ctId,
+                    personName: name,
+                    serviceName: svcName.get(sid) || `Dienst ${sid}`,
+                    currentCode,
+                    newCode,
+                    status: 'conflict',
+                });
+            } else {
+                out.push({
+                    slotId,
+                    date,
+                    personId: ctId,
+                    personName: name,
+                    serviceName: svcName.get(sid) || `Dienst ${sid}`,
+                    currentCode: '',
+                    newCode,
+                    status: 'new',
+                });
+            }
+        }
+    }
+    out.sort((a, b) => `${a.date}${a.slotId}`.localeCompare(`${b.date}${b.slotId}`));
+    return out;
 }
