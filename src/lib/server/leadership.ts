@@ -17,6 +17,11 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 const TZ = 'Europe/Berlin';
 
+// ChurchTools-Gruppe „Bruderrat" (per MCP verifiziert). Für die Abwesenheits-
+// Ermittlung im Protokoll – einen globalen Absences-Endpunkt gibt es nicht,
+// Abwesenheiten müssen pro Gruppe abgefragt werden.
+const BRUDERRAT_GROUP_ID = '31';
+
 type Person = { name: string; initials: string; id: string | null; service?: string };
 
 function roleOf(serviceName: string): string {
@@ -496,9 +501,11 @@ export async function loadAgendaTemplate(user: any, targetDate?: string) {
     if (!moderator) { moderator = opener; moderatorId = openerId; }
 
     // CT-Abwesenheiten am Sitzungstag -> diese Personen-IDs gelten als abwesend.
+    // WICHTIG: mit der Bruderrat-Gruppe abfragen (ohne Gruppe liefert CT 404 →
+    // vorher waren Abwesenheiten im Protokoll NIE gesetzt).
     const absentIds: string[] = [];
     try {
-        const abs = await client.getAbsences(date, date);
+        const abs = await client.getAbsences(date, date, BRUDERRAT_GROUP_ID);
         for (const a of abs || []) {
             const s = (a.startDate || '').slice(0, 10);
             const e = (a.endDate || '').slice(0, 10);
