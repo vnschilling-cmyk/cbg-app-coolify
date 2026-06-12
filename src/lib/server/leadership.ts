@@ -292,6 +292,106 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
     return { from, to, services, absences };
 }
 
+/**
+ * Anstehende Gemeindestunden (Events mit „Gemeindestunde" im Titel) inkl. der
+ * Prediger-Dienste Einleitung/Abschluss aus ChurchTools – für die
+ * Gemeindestunden-Agenda (Datumsauswahl + Vorbelegung der Personen).
+ *
+ * Einleitung/Abschluss werden über den Dienstnamen erkannt; nutzt eine
+ * Gemeindestunde nur zwei „Predigt"-Dienste (ältere Termine), gilt der erste
+ * als Einleitung und der zweite als Abschluss.
+ */
+export async function loadGemeindestunden(user: any, fromStr?: string, toStr?: string) {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+
+    const today = new Date();
+    const from = fromStr || format(today, 'yyyy-MM-dd');
+    const to = toStr || format(addDays(today, 240), 'yyyy-MM-dd'); // ~8 Monate
+
+    const svcName = new Map<number, string>();
+    const svcSort = new Map<number, number>();
+    try {
+        for (const s of await client.getServices()) {
+            svcName.set(s.id, s.name || s.nameTranslated || '');
+            svcSort.set(s.id, typeof s.sortKey === 'number' ? s.sortKey : 999);
+        }
+    } catch (e) {
+        console.error('Gemeindestunden: getServices failed', e);
+    }
+
+    const out: any[] = [];
+    try {
+        const events = await client.getEventsWithServices(from, to);
+        for (const ev of events) {
+            if (!ev.startDate) continue;
+            const title = ev.name || ev.caption || '';
+            if (!/gemeindestunde/i.test(title)) continue;
+            const d = new Date(ev.startDate);
+
+            // Zugewiesene Dienste (mit Person) in CT-Reihenfolge sammeln.
+            const svcs: { service: string; person: Person; sort: number; key: number }[] = [];
+            let order = 0;
+            for (const es of ev.eventServices || []) {
+                if (!es.person || isArchived(es.person)) continue;
+                const nm = personName(es.person);
+                if (!nm) continue;
+                const sname = svcName.get(es.serviceId) || '';
+                const key = typeof es.index === 'number'
+                    ? es.index
+                    : typeof es.counter === 'number'
+                        ? es.counter
+                        : (typeof es.id === 'number' ? es.id : order);
+                order++;
+                svcs.push({
+                    service: sname,
+                    person: personObj(es.person),
+                    sort: svcSort.get(es.serviceId) ?? 999,
+                    key,
+                });
+            }
+            svcs.sort((a, b) => (a.sort - b.sort) || (a.key - b.key));
+
+            // Einleitung/Abschluss über den Dienstnamen, sonst „Predigt 1/2".
+            let opener: Person | null = null;
+            let closer: Person | null = null;
+            const preachers: Person[] = [];
+            for (const s of svcs) {
+                const n = s.service.toLowerCase();
+                if (!opener &&
+                    (n.includes('einleitung') || n.includes('eröffnung') ||
+                        n.includes('eroeffnung'))) {
+                    opener = s.person;
+                } else if (!closer &&
+                    (n.includes('abschluss') || n.includes('schluss'))) {
+                    closer = s.person;
+                } else if (n.includes('predigt')) {
+                    preachers.push(s.person);
+                }
+            }
+            if (!opener && preachers.length) opener = preachers[0];
+            if (!closer && preachers.length > 1) closer = preachers[1];
+
+            out.push({
+                date: formatInTimeZone(d, TZ, 'yyyy-MM-dd'),
+                time: formatInTimeZone(d, TZ, 'HH:mm'),
+                title,
+                opener: opener ? { name: opener.name, id: opener.id } : null,
+                closer: closer ? { name: closer.name, id: closer.id } : null,
+                services: svcs.map((s) => ({
+                    service: s.service, name: s.person.name, id: s.person.id,
+                })),
+            });
+        }
+        out.sort((a, b) =>
+            `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    } catch (e) {
+        console.error('Gemeindestunden: events failed', e);
+    }
+
+    return { appointments: out };
+}
+
 /** Alle Personen ≥80 Jahre (ohne Archiv) mit Geburtsdaten. */
 async function loadOver80(client: ChurchToolsClient) {
     const persons: any[] = [];
