@@ -690,6 +690,65 @@ export async function geminiCapture(
     return fallback;
 }
 
+/** Prompt: Diskussionsverlauf → Beschluss + Mitteilungstexte. */
+const PROTOCOL_TEXTS_PROMPT =
+    'Du fasst die Diskussion zu EINEM Tagesordnungspunkt einer Bruderrats-'
+    + 'Sitzung zusammen. Eingabe: das Thema des Punkts und der Diskussionsverlauf '
+    + '(Redebeiträge mit Sprecher). Formuliere sachlich, positiv und wertschätzend '
+    + 'in sauberem Hochdeutsch. Gib AUSSCHLIESSLICH gültiges JSON zurück (keine '
+    + 'Erklärung, kein Markdown, keine Code-Zäune): '
+    + '{"beschluss":"...","mitteilungKurz":"...","mitteilungLang":"..."}\n'
+    + 'beschluss: der gefasste Beschluss als 1–2 klare, formale Sätze.\n'
+    + 'mitteilungKurz: 1 knapper Satz als Mitteilung an die Gemeinde.\n'
+    + 'mitteilungLang: 2–4 Sätze als ausführlichere Mitteilung an die Gemeinde.\n'
+    + 'Erfinde keine Inhalte; stütze dich nur auf die Diskussion. Antworte Deutsch.';
+
+/**
+ * KI: leitet aus dem Diskussionsverlauf eines Punkts einen Beschlussvorschlag
+ * und zwei Mitteilungstexte (knapp/ausführlich) ab. Vorschläge – manuell
+ * anpassbar. Ohne Key/Inhalt → leere Strings (Fallback: Punkt-Text).
+ */
+export async function geminiProtocolTexts(
+    pointText: string,
+    discussion: { name?: string; text?: string }[],
+    apiKey: string,
+): Promise<{ beschluss: string; mitteilungKurz: string; mitteilungLang: string }> {
+    const lines = (discussion || [])
+        .map((d) => `${(d.name || 'Sprecher')}: ${(d.text || '').trim()}`)
+        .filter((l) => l.trim().length > 0)
+        .join('\n');
+    const empty = { beschluss: '', mitteilungKurz: '', mitteilungLang: '' };
+    if (!apiKey || (!lines && !(pointText || '').trim())) return empty;
+    const prompt = `${PROTOCOL_TEXTS_PROMPT}\n\n--- THEMA ---\n${(pointText || '').trim()}`
+        + `\n\n--- DISKUSSION ---\n${lines || '(kein Verlauf – nutze das Thema)'}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '');
+                return {
+                    beschluss: (j?.beschluss ?? '').toString().trim(),
+                    mitteilungKurz: (j?.mitteilungKurz ?? '').toString().trim(),
+                    mitteilungLang: (j?.mitteilungLang ?? '').toString().trim(),
+                };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Prompt: KI-Sekretär – Anfrage über den Content beantworten + Aktionen. */
 const ASSISTANT_PROMPT =
     'Du bist der KI-Sekretär einer Gemeinde-Verwaltungs-App (Gremium/Bruderrat). '
