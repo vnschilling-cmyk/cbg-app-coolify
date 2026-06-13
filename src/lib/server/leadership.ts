@@ -306,7 +306,10 @@ export async function loadGemeindestunden(user: any, fromStr?: string, toStr?: s
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
 
     const today = new Date();
-    const from = fromStr || format(today, 'yyyy-MM-dd');
+    // Auch kürzlich vergangene Gemeindestunden einbeziehen (~4 Monate zurück),
+    // damit beim Bearbeiten einer bereits stattgefundenen Gemeindestunde die
+    // Prediger (Einleitung/Abschluss) weiterhin aus dem Termin vorbelegt werden.
+    const from = fromStr || format(addDays(today, -120), 'yyyy-MM-dd');
     const to = toStr || format(addDays(today, 240), 'yyyy-MM-dd'); // ~8 Monate
 
     const svcName = new Map<number, string>();
