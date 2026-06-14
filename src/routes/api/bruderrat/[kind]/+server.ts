@@ -14,6 +14,7 @@ import {
     adminPb, ensureAppConfig, getConfig, setConfig, genId,
     ensureBruderratMeetings,
 } from '$lib/server/admin';
+import { ensureGemeindestunden } from '$lib/server/leadership';
 
 export const OPTIONS = async () => preflight();
 
@@ -40,6 +41,11 @@ export async function GET({ request, params }) {
         const pb = await adminPb();
         await ensureAppConfig(pb);
         if (params.kind === 'meetings') await ensureBruderratMeetings(pb);
+        // Anstehende CT-Gemeindestunden automatisch als geplante Datensätze
+        // einpflegen (Datum + Einleitung/Abschluss vorbefüllt).
+        if (params.kind === 'gemeindestunden') {
+            await ensureGemeindestunden(pb, user);
+        }
         return json({ items: await readList(pb, params.kind) });
     } catch (e: any) {
         return json({ error: e?.message || 'Fehler beim Laden' }, 500);

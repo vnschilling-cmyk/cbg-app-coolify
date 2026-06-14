@@ -14,6 +14,7 @@ import {
 } from '$env/static/private';
 import { format, addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
+import { getConfig, setConfig, genId } from '$lib/server/admin';
 
 const TZ = 'Europe/Berlin';
 
@@ -433,6 +434,60 @@ export async function loadGemeindestunden(user: any, fromStr?: string, toStr?: s
     }
 
     return { appointments: out };
+}
+
+/**
+ * Stellt sicher, dass für jede ANSTEHENDE ChurchTools-Gemeindestunde ein
+ * GEPLANTER Agenda-Datensatz (`bruderrat_gemeindestunden`) existiert –
+ * vorbefüllt mit Datum + Einleitung/Abschluss (Prediger aus CT). So ist die
+ * Gemeindestunde überall „eingepflegt", ohne dass sie von Hand angelegt werden
+ * muss. Dedup über das Datum; bestehende Datensätze bleiben unverändert.
+ */
+export async function ensureGemeindestunden(pb: any, user: any): Promise<void> {
+    let appts: any[] = [];
+    try {
+        // Nur den näheren Vorlauf (~6 Wochen) automatisch einpflegen.
+        const to = format(addDays(new Date(), 45), 'yyyy-MM-dd');
+        const res = await loadGemeindestunden(user, undefined, to);
+        appts = Array.isArray(res?.appointments) ? res.appointments : [];
+    } catch (e) {
+        console.error('ensureGemeindestunden: CT failed', e);
+        return;
+    }
+    if (!appts.length) return;
+
+    const raw = await getConfig(pb, 'bruderrat_gemeindestunden');
+    const list: any[] = Array.isArray(raw) ? raw : [];
+    const haveDates = new Set(
+        list.map((g: any) => (g?.date || '').toString()).filter(Boolean));
+    const todayIso = formatInTimeZone(new Date(), TZ, 'yyyy-MM-dd');
+
+    let changed = false;
+    for (const a of appts) {
+        const date = (a?.date || '').toString();
+        if (!date || date < todayIso) continue; // nur anstehende
+        if (haveDates.has(date)) continue;       // schon vorhanden
+        const op = a?.opener;
+        const cl = a?.closer;
+        list.unshift({
+            id: genId(),
+            date,
+            status: 'geplant',
+            intro: op
+                ? { name: op.name || '', id: (op.id || '').toString() }
+                : { name: '' },
+            closing: cl
+                ? { name: cl.name || '', id: (cl.id || '').toString() }
+                : { name: '' },
+            items: [],
+            attendance: [],
+            source: 'ChurchTools',
+            createdAt: new Date().toISOString(),
+        });
+        haveDates.add(date);
+        changed = true;
+    }
+    if (changed) await setConfig(pb, 'bruderrat_gemeindestunden', list);
 }
 
 /** Alle Personen ≥80 Jahre (ohne Archiv) mit Geburtsdaten. */
