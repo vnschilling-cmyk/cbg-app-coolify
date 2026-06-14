@@ -22,6 +22,11 @@ const TZ = 'Europe/Berlin';
 // Abwesenheiten müssen pro Gruppe abgefragt werden.
 const BRUDERRAT_GROUP_ID = '31';
 
+// Kalender „Schulungen-Treffen" (per MCP verifiziert, id 60): Termine wie
+// Predigergemeinschaft/Dirigenten-Treffen – auch an Wochentagen, die nicht ins
+// Sonntags-/Freitags-Raster der Gottesdienstleitung passen.
+const SCHULUNGEN_TREFFEN_CALENDAR = 60;
+
 type Person = { name: string; initials: string; id: string | null; service?: string };
 
 function roleOf(serviceName: string): string {
@@ -289,7 +294,42 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
         console.error('Leadership: absences failed', e);
     }
 
-    return { from, to, services, absences };
+    // Schulungen & Treffen (Kalender 60): wichtige Termine (z. B.
+    // Predigergemeinschaft), auch an anderen Tagen/Zeiten. Termine, die bereits
+    // als Gottesdienst-Slot (Datum+Zeit) erfasst sind, werden nicht doppelt
+    // gezeigt.
+    let treffen: any[] = [];
+    try {
+        const serviceKeys = new Set(
+            services.map((s: any) => `${s.date} ${s.time}`));
+        const appts = await client.getAppointments(
+            [SCHULUNGEN_TREFFEN_CALENDAR], from, to);
+        treffen = (appts || [])
+            .map((a: any) => {
+                const base = a.base || a.appointment?.base || a;
+                const calc = a.calculated || a.appointment?.calculated || base;
+                const start = calc?.startDate || base?.startDate;
+                if (!start) return null;
+                const d = new Date(start);
+                return {
+                    date: formatInTimeZone(d, TZ, 'yyyy-MM-dd'),
+                    time: String(start).length > 10
+                        ? formatInTimeZone(d, TZ, 'HH:mm')
+                        : '',
+                    weekday: Number(formatInTimeZone(d, TZ, 'i')),
+                    title: base?.title || base?.caption || 'Treffen',
+                    subtitle: base?.subtitle || base?.note || '',
+                };
+            })
+            .filter((t: any) =>
+                t && !serviceKeys.has(`${t.date} ${t.time}`))
+            .sort((a: any, b: any) =>
+                `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    } catch (e) {
+        console.error('Leadership: treffen failed', e);
+    }
+
+    return { from, to, services, absences, treffen };
 }
 
 /**
