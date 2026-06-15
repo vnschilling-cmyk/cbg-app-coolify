@@ -5,7 +5,7 @@ import { adminPb, ensureFreizeitAgenda, isJugendLeitung } from '$lib/server/admi
 export const OPTIONS: RequestHandler = async () => preflight();
 
 const FIELDS = ['datum', 'start_time', 'duration_minutes', 'titel',
-    'kategorie', 'ort', 'notiz', 'sort_order'];
+    'kategorie', 'ort', 'notiz', 'verantwortliche', 'sort_order'];
 
 function pick(body: any): Record<string, unknown> {
     const out: Record<string, unknown> = {};
