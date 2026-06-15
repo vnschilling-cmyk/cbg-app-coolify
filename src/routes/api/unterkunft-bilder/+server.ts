@@ -30,6 +30,7 @@ export const POST: RequestHandler = async ({ request }) => {
         await ensureUnterkunftBilder(pb);
         const rec = await pb.collection('unterkunft_bilder').create({
             unterkunft,
+            bereich: (body?.bereich ?? '').toString(),
             name: (body?.name ?? '').toString(),
             bild_b64: b64,
             sort_order: Number(body?.sort_order ?? 0),
