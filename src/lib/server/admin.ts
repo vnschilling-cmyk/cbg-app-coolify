@@ -272,6 +272,7 @@ export const MENU_KEYS = [
     'prediger',
     'bruderrat',
     'gottesdienstleitung',
+    'jugend',
     'einstellungen',
 ] as const;
 
@@ -1160,9 +1161,13 @@ export function permsForRole(
     if (!s) return def;
     // Alt-Schlüssel migrieren: „besprechungen" wurde zu „bruderrat" umbenannt,
     // damit zuvor gespeicherte Rechte-Matrizen den neuen Bereich weiter freigeben.
+    // Neue Struktur-Bereiche (z. B. „jugend") sind standardmäßig sichtbar, auch
+    // wenn die gespeicherte Matrix sie (mangels Existenz) noch nicht kennt.
     const menus = Array.isArray(s.menus)
-        ? [...new Set(s.menus.map((m) =>
-            (m === 'besprechungen' ? 'bruderrat' : m)))]
+        ? [...new Set([
+            ...s.menus.map((m) => (m === 'besprechungen' ? 'bruderrat' : m)),
+            'jugend',
+        ])]
         : def.menus;
     return {
         menus,
