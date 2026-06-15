@@ -10,6 +10,10 @@ import PocketBase from 'pocketbase';
 import zlib from 'node:zlib';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
+import { ChurchToolsClient } from '$lib/server/churchtools';
+
+/** CT-Gruppe „Jugend" (Leiter/Co-Leiter = Jugendleitung, Bearbeitungsrecht). */
+export const JUGEND_GROUP_ID = 19;
 
 const PB_URL = PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
 
@@ -1025,6 +1029,106 @@ export async function ensureProtocols(pb: PocketBase): Promise<void> {
         { name: 'original_text', type: 'text' },
         { name: 'reworked_text', type: 'text' },
     ]);
+}
+
+/** Legt die `freizeiten`-Collection an, falls sie noch nicht existiert. */
+export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('freizeiten');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeiten', [
+        { name: 'titel', type: 'text', required: true },
+        { name: 'jahr', type: 'number' },
+        { name: 'land', type: 'text' },
+        { name: 'motto', type: 'text' },
+        { name: 'thema', type: 'text' },
+        { name: 'von', type: 'text' }, // yyyy-MM-dd
+        { name: 'bis', type: 'text' },
+        { name: 'status', type: 'text' }, // geplant | laeuft | durchgefuehrt
+    ]);
+}
+
+/**
+ * CT-Personen-ID des angemeldeten Nutzers ermitteln (für Gruppen-/Rollen-
+ * Prüfungen). Erst schneller Namens-Treffer in `members.ct_id`, sonst über
+ * die ChurchTools-Personensuche (Name + E-Mail-Abgleich).
+ */
+export async function resolvePersonId(
+    pb: PocketBase,
+    user: { name?: string; email?: string } | null,
+): Promise<string | null> {
+    const nm = (user?.name || '').toString().trim();
+    if (!nm) return null;
+    try {
+        const m = await pb.collection('members').getFirstListItem(`name="${nm}"`);
+        if (m?.ct_id) return String(m.ct_id);
+    } catch (_) { /* kein PB-Treffer */ }
+    try {
+        const base = env.CHURCHTOOLS_BASE_URL;
+        const token = env.CHURCHTOOLS_TOKEN;
+        if (!base || !token) return null;
+        const client = new ChurchToolsClient(base, token);
+        const r: any = await client.request(
+            `persons?query=${encodeURIComponent(nm)}&limit=25`);
+        const list: any[] = r.data || [];
+        const email = (user?.email || '').toString().toLowerCase();
+        let hit = email
+            ? list.find((p) => (p.email || '').toString().toLowerCase() === email)
+            : null;
+        hit ??= list.find((p) =>
+            `${p.firstName || ''} ${p.lastName || ''}`.trim().toLowerCase()
+                === nm.toLowerCase());
+        if (!hit && list.length === 1) hit = list[0];
+        if (hit) return String(hit.id ?? hit.domainIdentifier);
+    } catch (_) { /* ignore */ }
+    return null;
+}
+
+/**
+ * Darf der Nutzer Jugendfreizeiten bearbeiten? Admins immer, sonst nur
+ * Leiter/Co-Leiter der CT-Gruppe „Jugend" (= Jugendleitung). Fällt bei
+ * Fehlern restriktiv aus (false), außer Admin.
+ */
+export async function isJugendLeitung(
+    user: { id: string; role?: string; name?: string; email?: string } | null,
+): Promise<boolean> {
+    if (!user) return false;
+    try {
+        const pb = await adminPb();
+        const roleMap = (await getConfig(pb, 'user_roles')) || {};
+        const role = effectiveRole(user.id, user.role, roleMap);
+        if (role === 'admin') return true;
+
+        const personId = await resolvePersonId(pb, user);
+        if (!personId) return false;
+
+        const base = env.CHURCHTOOLS_BASE_URL;
+        const token = env.CHURCHTOOLS_TOKEN;
+        if (!base || !token) return false;
+        const client = new ChurchToolsClient(base, token);
+
+        // Leiter-Rollen der Gruppe ermitteln (groupTypeRoleId mit isLeader).
+        const g: any = await client.request(`groups/${JUGEND_GROUP_ID}`);
+        const roles: any[] = (g.data?.roles) || g.roles || [];
+        const leaderRoleIds = new Set(
+            roles.filter((r) => r.isLeader === true || r.type === 'leader')
+                .map((r) => Number(r.groupTypeRoleId ?? r.id)));
+
+        const mem: any = await client.request(
+            `groups/${JUGEND_GROUP_ID}/members?limit=200`);
+        for (const m of (mem.data || [])) {
+            const pid = String(m.personId ?? m.person?.domainIdentifier ?? '');
+            if (pid !== String(personId)) continue;
+            const rid = Number(m.groupTypeRoleId ?? m.groupMemberRoleId ?? -1);
+            if (leaderRoleIds.has(rid)) return true;
+        }
+        return false;
+    } catch {
+        return false;
+    }
 }
 
 export async function getConfig(pb: PocketBase, key: string): Promise<any> {
