@@ -1,8 +1,8 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
 import {
-    adminPb, ensureUnterkuenfte, ensureUnterkunftBilder, isJugendLeitung,
-    pickUnterkunft,
+    adminPb, ensureUnterkuenfte, ensureUnterkunftBilder,
+    ensureUnterkunftAusflug, isJugendLeitung, pickUnterkunft,
 } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
@@ -15,14 +15,21 @@ export const GET: RequestHandler = async ({ request, params }) => {
         const pb = await adminPb();
         await ensureUnterkuenfte(pb);
         await ensureUnterkunftBilder(pb);
+        await ensureUnterkunftAusflug(pb);
         const rec = await pb.collection('unterkuenfte').getOne(params.id!);
         const bilder = await pb.collection('unterkunft_bilder').getFullList({
             filter: `unterkunft="${params.id}"`,
             sort: 'sort_order,created',
         });
+        const ausflugsziele = await pb
+            .collection('unterkunft_ausflugsziele').getFullList({
+                filter: `unterkunft="${params.id}"`,
+                sort: 'sort_order,created',
+            });
         return json({
             unterkunft: rec,
             bilder,
+            ausflugsziele,
             canEdit: await isJugendLeitung(user),
         });
     } catch (e: any) {
