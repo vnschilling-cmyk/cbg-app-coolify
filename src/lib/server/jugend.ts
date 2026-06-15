@@ -19,6 +19,8 @@ export const JUGEND_CALENDAR_ID = 3;
 export const JUGEND_WORTDIENST_GROUP_ID = 228;
 /** ChurchTools-Gruppe „Klavierspieler" (Dienst „Klavierspieler", serviceId 10). */
 export const KLAVIERSPIELER_GROUP_ID = 136;
+/** ChurchTools-Gruppe „Jugend" (für Zuweisungen in Freizeit-Checklisten). */
+export const JUGEND_GROUP_ID = 19;
 /** Status „Mitglied" (isMember = true). */
 const MEMBER_STATUS_ID = 3;
 const SEX_MALE = 1;
@@ -125,6 +127,34 @@ export async function loadJugendPlan(user: any, fromStr?: string, toStr?: string
         `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 
     return { from, to, events };
+}
+
+/**
+ * Mitglieder der CT-Gruppe „Jugend" (19) als [{name, id}] – für Zuweisungen
+ * in Freizeit-Checklisten u. ä. (Schnellauswahl).
+ */
+export async function loadJugendGroupMembers(user: any) {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    const out: { name: string; id: string }[] = [];
+    try {
+        const r = await client.request(
+            `groups/${JUGEND_GROUP_ID}/members?limit=200`);
+        for (const m of (r.data || [])) {
+            const p = m.person;
+            if (isArchived(p)) continue;
+            const da = p?.domainAttributes;
+            const name = da
+                ? `${da.firstName || ''} ${da.lastName || ''}`.trim()
+                : (p?.title || '').toString();
+            const id = String(m.personId ?? p?.domainIdentifier ?? '');
+            if (name && id) out.push({ name, id });
+        }
+    } catch (e) {
+        console.error('Jugend: Gruppenmitglieder laden fehlgeschlagen', e);
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    return { people: out };
 }
 
 /**
