@@ -1219,19 +1219,34 @@ export async function ensureFreizeitAgenda(pb: PocketBase): Promise<void> {
     await createCollection(pb, 'freizeit_agenda', fields);
 }
 
-/** Bewertungskriterien einer Unterkunft (je 1–5 Sterne, 0 = nicht bewertet). */
-export const UNTERKUNFT_KRITERIEN = [
-    'r_gemeinschaftsraum',
-    'r_kueche',
-    'r_schlafraeume',
-    'r_sanitaer',
-    'r_ausstattung', // Spielgeräte/Freizeitmöglichkeiten am Haus
-    'r_gelaende', // Gelände am Haus / Außengelände
-    'r_aktivitaeten_umgebung',
-    'r_lage',
-    'r_aussicht',
-    'r_zustand',
+/**
+ * Bewertbare Bereiche einer Unterkunft (Reihenfolge = Anzeige). Je Bereich:
+ * Sterne `r_<key>` (0 = nicht bewertet), kurze Beschreibung `d_<key>` und
+ * eigene Bilder (`unterkunft_bilder.bereich = <key>`). `vorschau` (Gebäude
+ * von außen) dient als Titelbild und wird NICHT mitbewertet.
+ */
+export const UNTERKUNFT_BEREICHE = [
+    'vorschau', // Gebäude / Titelbild – ohne Sterne
+    'gemeinschaftsraum',
+    'kueche',
+    'schlafraeume',
+    'sanitaer',
+    'hobbyraum',
+    'gelaende', // Außengelände
+    'ausstattung', // Spielgeräte/Freizeitmöglichkeiten am Haus
+    'aktivitaeten_umgebung',
+    'lage',
+    'aussicht',
+    'zustand',
 ] as const;
+
+/** Bewertungskriterien (alle Bereiche außer `vorschau`). */
+export const UNTERKUNFT_KRITERIEN = UNTERKUNFT_BEREICHE
+    .filter((b) => b !== 'vorschau')
+    .map((b) => `r_${b}`);
+
+/** Beschreibungs-Felder je Bereich (`d_<key>`). */
+export const UNTERKUNFT_BESCHREIBUNGEN = UNTERKUNFT_BEREICHE.map((b) => `d_${b}`);
 
 /** Gesamtnote = Mittel der gesetzten (>0) Kriterien, auf 2 Stellen gerundet. */
 export function unterkunftGesamtnote(rec: Record<string, unknown>): number {
@@ -1248,7 +1263,7 @@ const UNTERKUNFT_FIELDS = [
     'name', 'strasse', 'plz', 'ort', 'land', 'website',
     'kontakt_name', 'kontakt_telefon', 'kontakt_email', 'beschreibung',
     'kapazitaet', 'rezension', 'bewertet_von_name', 'bewertet_von_id',
-    'bewertet_am', ...UNTERKUNFT_KRITERIEN,
+    'bewertet_am', ...UNTERKUNFT_KRITERIEN, ...UNTERKUNFT_BESCHREIBUNGEN,
 ];
 
 /** Übernimmt nur erlaubte Felder + berechnet `gesamtnote` serverseitig. */
@@ -1261,15 +1276,9 @@ export function pickUnterkunft(body: any): Record<string, unknown> {
     return out;
 }
 
-/** Legt die `unterkuenfte`-Collection an, falls sie noch nicht existiert. */
+/** Legt die `unterkuenfte`-Collection an + zieht neue Felder nach. */
 export async function ensureUnterkuenfte(pb: PocketBase): Promise<void> {
-    try {
-        await pb.collections.getOne('unterkuenfte');
-        return;
-    } catch (e: any) {
-        if (e?.status && e.status !== 404) throw e;
-    }
-    await createCollection(pb, 'unterkuenfte', [
+    const fields = [
         { name: 'name', type: 'text', required: true },
         { name: 'strasse', type: 'text' },
         { name: 'plz', type: 'text' },
@@ -1285,27 +1294,38 @@ export async function ensureUnterkuenfte(pb: PocketBase): Promise<void> {
         { name: 'bewertet_von_name', type: 'text' },
         { name: 'bewertet_von_id', type: 'text' },
         { name: 'bewertet_am', type: 'text' },
-        ...UNTERKUNFT_KRITERIEN.map((k) => ({ name: k, type: 'number' as const })),
+        ...UNTERKUNFT_KRITERIEN.map((k) => ({ name: k, type: 'number' })),
+        ...UNTERKUNFT_BESCHREIBUNGEN.map((k) => ({ name: k, type: 'text' })),
         { name: 'gesamtnote', type: 'number' },
-    ]);
-}
-
-/** Legt die `unterkunft_bilder`-Collection an (Bilder als Base64-Text). */
-export async function ensureUnterkunftBilder(pb: PocketBase): Promise<void> {
+    ];
     try {
-        await pb.collections.getOne('unterkunft_bilder');
+        await pb.collections.getOne('unterkuenfte');
+        await ensureFields(pb, 'unterkuenfte', fields);
         return;
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
     }
-    // Wie bei `protocols`: KEIN Datei-Feld (auf älterem PocketBase problematisch),
-    // Bild als Base64-Data-URL in einem Textfeld.
-    await createCollection(pb, 'unterkunft_bilder', [
+    await createCollection(pb, 'unterkuenfte', fields);
+}
+
+/** Legt die `unterkunft_bilder`-Collection an (Bilder als Base64-Text). */
+export async function ensureUnterkunftBilder(pb: PocketBase): Promise<void> {
+    // Wie bei `protocols`: KEIN Datei-Feld, Bild als Base64-Data-URL im Textfeld.
+    const fields = [
         { name: 'unterkunft', type: 'text', required: true },
+        { name: 'bereich', type: 'text' }, // Bereichs-Key (kueche, gelaende, …)
         { name: 'name', type: 'text' },
         { name: 'bild_b64', type: 'text' },
         { name: 'sort_order', type: 'number' },
-    ]);
+    ];
+    try {
+        await pb.collections.getOne('unterkunft_bilder');
+        await ensureFields(pb, 'unterkunft_bilder', fields);
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'unterkunft_bilder', fields);
 }
 
 /**
