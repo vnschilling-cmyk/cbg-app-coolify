@@ -1094,37 +1094,45 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     ]);
 }
 
+// Hinweis: KEINE `bool`-Felder – die hiesige PocketBase legt sie über die API
+// nicht zuverlässig an (Collection-Anlage schlug fehl). Wahrheitswerte als
+// `number` (0/1) ablegen.
+
 /** Legt die `packliste_vorlage`-Collection an (zentrale Packlisten-Vorlage). */
 export async function ensurePacklisteVorlage(pb: PocketBase): Promise<void> {
+    const fields = [
+        { name: 'kategorie', type: 'text' }, // Kleidung / Hygiene / Dokumente …
+        { name: 'titel', type: 'text' },
+        { name: 'pflicht', type: 'number' }, // 0/1
+        { name: 'sort_order', type: 'number' },
+    ];
     try {
         await pb.collections.getOne('packliste_vorlage');
+        await ensureFields(pb, 'packliste_vorlage', fields);
         return;
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
     }
-    await createCollection(pb, 'packliste_vorlage', [
-        { name: 'kategorie', type: 'text' }, // Kleidung / Hygiene / Dokumente …
-        { name: 'titel', type: 'text' },
-        { name: 'pflicht', type: 'bool' },
-        { name: 'sort_order', type: 'number' },
-    ]);
+    await createCollection(pb, 'packliste_vorlage', fields);
 }
 
 /** Legt die `freizeit_packliste`-Collection an (Packliste je Freizeit). */
 export async function ensureFreizeitPackliste(pb: PocketBase): Promise<void> {
+    const fields = [
+        { name: 'freizeit', type: 'text', required: true },
+        { name: 'kategorie', type: 'text' },
+        { name: 'titel', type: 'text' },
+        { name: 'pflicht', type: 'number' }, // 0/1
+        { name: 'sort_order', type: 'number' },
+    ];
     try {
         await pb.collections.getOne('freizeit_packliste');
+        await ensureFields(pb, 'freizeit_packliste', fields);
         return;
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
     }
-    await createCollection(pb, 'freizeit_packliste', [
-        { name: 'freizeit', type: 'text', required: true },
-        { name: 'kategorie', type: 'text' },
-        { name: 'titel', type: 'text' },
-        { name: 'pflicht', type: 'bool' },
-        { name: 'sort_order', type: 'number' },
-    ]);
+    await createCollection(pb, 'freizeit_packliste', fields);
 }
 
 /** Legt die `freizeit_helfer`-Collection an (Helferliste). */
@@ -1147,22 +1155,24 @@ export async function ensureFreizeitHelfer(pb: PocketBase): Promise<void> {
 
 /** Legt die `freizeit_checklist`-Collection an (Organisation / Aufgaben). */
 export async function ensureFreizeitChecklist(pb: PocketBase): Promise<void> {
-    try {
-        await pb.collections.getOne('freizeit_checklist');
-        return;
-    } catch (e: any) {
-        if (e?.status && e.status !== 404) throw e;
-    }
-    await createCollection(pb, 'freizeit_checklist', [
+    const fields = [
         { name: 'freizeit', type: 'text', required: true },
         { name: 'gruppe', type: 'text' }, // Checklisten-Kategorie
         { name: 'titel', type: 'text' },
-        { name: 'erledigt', type: 'bool' },
+        { name: 'erledigt', type: 'number' }, // 0/1 (kein bool, s. o.)
         { name: 'assignee_name', type: 'text' },
         { name: 'assignee_id', type: 'text' }, // CT-Personen-ID
         { name: 'faellig', type: 'text' }, // yyyy-MM-dd
         { name: 'sort_order', type: 'number' },
-    ]);
+    ];
+    try {
+        await pb.collections.getOne('freizeit_checklist');
+        await ensureFields(pb, 'freizeit_checklist', fields);
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_checklist', fields);
 }
 
 /** Legt die `unterkunft_ausflugsziele`-Collection an (Ausflüge/Aktivitäten). */
@@ -1186,13 +1196,7 @@ export async function ensureUnterkunftAusflug(pb: PocketBase): Promise<void> {
 
 /** Legt die `freizeit_agenda`-Collection an (Tagesablauf / Bucket-Agenda). */
 export async function ensureFreizeitAgenda(pb: PocketBase): Promise<void> {
-    try {
-        await pb.collections.getOne('freizeit_agenda');
-        return;
-    } catch (e: any) {
-        if (e?.status && e.status !== 404) throw e;
-    }
-    await createCollection(pb, 'freizeit_agenda', [
+    const fields = [
         { name: 'freizeit', type: 'text', required: true },
         { name: 'datum', type: 'text' }, // yyyy-MM-dd (Tages-Bucket)
         { name: 'start_time', type: 'text' }, // HH:MM
@@ -1201,8 +1205,18 @@ export async function ensureFreizeitAgenda(pb: PocketBase): Promise<void> {
         { name: 'kategorie', type: 'text' },
         { name: 'ort', type: 'text' },
         { name: 'notiz', type: 'text' },
+        // Zuständige Personen (mehrere) als JSON-Array [{name,id}].
+        { name: 'verantwortliche', type: 'json', maxSize: 200000 },
         { name: 'sort_order', type: 'number' },
-    ]);
+    ];
+    try {
+        await pb.collections.getOne('freizeit_agenda');
+        await ensureFields(pb, 'freizeit_agenda', fields);
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_agenda', fields);
 }
 
 /** Bewertungskriterien einer Unterkunft (je 1–5 Sterne, 0 = nicht bewertet). */
