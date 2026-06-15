@@ -169,15 +169,19 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             // pressen (z. B. „Einleitung" → faelschlich „Leitung").
             const gsList: { service: string; person: any; sort: number; key: number }[] = [];
             // Unbesetzte, vom Plan verwaltete Dienste (leerer Slot ohne Person).
-            const openSlots: string[] = [];
+            // Trägt serviceId + eventId mit, damit die App direkt zuweisen kann.
+            const openSlots: { name: string; serviceId: number; eventId: string }[] = [];
             let order = 0;
             for (const es of ev.eventServices || []) {
                 const nm = personName(es.person);
                 const filled = !!nm && !isArchived(es.person);
                 if (!filled) {
                     if (MANAGED_SERVICE_IDS.has(es.serviceId)) {
-                        openSlots.push(
-                            svcName.get(es.serviceId) || `Dienst ${es.serviceId}`);
+                        openSlots.push({
+                            name: svcName.get(es.serviceId) || `Dienst ${es.serviceId}`,
+                            serviceId: es.serviceId,
+                            eventId: String(ev.id ?? ''),
+                        });
                     }
                     continue;
                 }
