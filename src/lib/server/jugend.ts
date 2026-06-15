@@ -17,6 +17,12 @@ const TZ = 'Europe/Berlin';
 export const JUGEND_CALENDAR_ID = 3;
 /** ChurchTools-Gruppe „Jugend Wortdienst" (Personen-Pool / Bearbeitungsrecht). */
 export const JUGEND_WORTDIENST_GROUP_ID = 228;
+/** ChurchTools-Gruppe „Klavierspieler" (Dienst „Klavierspieler", serviceId 10). */
+export const KLAVIERSPIELER_GROUP_ID = 136;
+/** Status „Mitglied" (isMember = true). */
+const MEMBER_STATUS_ID = 3;
+const SEX_MALE = 1;
+const SEX_FEMALE = 2;
 
 function personName(person: any): string {
     if (!person) return '';
@@ -119,4 +125,57 @@ export async function loadJugendPlan(user: any, fromStr?: string, toStr?: string
         `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 
     return { from, to, events };
+}
+
+/**
+ * Personenliste zum Zuweisen im Jugend-Dienstplan: ALLE männlichen Mitglieder
+ * (Status „Mitglied") + weibliche Personen, die als Klavierspieler markiert sind
+ * (Mitglied der CT-Gruppe „Klavierspieler", id 136). Rückgabe { people:[{name,id}] }.
+ */
+export async function loadJugendPeople(user: any) {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+
+    // Klavierspieler-Gruppe: personIds sammeln (für die weibliche Ausnahme).
+    const pianistIds = new Set<string>();
+    try {
+        const r = await client.request(
+            `groups/${KLAVIERSPIELER_GROUP_ID}/members?limit=200`);
+        for (const m of (r.data || [])) {
+            const pid = m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
+            if (pid != null) pianistIds.add(String(pid));
+        }
+    } catch (e) {
+        console.error('Jugend: Klavierspieler-Gruppe laden fehlgeschlagen', e);
+    }
+
+    // Alle Personen paginiert laden.
+    const persons: any[] = [];
+    try {
+        for (let page = 1; page <= 15; page++) {
+            const r = await client.request(`persons?page=${page}&limit=100`);
+            const batch = r.data || [];
+            persons.push(...batch);
+            if (batch.length < 100) break;
+        }
+    } catch (e) {
+        console.error('Jugend: persons laden fehlgeschlagen', e);
+    }
+
+    const people: { name: string; id: string; sort: string }[] = [];
+    for (const p of persons) {
+        if (isArchived(p)) continue;
+        const sexId = p.sexId;
+        const statusId = p.statusId;
+        const id = String(p.domainIdentifier ?? p.id ?? '');
+        if (!id) continue;
+        const male = sexId === SEX_MALE && statusId === MEMBER_STATUS_ID;
+        const femalePianist = sexId === SEX_FEMALE && pianistIds.has(id);
+        if (!male && !femalePianist) continue;
+        const name = `${p.firstName || ''} ${p.lastName || ''}`.trim();
+        if (!name) continue;
+        people.push({ name, id, sort: `${p.lastName || ''} ${p.firstName || ''}` });
+    }
+    people.sort((a, b) => a.sort.localeCompare(b.sort, 'de'));
+    return { people: people.map((p) => ({ name: p.name, id: p.id })) };
 }
