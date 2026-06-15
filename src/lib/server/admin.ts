@@ -1094,6 +1094,24 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     ]);
 }
 
+/** Legt die `freizeit_helfer`-Collection an (Helferliste). */
+export async function ensureFreizeitHelfer(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('freizeit_helfer');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_helfer', [
+        { name: 'freizeit', type: 'text', required: true },
+        { name: 'person_name', type: 'text' },
+        { name: 'person_id', type: 'text' }, // CT-Personen-ID
+        { name: 'rolle', type: 'text' }, // z. B. Küche / Programm / Fahrer
+        { name: 'notiz', type: 'text' },
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
 /** Legt die `freizeit_checklist`-Collection an (Organisation / Aufgaben). */
 export async function ensureFreizeitChecklist(pb: PocketBase): Promise<void> {
     try {
