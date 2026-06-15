@@ -1094,6 +1094,39 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     ]);
 }
 
+/** Legt die `packliste_vorlage`-Collection an (zentrale Packlisten-Vorlage). */
+export async function ensurePacklisteVorlage(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('packliste_vorlage');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'packliste_vorlage', [
+        { name: 'kategorie', type: 'text' }, // Kleidung / Hygiene / Dokumente …
+        { name: 'titel', type: 'text' },
+        { name: 'pflicht', type: 'bool' },
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
+/** Legt die `freizeit_packliste`-Collection an (Packliste je Freizeit). */
+export async function ensureFreizeitPackliste(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('freizeit_packliste');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_packliste', [
+        { name: 'freizeit', type: 'text', required: true },
+        { name: 'kategorie', type: 'text' },
+        { name: 'titel', type: 'text' },
+        { name: 'pflicht', type: 'bool' },
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
 /** Legt die `freizeit_helfer`-Collection an (Helferliste). */
 export async function ensureFreizeitHelfer(pb: PocketBase): Promise<void> {
     try {
