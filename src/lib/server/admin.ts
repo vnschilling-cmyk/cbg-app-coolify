@@ -1031,10 +1031,52 @@ export async function ensureProtocols(pb: PocketBase): Promise<void> {
     ]);
 }
 
-/** Legt die `freizeiten`-Collection an, falls sie noch nicht existiert. */
+/**
+ * Stellt sicher, dass die angegebenen Felder in einer bestehenden Collection
+ * existieren (idempotente Schema-Erweiterung; legt fehlende Felder nach).
+ */
+async function ensureFields(
+    pb: PocketBase,
+    name: string,
+    fields: any[],
+): Promise<void> {
+    let col: any;
+    try {
+        col = await pb.collections.getOne(name);
+    } catch {
+        return; // Collection existiert (noch) nicht – nichts zu erweitern.
+    }
+    const current: any[] = col.fields || col.schema || [];
+    const have = new Set(current.map((f: any) => f.name));
+    const missing = fields.filter((f) => !have.has(f.name));
+    if (!missing.length) return;
+    try {
+        await pb.collections.update(col.id, { fields: [...current, ...missing] });
+        return;
+    } catch (eNew: any) {
+        const schema = [
+            ...current,
+            ...missing.map((f: any) => {
+                const { name: fn, type, required, ...rest } = f;
+                return { name: fn, type, required: !!required, options: rest };
+            }),
+        ];
+        try {
+            await pb.collections.update(col.id, { schema });
+        } catch (eOld: any) {
+            console.error(`ensureFields ${name} failed (new):`, eNew?.message,
+                '| (old):', eOld?.message);
+        }
+    }
+}
+
+/** Legt die `freizeiten`-Collection an + stellt das `unterkunft`-Feld sicher. */
 export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     try {
         await pb.collections.getOne('freizeiten');
+        await ensureFields(pb, 'freizeiten', [
+            { name: 'unterkunft', type: 'text' },
+        ]);
         return;
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
@@ -1048,6 +1090,28 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
         { name: 'von', type: 'text' }, // yyyy-MM-dd
         { name: 'bis', type: 'text' },
         { name: 'status', type: 'text' }, // geplant | laeuft | durchgefuehrt
+        { name: 'unterkunft', type: 'text' }, // id der gewählten Unterkunft
+    ]);
+}
+
+/** Legt die `freizeit_agenda`-Collection an (Tagesablauf / Bucket-Agenda). */
+export async function ensureFreizeitAgenda(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('freizeit_agenda');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_agenda', [
+        { name: 'freizeit', type: 'text', required: true },
+        { name: 'datum', type: 'text' }, // yyyy-MM-dd (Tages-Bucket)
+        { name: 'start_time', type: 'text' }, // HH:MM
+        { name: 'duration_minutes', type: 'number' },
+        { name: 'titel', type: 'text' },
+        { name: 'kategorie', type: 'text' },
+        { name: 'ort', type: 'text' },
+        { name: 'notiz', type: 'text' },
+        { name: 'sort_order', type: 'number' },
     ]);
 }
 
