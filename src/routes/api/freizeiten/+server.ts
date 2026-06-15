@@ -4,7 +4,8 @@ import { adminPb, ensureFreizeiten, isJugendLeitung } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
 
-const FIELDS = ['titel', 'jahr', 'land', 'motto', 'thema', 'von', 'bis', 'status'];
+const FIELDS = ['titel', 'jahr', 'land', 'motto', 'thema', 'von', 'bis',
+    'status', 'unterkunft'];
 
 function pick(body: any): Record<string, unknown> {
     const out: Record<string, unknown> = {};
