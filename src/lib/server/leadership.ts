@@ -28,6 +28,12 @@ const BRUDERRAT_GROUP_ID = '31';
 // Sonntags-/Freitags-Raster der Gottesdienstleitung passen.
 const SCHULUNGEN_TREFFEN_CALENDAR = 60;
 
+// Vom Prediger-Plan verwaltete serviceIds (synchron zu editor-core.ts
+// MANAGED_SERVICE_IDS): Predigt(1), Leitung(3), Verteiler(61), Einleitung(88),
+// Leitung BS(91), Leitung GS(94), Abschluss(117). Leere Slots dieser Dienste
+// gelten als „unbesetzt" und werden gemeldet.
+const MANAGED_SERVICE_IDS = new Set<number>([1, 3, 61, 88, 91, 94, 117]);
+
 type Person = { name: string; initials: string; id: string | null; service?: string };
 
 function roleOf(serviceName: string): string {
@@ -162,11 +168,19 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             // Person sammeln, statt sie über roleOf in generische Rollen zu
             // pressen (z. B. „Einleitung" → faelschlich „Leitung").
             const gsList: { service: string; person: any; sort: number; key: number }[] = [];
+            // Unbesetzte, vom Plan verwaltete Dienste (leerer Slot ohne Person).
+            const openSlots: string[] = [];
             let order = 0;
             for (const es of ev.eventServices || []) {
-                if (isArchived(es.person)) continue;
                 const nm = personName(es.person);
-                if (!nm) continue;
+                const filled = !!nm && !isArchived(es.person);
+                if (!filled) {
+                    if (MANAGED_SERVICE_IDS.has(es.serviceId)) {
+                        openSlots.push(
+                            svcName.get(es.serviceId) || `Dienst ${es.serviceId}`);
+                    }
+                    continue;
+                }
                 const sname = svcName.get(es.serviceId) || '';
                 const gname = (svcGroup.get(es.serviceId) || '').toLowerCase();
                 // Rolle bevorzugt über die Dienst-GRUPPE (Spalte in CT),
@@ -236,8 +250,11 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
             }
 
             const anyone = Object.values(roles).some((a) => a.length > 0);
-            // Gemeindestunden auch ohne zugewiesene Personen anzeigen.
-            if (!anyone && slot !== 'gemeindestunde') continue;
+            // Gemeindestunden sowie Termine mit unbesetzten Plan-Diensten auch
+            // ohne zugewiesene Personen anzeigen (damit das Fehlende sichtbar wird).
+            if (!anyone && openSlots.length === 0 && slot !== 'gemeindestunde') {
+                continue;
+            }
 
             const dateStr = formatInTimeZone(d, TZ, 'yyyy-MM-dd');
             const svc: any = {
@@ -249,6 +266,8 @@ export async function loadLeadership(user: any, fromStr?: string, toStr?: string
                 roles,
             };
             if (beitragKinds && beitragKinds.length) svc.beitragKinds = beitragKinds;
+            // Unbesetzte Plan-Dienste (zum Markieren in der Anzeige).
+            if (openSlots.length) svc.openServices = openSlots;
             // Gemeindestunde: echte Dienste in CT-Reihenfolge (sortKey) anhaengen.
             if (slot === 'gemeindestunde' && gsList.length) {
                 gsList.sort((a, b) => (a.sort - b.sort) || (a.key - b.key));
