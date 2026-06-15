@@ -1051,6 +1051,95 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     ]);
 }
 
+/** Bewertungskriterien einer Unterkunft (je 1–5 Sterne, 0 = nicht bewertet). */
+export const UNTERKUNFT_KRITERIEN = [
+    'r_gemeinschaftsraum',
+    'r_kueche',
+    'r_schlafraeume',
+    'r_sanitaer',
+    'r_ausstattung', // Spielgeräte/Freizeitmöglichkeiten am Haus
+    'r_gelaende', // Gelände am Haus / Außengelände
+    'r_aktivitaeten_umgebung',
+    'r_lage',
+    'r_aussicht',
+    'r_zustand',
+] as const;
+
+/** Gesamtnote = Mittel der gesetzten (>0) Kriterien, auf 2 Stellen gerundet. */
+export function unterkunftGesamtnote(rec: Record<string, unknown>): number {
+    const vals = UNTERKUNFT_KRITERIEN
+        .map((k) => Number(rec[k] ?? 0))
+        .filter((n) => n > 0);
+    if (!vals.length) return 0;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return Math.round(avg * 100) / 100;
+}
+
+/** Editierbare Felder einer Unterkunft (ohne berechnete `gesamtnote`). */
+const UNTERKUNFT_FIELDS = [
+    'name', 'strasse', 'plz', 'ort', 'land', 'website',
+    'kontakt_name', 'kontakt_telefon', 'kontakt_email', 'beschreibung',
+    'kapazitaet', 'rezension', 'bewertet_von_name', 'bewertet_von_id',
+    'bewertet_am', ...UNTERKUNFT_KRITERIEN,
+];
+
+/** Übernimmt nur erlaubte Felder + berechnet `gesamtnote` serverseitig. */
+export function pickUnterkunft(body: any): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const f of UNTERKUNFT_FIELDS) {
+        if (body?.[f] !== undefined) out[f] = body[f];
+    }
+    out.gesamtnote = unterkunftGesamtnote({ ...out });
+    return out;
+}
+
+/** Legt die `unterkuenfte`-Collection an, falls sie noch nicht existiert. */
+export async function ensureUnterkuenfte(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('unterkuenfte');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'unterkuenfte', [
+        { name: 'name', type: 'text', required: true },
+        { name: 'strasse', type: 'text' },
+        { name: 'plz', type: 'text' },
+        { name: 'ort', type: 'text' },
+        { name: 'land', type: 'text' },
+        { name: 'website', type: 'text' },
+        { name: 'kontakt_name', type: 'text' },
+        { name: 'kontakt_telefon', type: 'text' },
+        { name: 'kontakt_email', type: 'text' },
+        { name: 'beschreibung', type: 'text' },
+        { name: 'kapazitaet', type: 'number' },
+        { name: 'rezension', type: 'text' },
+        { name: 'bewertet_von_name', type: 'text' },
+        { name: 'bewertet_von_id', type: 'text' },
+        { name: 'bewertet_am', type: 'text' },
+        ...UNTERKUNFT_KRITERIEN.map((k) => ({ name: k, type: 'number' as const })),
+        { name: 'gesamtnote', type: 'number' },
+    ]);
+}
+
+/** Legt die `unterkunft_bilder`-Collection an (Bilder als Base64-Text). */
+export async function ensureUnterkunftBilder(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('unterkunft_bilder');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    // Wie bei `protocols`: KEIN Datei-Feld (auf älterem PocketBase problematisch),
+    // Bild als Base64-Data-URL in einem Textfeld.
+    await createCollection(pb, 'unterkunft_bilder', [
+        { name: 'unterkunft', type: 'text', required: true },
+        { name: 'name', type: 'text' },
+        { name: 'bild_b64', type: 'text' },
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
 /**
  * CT-Personen-ID des angemeldeten Nutzers ermitteln (für Gruppen-/Rollen-
  * Prüfungen). Erst schneller Namens-Treffer in `members.ct_id`, sonst über
