@@ -13,25 +13,44 @@ export const GET: RequestHandler = async ({ request, params }) => {
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
     try {
         const pb = await adminPb();
-        await ensureUnterkuenfte(pb);
-        await ensureUnterkunftBilder(pb);
-        await ensureUnterkunftAusflug(pb);
+        await ensureUnterkuenfte(pb).catch((e) =>
+            console.error('ensureUnterkuenfte:', e?.message || e));
+        // Kerndaten – nur das darf die Seite blockieren.
         const rec = await pb.collection('unterkuenfte').getOne(params.id!);
-        const bilder = await pb.collection('unterkunft_bilder').getFullList({
-            filter: `unterkunft="${params.id}"`,
-            sort: 'sort_order,created',
-        });
-        const ausflugsziele = await pb
-            .collection('unterkunft_ausflugsziele').getFullList({
+
+        // Bilder/Ausflugsziele resilient: ein Fehler (z. B. Schema) blockiert
+        // die Detailseite NICHT, sondern liefert eine leere Liste + Log.
+        let bilder: any[] = [];
+        try {
+            await ensureUnterkunftBilder(pb);
+            bilder = await pb.collection('unterkunft_bilder').getFullList({
                 filter: `unterkunft="${params.id}"`,
                 sort: 'sort_order,created',
             });
-        return json({
-            unterkunft: rec,
-            bilder,
-            ausflugsziele,
-            canEdit: await isJugendLeitung(user),
-        });
+        } catch (e: any) {
+            console.error('unterkunft_bilder read failed:', e?.message || e);
+        }
+
+        let ausflugsziele: any[] = [];
+        try {
+            await ensureUnterkunftAusflug(pb);
+            ausflugsziele = await pb
+                .collection('unterkunft_ausflugsziele').getFullList({
+                    filter: `unterkunft="${params.id}"`,
+                    sort: 'sort_order,created',
+                });
+        } catch (e: any) {
+            console.error('unterkunft_ausflugsziele read failed:', e?.message || e);
+        }
+
+        let canEdit = false;
+        try {
+            canEdit = await isJugendLeitung(user);
+        } catch (e: any) {
+            console.error('isJugendLeitung failed:', e?.message || e);
+        }
+
+        return json({ unterkunft: rec, bilder, ausflugsziele, canEdit });
     } catch (e: any) {
         console.error('GET /api/unterkuenfte/:id failed:', e?.message || e);
         return json({ error: e?.message || 'Fehler' }, 500);

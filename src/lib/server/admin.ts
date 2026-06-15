@@ -1047,6 +1047,9 @@ async function ensureFields(
         return; // Collection existiert (noch) nicht – nichts zu erweitern.
     }
     const current: any[] = col.fields || col.schema || [];
+    // Sicherheitsnetz: ohne gelesene Bestandsfelder NICHT updaten – sonst
+    // würde { fields: [...nur neue] } das gesamte Schema überschreiben.
+    if (!current.length) return;
     const have = new Set(current.map((f: any) => f.name));
     const missing = fields.filter((f) => !have.has(f.name));
     if (!missing.length) return;
