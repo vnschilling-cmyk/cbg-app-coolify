@@ -1165,6 +1165,25 @@ export async function ensureFreizeitChecklist(pb: PocketBase): Promise<void> {
     ]);
 }
 
+/** Legt die `unterkunft_ausflugsziele`-Collection an (Ausflüge/Aktivitäten). */
+export async function ensureUnterkunftAusflug(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('unterkunft_ausflugsziele');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'unterkunft_ausflugsziele', [
+        { name: 'unterkunft', type: 'text', required: true },
+        { name: 'titel', type: 'text' },
+        { name: 'beschreibung', type: 'text' },
+        { name: 'entfernung_km', type: 'number' },
+        { name: 'link', type: 'text' },
+        { name: 'kategorie', type: 'text' },
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
 /** Legt die `freizeit_agenda`-Collection an (Tagesablauf / Bucket-Agenda). */
 export async function ensureFreizeitAgenda(pb: PocketBase): Promise<void> {
     try {
