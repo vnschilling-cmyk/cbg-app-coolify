@@ -1,14 +1,20 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
 import { savePlanData } from '$lib/server/editor-core';
+import { canEditPlans } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
 
 /** POST /api/editor/{id}/save -> Grid-Daten speichern. */
 export const POST: RequestHandler = async ({ params, request }) => {
-    const { pb } = await pbFromRequest(request);
+    const { pb, user } = await pbFromRequest(request);
     if (!pb.authStore.isValid) {
         return json({ success: false, error: 'Nicht autorisiert' }, 401);
+    }
+    if (!(await canEditPlans(user))) {
+        return json(
+            { success: false, error: 'Keine Berechtigung, Dienstpläne zu bearbeiten' },
+            403);
     }
 
     let body: any;
