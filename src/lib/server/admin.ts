@@ -1094,6 +1094,26 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     ]);
 }
 
+/** Legt die `freizeit_checklist`-Collection an (Organisation / Aufgaben). */
+export async function ensureFreizeitChecklist(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('freizeit_checklist');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_checklist', [
+        { name: 'freizeit', type: 'text', required: true },
+        { name: 'gruppe', type: 'text' }, // Checklisten-Kategorie
+        { name: 'titel', type: 'text' },
+        { name: 'erledigt', type: 'bool' },
+        { name: 'assignee_name', type: 'text' },
+        { name: 'assignee_id', type: 'text' }, // CT-Personen-ID
+        { name: 'faellig', type: 'text' }, // yyyy-MM-dd
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
 /** Legt die `freizeit_agenda`-Collection an (Tagesablauf / Bucket-Agenda). */
 export async function ensureFreizeitAgenda(pb: PocketBase): Promise<void> {
     try {
