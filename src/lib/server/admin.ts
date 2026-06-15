@@ -280,6 +280,9 @@ export type RolePerms = {
     churchtools: boolean;
     berechtigungen: boolean;
     konfiguration: boolean;
+    // Darf Dienstpläne bearbeiten (Editor schreiben) UND bekommt die offenen
+    // Plan-Dienste als Aufgaben auf dem Dashboard.
+    dienstplaner: boolean;
 };
 
 /** Standard-Rechte je Rolle (frei in der App überschreibbar). */
@@ -289,18 +292,21 @@ export const DEFAULT_ROLE_PERMS: Record<AppRole, RolePerms> = {
         churchtools: true,
         berechtigungen: true,
         konfiguration: true,
+        dienstplaner: true,
     },
     leiter: {
         menus: [...MENU_KEYS],
         churchtools: true,
         berechtigungen: true,
         konfiguration: true,
+        dienstplaner: false,
     },
     prediger: {
         menus: ['overview', 'prediger', 'gottesdienstleitung', 'einstellungen'],
         churchtools: false,
         berechtigungen: false,
         konfiguration: false,
+        dienstplaner: false,
     },
 };
 
@@ -1165,5 +1171,28 @@ export function permsForRole(
             typeof s.berechtigungen === 'boolean' ? s.berechtigungen : def.berechtigungen,
         konfiguration:
             typeof s.konfiguration === 'boolean' ? s.konfiguration : def.konfiguration,
+        dienstplaner:
+            typeof s.dienstplaner === 'boolean' ? s.dienstplaner : def.dienstplaner,
     };
+}
+
+/**
+ * Darf der Nutzer Dienstpläne bearbeiten? Admins immer, sonst nur Rollen mit
+ * gesetztem `dienstplaner`-Recht. Fällt bei Fehlern offen aus (kein Lockout,
+ * falls der Backend-Admin nicht erreichbar ist).
+ */
+export async function canEditPlans(
+    user: { id: string; role?: string } | null,
+): Promise<boolean> {
+    if (!user) return false;
+    try {
+        const pb = await adminPb();
+        const roleMap = (await getConfig(pb, 'user_roles')) || {};
+        const rolePerms = (await getConfig(pb, 'role_perms')) || {};
+        const role = effectiveRole(user.id, user.role, roleMap);
+        if (role === 'admin') return true;
+        return permsForRole(role, rolePerms).dienstplaner === true;
+    } catch {
+        return true;
+    }
 }
