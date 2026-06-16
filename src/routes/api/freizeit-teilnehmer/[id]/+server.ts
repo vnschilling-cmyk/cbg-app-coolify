@@ -1,21 +1,19 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { adminPb, ensureFreizeiten, isJugendLeitung } from '$lib/server/admin';
+import { adminPb, ensureFreizeitTeilnehmer, isJugendLeitung } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
 
-const FIELDS = ['titel', 'jahr', 'land', 'motto', 'thema', 'von', 'bis',
-    'status', 'unterkunft', 'teilnehmer_beitrag'];
+const FIELDS = ['person_name', 'geburtsdatum', 'mitfahren', 'bezahlt',
+    'betrag', 'fahrer', 'helfer', 'sort_order'];
 
 function pick(body: any): Record<string, unknown> {
     const out: Record<string, unknown> = {};
-    for (const f of FIELDS) {
-        if (body[f] !== undefined) out[f] = body[f];
-    }
+    for (const f of FIELDS) if (body[f] !== undefined) out[f] = body[f];
     return out;
 }
 
-/** PATCH /api/freizeiten/:id -> Freizeit bearbeiten (nur Jugendleitung). */
+/** PATCH /api/freizeit-teilnehmer/:id (nur Jugendleitung). */
 export const PATCH: RequestHandler = async ({ request, params }) => {
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
@@ -30,16 +28,17 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
     }
     try {
         const pb = await adminPb();
-        await ensureFreizeiten(pb);
-        const rec = await pb.collection('freizeiten').update(params.id!, pick(body));
-        return json({ freizeit: rec });
+        await ensureFreizeitTeilnehmer(pb);
+        const rec = await pb.collection('freizeit_teilnehmer')
+            .update(params.id!, pick(body));
+        return json({ teilnehmer: rec });
     } catch (e: any) {
-        console.error('PATCH /api/freizeiten failed:', e?.message || e);
+        console.error('PATCH /api/freizeit-teilnehmer failed:', e?.message || e);
         return json({ error: e?.message || 'Fehler' }, 500);
     }
 };
 
-/** DELETE /api/freizeiten/:id -> Freizeit löschen (nur Jugendleitung). */
+/** DELETE /api/freizeit-teilnehmer/:id (nur Jugendleitung). */
 export const DELETE: RequestHandler = async ({ request, params }) => {
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
@@ -48,11 +47,11 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
     }
     try {
         const pb = await adminPb();
-        await ensureFreizeiten(pb);
-        await pb.collection('freizeiten').delete(params.id!);
+        await ensureFreizeitTeilnehmer(pb);
+        await pb.collection('freizeit_teilnehmer').delete(params.id!);
         return json({ ok: true });
     } catch (e: any) {
-        console.error('DELETE /api/freizeiten failed:', e?.message || e);
+        console.error('DELETE /api/freizeit-teilnehmer failed:', e?.message || e);
         return json({ error: e?.message || 'Fehler' }, 500);
     }
 };

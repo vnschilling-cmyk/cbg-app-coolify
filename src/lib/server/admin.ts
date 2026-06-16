@@ -1073,13 +1073,15 @@ async function ensureFields(
     }
 }
 
-/** Legt die `freizeiten`-Collection an + stellt das `unterkunft`-Feld sicher. */
+/** Legt die `freizeiten`-Collection an + stellt neue Felder sicher. */
 export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
+    const extra = [
+        { name: 'unterkunft', type: 'text' },
+        { name: 'teilnehmer_beitrag', type: 'number' }, // Standardbeitrag/Person
+    ];
     try {
         await pb.collections.getOne('freizeiten');
-        await ensureFields(pb, 'freizeiten', [
-            { name: 'unterkunft', type: 'text' },
-        ]);
+        await ensureFields(pb, 'freizeiten', extra);
         return;
     } catch (e: any) {
         if (e?.status && e.status !== 404) throw e;
@@ -1094,6 +1096,29 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
         { name: 'bis', type: 'text' },
         { name: 'status', type: 'text' }, // geplant | laeuft | durchgefuehrt
         { name: 'unterkunft', type: 'text' }, // id der gewählten Unterkunft
+        ...extra.filter((f) => f.name !== 'unterkunft'),
+    ]);
+}
+
+/** Legt die `freizeit_teilnehmer`-Collection an (Teilnehmerliste). */
+export async function ensureFreizeitTeilnehmer(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('freizeit_teilnehmer');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_teilnehmer', [
+        { name: 'freizeit', type: 'text', required: true },
+        { name: 'person_id', type: 'text' }, // CT-Personen-ID
+        { name: 'person_name', type: 'text' },
+        { name: 'geburtsdatum', type: 'text' }, // yyyy-MM-dd (für Alter)
+        { name: 'mitfahren', type: 'number' }, // 0/1
+        { name: 'bezahlt', type: 'number' }, // 0/1
+        { name: 'betrag', type: 'number' }, // individuell; 0 = Standardbeitrag
+        { name: 'fahrer', type: 'number' }, // 0/1 (Führerschein)
+        { name: 'helfer', type: 'number' }, // 0/1
+        { name: 'sort_order', type: 'number' },
     ]);
 }
 

@@ -157,6 +157,69 @@ export async function loadJugendGroupMembers(user: any) {
     return { people: out };
 }
 
+/** Personen-IDs (als Set) der Mitglieder einer CT-Gruppe. */
+export async function loadGroupPersonIds(
+    user: any,
+    groupId: number,
+): Promise<Set<string>> {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    const ids = new Set<string>();
+    try {
+        const r = await client.request(`groups/${groupId}/members?limit=300`);
+        for (const m of (r.data || [])) {
+            const pid = m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
+            if (pid != null) ids.add(String(pid));
+        }
+    } catch (e) {
+        console.error(`Jugend: Gruppe ${groupId} laden fehlgeschlagen`, e);
+    }
+    return ids;
+}
+
+/** Geburtsdatum (yyyy-MM-dd) einer einzelnen CT-Person, oder '' . */
+export async function loadPersonBirthday(
+    user: any,
+    personId: string,
+): Promise<string> {
+    if (!personId) return '';
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    try {
+        const r: any = await client.request(`persons/${personId}`);
+        const p = r?.data || r;
+        return (p?.birthday || p?.domainAttributes?.birthday || '')
+            .toString().slice(0, 10);
+    } catch {
+        return '';
+    }
+}
+
+/** Map CT-Personen-ID -> Geburtsdatum (yyyy-MM-dd), für Alters-Statistik. */
+export async function loadPersonsBirthdayMap(
+    user: any,
+): Promise<Map<string, string>> {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    const map = new Map<string, string>();
+    try {
+        for (let page = 1; page <= 15; page++) {
+            const r = await client.request(`persons?page=${page}&limit=100`);
+            const batch = r.data || [];
+            for (const p of batch) {
+                const id = String(p.domainIdentifier ?? p.id ?? '');
+                const bday = (p.birthday || p.domainAttributes?.birthday || '')
+                    .toString();
+                if (id && bday) map.set(id, bday.slice(0, 10));
+            }
+            if (batch.length < 100) break;
+        }
+    } catch (e) {
+        console.error('Jugend: Geburtsdaten laden fehlgeschlagen', e);
+    }
+    return map;
+}
+
 /**
  * Personenliste zum Zuweisen im Jugend-Dienstplan: ALLE männlichen Mitglieder
  * (Status „Mitglied") + weibliche Personen, die als Klavierspieler markiert sind
