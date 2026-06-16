@@ -1336,20 +1336,24 @@ export async function ensureUnterkunftFotos(pb: PocketBase): Promise<void> {
         await createCollection(pb, 'unterkunft_fotos', fields);
         return;
     }
-    // Existiert: fehlende Felder nachziehen + bild_b64-Limit korrigieren
-    // (Collection enthält keine/kaum Daten -> Schema-Update unkritisch).
-    await ensureFields(pb, 'unterkunft_fotos', fields);
-    try {
-        const cur: any[] = col.fields || col.schema || [];
-        const f = cur.find((x: any) => x.name === 'bild_b64');
-        if (f && Number(f.max ?? 0) > 0 && Number(f.max) < _BILD_MAX) {
-            f.max = _BILD_MAX;
-            await pb.collections.update(col.id, { fields: cur });
+    // Existiert: stimmt das bild_b64-Limit? PocketBase ändert `max` per
+    // Collection-Update NICHT zuverlässig -> Collection (ist leer) löschen und
+    // sauber neu anlegen. (max 0 = unbegrenzt zählt ebenfalls als ok.)
+    const cur: any[] = col.fields || col.schema || [];
+    const f = cur.find((x: any) => x.name === 'bild_b64');
+    const maxOk = f &&
+        (Number(f.max ?? 0) === 0 || Number(f.max) >= _BILD_MAX);
+    if (!maxOk) {
+        try {
+            await pb.collections.delete(col.id);
+            await createCollection(pb, 'unterkunft_fotos', fields);
+            return;
+        } catch (e: any) {
+            console.error('ensureUnterkunftFotos: recreate failed:',
+                e?.message || e);
         }
-    } catch (e: any) {
-        console.error('ensureUnterkunftFotos: bild_b64 max fix failed:',
-            e?.message || e);
     }
+    await ensureFields(pb, 'unterkunft_fotos', fields);
 }
 
 /** (Legacy) `unterkunft_bilder` – nicht mehr verwendet (s. ensureUnterkunftFotos). */
