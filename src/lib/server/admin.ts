@@ -1100,6 +1100,24 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     ]);
 }
 
+/** Legt die `freizeit_ausgaben`-Collection an (Controlling). */
+export async function ensureFreizeitAusgaben(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('freizeit_ausgaben');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_ausgaben', [
+        { name: 'freizeit', type: 'text', required: true },
+        { name: 'kategorie', type: 'text' }, // Fahrkosten/Aktivitäten/Haus/…
+        { name: 'bezeichnung', type: 'text' },
+        { name: 'betrag', type: 'number' },
+        { name: 'datum', type: 'text' }, // yyyy-MM-dd (optional)
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
 /** Legt die `freizeit_teilnehmer`-Collection an (Teilnehmerliste). */
 export async function ensureFreizeitTeilnehmer(pb: PocketBase): Promise<void> {
     try {
