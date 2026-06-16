@@ -15,6 +15,10 @@ const TZ = 'Europe/Berlin';
 
 /** ChurchTools-Kalender „Jugend". */
 export const JUGEND_CALENDAR_ID = 3;
+/** ChurchTools-Kalender „Jugend Reinigung" (Wochen-Events, Di→Di). */
+export const JUGEND_REINIGUNG_CALENDAR_ID = 86;
+/** Dienst „Reinigungsdienst Jugend" (serviceGroup 14, Pool = Gruppe 19). */
+export const REINIGUNG_SERVICE_ID = 113;
 /** ChurchTools-Gruppe „Jugend Wortdienst" (Personen-Pool / Bearbeitungsrecht). */
 export const JUGEND_WORTDIENST_GROUP_ID = 228;
 /** ChurchTools-Gruppe „Klavierspieler" (Dienst „Klavierspieler", serviceId 10). */
@@ -127,6 +131,71 @@ export async function loadJugendPlan(user: any, fromStr?: string, toStr?: string
         `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 
     return { from, to, events };
+}
+
+/**
+ * Lädt den Jugend-Reinigungsplan (Kalender 86): Wochen-Events (Di→Di), je
+ * Event mehrere Slots des Dienstes 113 („Reinigungsdienst Jugend"). Rückgabe:
+ * { from, to, events: [{ id, von, bis, title, slots: [{ slotId, person|null,
+ *   index }], assignedCount, openCount, total }] }.
+ */
+export async function loadJugendReinigungsplan(
+    user: any,
+    fromStr?: string,
+    toStr?: string,
+) {
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+
+    const today = new Date();
+    const from = fromStr || format(today, 'yyyy-MM-dd');
+    const to = toStr || format(addDays(today, 84), 'yyyy-MM-dd');
+
+    const events: any[] = [];
+    try {
+        const all = await client.getEventsWithServices(from, to);
+        for (const ev of all) {
+            if (String(ev.calendar?.domainIdentifier) !==
+                String(JUGEND_REINIGUNG_CALENDAR_ID)) {
+                continue;
+            }
+            if (!ev.startDate || ev.isCanceled) continue;
+            const von = formatInTimeZone(new Date(ev.startDate), TZ, 'yyyy-MM-dd');
+            const bis = ev.endDate
+                ? formatInTimeZone(new Date(ev.endDate), TZ, 'yyyy-MM-dd')
+                : '';
+
+            const slots = (ev.eventServices || [])
+                .filter((es: any) => String(es.serviceId) ===
+                    String(REINIGUNG_SERVICE_ID))
+                .map((es: any) => {
+                    const nm = personName(es.person);
+                    const filled = !!nm && !isArchived(es.person);
+                    return {
+                        slotId: String(es.id ?? ''),
+                        index: typeof es.index === 'number' ? es.index : 999,
+                        person: filled ? personObj(es.person) : null,
+                    };
+                })
+                .sort((a: any, b: any) => a.index - b.index);
+
+            events.push({
+                id: String(ev.id ?? ''),
+                von,
+                bis,
+                title: ev.name || ev.caption || 'Reinigung',
+                slots,
+                assignedCount: slots.filter((s: any) => s.person != null).length,
+                openCount: slots.filter((s: any) => s.person == null).length,
+                total: slots.length,
+            });
+        }
+    } catch (e) {
+        console.error('Jugend-Reinigung: getEventsWithServices failed', e);
+    }
+
+    events.sort((a, b) => a.von.localeCompare(b.von));
+    return { from, to, serviceId: REINIGUNG_SERVICE_ID, events };
 }
 
 /**
