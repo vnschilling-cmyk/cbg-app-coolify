@@ -1311,25 +1311,45 @@ export async function ensureUnterkuenfte(pb: PocketBase): Promise<void> {
     await createCollection(pb, 'unterkuenfte', fields);
 }
 
+// Großes Text-Limit fürs Base64-Bild: PocketBase setzt Text-Feldern per API
+// sonst ein Default-Max von 5000 Zeichen (-> „validation_max_text_constraint").
+const _BILD_MAX = 8000000;
+
 /**
- * Bild-Collection (Base64-Text), je Bereich. FRISCH angelegt – das alte
- * `unterkunft_bilder` wurde durch ein nachträgliches Schema-Update beschädigt
- * („Failed to create record"), daher eine neue, sauber erstellte Collection.
+ * Bild-Collection (Base64-Text), je Bereich. `bild_b64` mit großem `max`,
+ * damit Base64-Bilder passen. Korrigiert das Limit auch bei bereits angelegter
+ * Collection.
  */
 export async function ensureUnterkunftFotos(pb: PocketBase): Promise<void> {
-    try {
-        await pb.collections.getOne('unterkunft_fotos');
-        return;
-    } catch (e: any) {
-        if (e?.status && e.status !== 404) throw e;
-    }
-    await createCollection(pb, 'unterkunft_fotos', [
+    const fields = [
         { name: 'unterkunft', type: 'text', required: true },
         { name: 'bereich', type: 'text' },
         { name: 'name', type: 'text' },
-        { name: 'bild_b64', type: 'text' },
+        { name: 'bild_b64', type: 'text', max: _BILD_MAX },
         { name: 'sort_order', type: 'number' },
-    ]);
+    ];
+    let col: any;
+    try {
+        col = await pb.collections.getOne('unterkunft_fotos');
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+        await createCollection(pb, 'unterkunft_fotos', fields);
+        return;
+    }
+    // Existiert: fehlende Felder nachziehen + bild_b64-Limit korrigieren
+    // (Collection enthält keine/kaum Daten -> Schema-Update unkritisch).
+    await ensureFields(pb, 'unterkunft_fotos', fields);
+    try {
+        const cur: any[] = col.fields || col.schema || [];
+        const f = cur.find((x: any) => x.name === 'bild_b64');
+        if (f && Number(f.max ?? 0) > 0 && Number(f.max) < _BILD_MAX) {
+            f.max = _BILD_MAX;
+            await pb.collections.update(col.id, { fields: cur });
+        }
+    } catch (e: any) {
+        console.error('ensureUnterkunftFotos: bild_b64 max fix failed:',
+            e?.message || e);
+    }
 }
 
 /** (Legacy) `unterkunft_bilder` – nicht mehr verwendet (s. ensureUnterkunftFotos). */
