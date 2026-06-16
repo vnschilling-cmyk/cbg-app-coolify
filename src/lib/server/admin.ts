@@ -1311,7 +1311,28 @@ export async function ensureUnterkuenfte(pb: PocketBase): Promise<void> {
     await createCollection(pb, 'unterkuenfte', fields);
 }
 
-/** Legt die `unterkunft_bilder`-Collection an (Bilder als Base64-Text). */
+/**
+ * Bild-Collection (Base64-Text), je Bereich. FRISCH angelegt – das alte
+ * `unterkunft_bilder` wurde durch ein nachträgliches Schema-Update beschädigt
+ * („Failed to create record"), daher eine neue, sauber erstellte Collection.
+ */
+export async function ensureUnterkunftFotos(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('unterkunft_fotos');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'unterkunft_fotos', [
+        { name: 'unterkunft', type: 'text', required: true },
+        { name: 'bereich', type: 'text' },
+        { name: 'name', type: 'text' },
+        { name: 'bild_b64', type: 'text' },
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
+/** (Legacy) `unterkunft_bilder` – nicht mehr verwendet (s. ensureUnterkunftFotos). */
 export async function ensureUnterkunftBilder(pb: PocketBase): Promise<void> {
     // Wie bei `protocols`: KEIN Datei-Feld, Bild als Base64-Data-URL im Textfeld.
     const fields = [

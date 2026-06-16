@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
 import {
-    adminPb, ensureUnterkuenfte, ensureUnterkunftBilder,
+    adminPb, ensureUnterkuenfte, ensureUnterkunftFotos,
     ensureUnterkunftAusflug, isJugendLeitung, pickUnterkunft,
 } from '$lib/server/admin';
 
@@ -22,13 +22,13 @@ export const GET: RequestHandler = async ({ request, params }) => {
         // die Detailseite NICHT, sondern liefert eine leere Liste + Log.
         let bilder: any[] = [];
         try {
-            await ensureUnterkunftBilder(pb);
-            bilder = await pb.collection('unterkunft_bilder').getFullList({
+            await ensureUnterkunftFotos(pb);
+            bilder = await pb.collection('unterkunft_fotos').getFullList({
                 filter: `unterkunft="${params.id}"`,
                 sort: 'sort_order,created',
             });
         } catch (e: any) {
-            console.error('unterkunft_bilder read failed:', e?.message || e);
+            console.error('unterkunft_fotos read failed:', e?.message || e);
         }
 
         let ausflugsziele: any[] = [];
@@ -92,13 +92,13 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
     try {
         const pb = await adminPb();
         await ensureUnterkuenfte(pb);
-        await ensureUnterkunftBilder(pb);
+        await ensureUnterkunftFotos(pb);
         // zugehörige Bilder mit entfernen
-        const bilder = await pb.collection('unterkunft_bilder').getFullList({
+        const bilder = await pb.collection('unterkunft_fotos').getFullList({
             filter: `unterkunft="${params.id}"`,
         });
         for (const b of bilder) {
-            await pb.collection('unterkunft_bilder').delete(b.id);
+            await pb.collection('unterkunft_fotos').delete(b.id);
         }
         await pb.collection('unterkuenfte').delete(params.id!);
         return json({ ok: true });

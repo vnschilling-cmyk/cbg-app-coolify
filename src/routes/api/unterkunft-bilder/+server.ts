@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { adminPb, ensureUnterkunftBilder, isJugendLeitung } from '$lib/server/admin';
+import { adminPb, ensureUnterkunftFotos, isJugendLeitung } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
 
@@ -27,8 +27,8 @@ export const POST: RequestHandler = async ({ request }) => {
     }
     try {
         const pb = await adminPb();
-        await ensureUnterkunftBilder(pb);
-        const rec = await pb.collection('unterkunft_bilder').create({
+        await ensureUnterkunftFotos(pb);
+        const rec = await pb.collection('unterkunft_fotos').create({
             unterkunft,
             bereich: (body?.bereich ?? '').toString(),
             name: (body?.name ?? '').toString(),
@@ -37,7 +37,13 @@ export const POST: RequestHandler = async ({ request }) => {
         });
         return json({ bild: { id: rec.id } });
     } catch (e: any) {
-        console.error('POST /api/unterkunft-bilder failed:', e?.message || e);
-        return json({ error: e?.message || 'Fehler' }, 500);
+        // Validierungsdetails von PocketBase mitloggen + zurückgeben.
+        const detail = e?.response?.data ?? e?.data ?? null;
+        console.error('POST /api/unterkunft-bilder failed:', e?.message || e,
+            detail ? JSON.stringify(detail) : '');
+        const msg = detail
+            ? `${e?.message || 'Fehler'} – ${JSON.stringify(detail)}`
+            : (e?.message || 'Fehler');
+        return json({ error: msg }, 500);
     }
 };
