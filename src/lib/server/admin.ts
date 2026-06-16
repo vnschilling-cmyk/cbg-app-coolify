@@ -1251,6 +1251,14 @@ export const UNTERKUNFT_KRITERIEN = UNTERKUNFT_BEREICHE
 /** Beschreibungs-Felder je Bereich (`d_<key>`). */
 export const UNTERKUNFT_BESCHREIBUNGEN = UNTERKUNFT_BEREICHE.map((b) => `d_${b}`);
 
+/** Kostenfelder (detailliert). `nebenkosten` = json-Liste [{bezeichnung,betrag,einheit}]. */
+export const UNTERKUNFT_KOSTEN_TEXT = [
+    'waehrung', 'preis_pro_person_einheit', 'kosten_notiz',
+];
+export const UNTERKUNFT_KOSTEN_NUM = [
+    'grundpreis', 'preis_pro_nacht', 'preis_pro_person', 'anzahlung', 'kaution',
+];
+
 /** Gesamtnote = Mittel der gesetzten (>0) Kriterien, auf 2 Stellen gerundet. */
 export function unterkunftGesamtnote(rec: Record<string, unknown>): number {
     const vals = UNTERKUNFT_KRITERIEN
@@ -1267,6 +1275,7 @@ const UNTERKUNFT_FIELDS = [
     'kontakt_name', 'kontakt_telefon', 'kontakt_email', 'beschreibung',
     'kapazitaet', 'rezension', 'bewertet_von_name', 'bewertet_von_id',
     'bewertet_am', ...UNTERKUNFT_KRITERIEN, ...UNTERKUNFT_BESCHREIBUNGEN,
+    ...UNTERKUNFT_KOSTEN_TEXT, ...UNTERKUNFT_KOSTEN_NUM, 'nebenkosten',
 ];
 
 /** Übernimmt nur erlaubte Felder + berechnet `gesamtnote` serverseitig. */
@@ -1299,6 +1308,9 @@ export async function ensureUnterkuenfte(pb: PocketBase): Promise<void> {
         { name: 'bewertet_am', type: 'text' },
         ...UNTERKUNFT_KRITERIEN.map((k) => ({ name: k, type: 'number' })),
         ...UNTERKUNFT_BESCHREIBUNGEN.map((k) => ({ name: k, type: 'text' })),
+        ...UNTERKUNFT_KOSTEN_TEXT.map((k) => ({ name: k, type: 'text' })),
+        ...UNTERKUNFT_KOSTEN_NUM.map((k) => ({ name: k, type: 'number' })),
+        { name: 'nebenkosten', type: 'json', maxSize: 200000 },
         { name: 'gesamtnote', type: 'number' },
     ];
     try {
