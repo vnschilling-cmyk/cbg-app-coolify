@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { adminPb, ensureUnterkunftFotos, isJugendLeitung } from '$lib/server/admin';
+import { adminPb, ensureUnterkunftGalerie, isJugendLeitung } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
 
@@ -13,8 +13,8 @@ export const DELETE: RequestHandler = async ({ request, params }) => {
     }
     try {
         const pb = await adminPb();
-        await ensureUnterkunftFotos(pb);
-        await pb.collection('unterkunft_fotos').delete(params.id!);
+        await ensureUnterkunftGalerie(pb);
+        await pb.collection('unterkunft_galerie').delete(params.id!);
         return json({ ok: true });
     } catch (e: any) {
         console.error('DELETE /api/unterkunft-bilder/:id failed:', e?.message || e);

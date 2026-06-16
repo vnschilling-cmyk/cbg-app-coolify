@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { adminPb, ensureUnterkunftFotos, isJugendLeitung } from '$lib/server/admin';
+import { adminPb, ensureUnterkunftGalerie, isJugendLeitung } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
 
@@ -27,8 +27,8 @@ export const POST: RequestHandler = async ({ request }) => {
     }
     try {
         const pb = await adminPb();
-        await ensureUnterkunftFotos(pb);
-        const rec = await pb.collection('unterkunft_fotos').create({
+        await ensureUnterkunftGalerie(pb);
+        const rec = await pb.collection('unterkunft_galerie').create({
             unterkunft,
             bereich: (body?.bereich ?? '').toString(),
             name: (body?.name ?? '').toString(),
