@@ -943,6 +943,74 @@ export async function geminiExtractPeople(
     throw new Error(lastMsg);
 }
 
+/** Prompt: Unterkunfts-Stammdaten + Kosten aus PDF(s) extrahieren. */
+const UNTERKUNFT_PROMPT =
+    'Du analysierst die beigefügten Dokumente einer Ferien-/Gruppenunterkunft '
+    + '(Exposé, Buchungsbestätigung, Rechnung, Hausbeschreibung). Ziel: '
+    + 'Stammdaten und Kosten DES HAUSES extrahieren.\n\n'
+    + 'WICHTIG – Vermittler/Reiseveranstalter abgrenzen: Buchungen laufen oft '
+    + 'über einen Vermittler oder eine Gesellschaft (z. B. „Donell", ein '
+    + 'Reisebüro, eine Vermietungsplattform). Deren Briefkopf, Anschrift, '
+    + 'Telefon, E-Mail, Bankverbindung oder Logo gehören NICHT zum Haus. '
+    + 'Übernimm als Haus-Kontaktdaten nur die des Objekts selbst (Hausname, '
+    + 'Adresse des Hauses, ggf. Hausverwaltung/Eigentümer vor Ort). Wenn unklar '
+    + 'ist, ob eine Angabe zum Haus oder zum Vermittler gehört, lass das Feld '
+    + 'LEER und trage den Vermittler unter „vermittler" ein.\n\n'
+    + 'Gib AUSSCHLIESSLICH gültiges JSON zurück (keine Erklärung, kein Markdown, '
+    + 'keine Code-Zäune):\n'
+    + '{"haus":{"name":"","strasse":"","plz":"","ort":"","land":"","website":"",'
+    + '"kontakt_name":"","kontakt_telefon":"","kontakt_email":"","kapazitaet":0,'
+    + '"beschreibung":""},'
+    + '"kosten":{"waehrung":"EUR","grundpreis":0,"preis_pro_nacht":0,'
+    + '"preis_pro_person":0,"preis_pro_person_einheit":"",'
+    + '"anzahlung":0,"kaution":0,"kosten_notiz":"",'
+    + '"nebenkosten":[{"bezeichnung":"","betrag":0,"einheit":""}]},'
+    + '"vermittler":{"name":"","telefon":"","email":""}}\n\n'
+    + 'Regeln: Zahlen ohne Währungssymbol/Tausenderpunkt (z. B. 1250.50). '
+    + '„kapazitaet" = max. Anzahl Personen/Betten. '
+    + '„preis_pro_person_einheit" z. B. „pro Nacht", „pro Aufenthalt", „pro '
+    + 'Woche". Nebenkosten = Endreinigung, Kurtaxe, Bettwäsche, Strom usw. '
+    + 'Felder, die nicht sicher erkennbar sind, leer (Text) bzw. 0 (Zahl) '
+    + 'lassen. Erfinde nichts. Antworte auf Deutsch.';
+
+/**
+ * Analysiert Unterkunfts-PDF(s) via Gemini → flacher Vorschlag (Haus-Felder +
+ * Kosten + erkannter Vermittler). Felder entsprechen `UNTERKUNFT_FIELDS`.
+ */
+export async function geminiAnalyzeUnterkunft(
+    parts: any[],
+    apiKey: string,
+): Promise<{ haus: any; kosten: any; vermittler: any }> {
+    if (!apiKey) throw new Error('Kein KI-Schlüssel konfiguriert.');
+    const allParts = [{ text: UNTERKUNFT_PROMPT }, ...parts];
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCallParts(model, allParts, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '') || {};
+                return {
+                    haus: j?.haus ?? {},
+                    kosten: j?.kosten ?? {},
+                    vermittler: j?.vermittler ?? {},
+                };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
 export async function adminPb(): Promise<PocketBase> {
     const pb = new PocketBase(PB_URL);
@@ -1384,6 +1452,26 @@ export async function ensureUnterkunftGalerie(pb: PocketBase): Promise<void> {
         { name: 'bereich', type: 'text' },
         { name: 'name', type: 'text' },
         { name: 'bild_b64', type: 'json', maxSize: 12000000 },
+        { name: 'sort_order', type: 'number' },
+    ]);
+}
+
+/**
+ * PDF-Dokumente einer Unterkunft (Exposé, Grundriss, Buchung, Rechnung …).
+ * `pdf_b64` ist ein **json**-Feld (kein Zeichenlimit; nur `maxSize` in Bytes).
+ */
+export async function ensureUnterkunftDokumente(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('unterkunft_dokumente');
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'unterkunft_dokumente', [
+        { name: 'unterkunft', type: 'text', required: true },
+        { name: 'typ', type: 'text' }, // expose/grundriss/belegung/buchung/rechnung/sonstiges
+        { name: 'name', type: 'text' },
+        { name: 'pdf_b64', type: 'json', maxSize: 30000000 },
         { name: 'sort_order', type: 'number' },
     ]);
 }
