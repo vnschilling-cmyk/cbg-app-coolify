@@ -33,7 +33,7 @@ export async function GET({ request, url }) {
     try {
         const pb = await adminPb();
         const rows = await pb.collection('members').getFullList({ sort: 'name' });
-        const people = rows
+        const mapped = rows
             .filter((m: any) => {
                 const allowed = Array.isArray(m.allowed_services)
                     ? m.allowed_services.map((c: any) => String(c))
@@ -48,6 +48,34 @@ export async function GET({ request, url }) {
                 id: String(m.ct_id || ''),
             }))
             .filter((p: any) => p.name);
+
+        // Entdoppeln: dieselbe Person darf nur einmal erscheinen.
+        // - gleiche ct_id (z. B. Mitglied in mehreren Gruppen) -> einmal
+        // - Eintrag MIT ct_id (Foto) gewinnt; ein id-loser Datensatz desselben
+        //   Namens (Altbestand/fehlende ct_id) entfällt dann.
+        // - zwei verschiedene Personen mit gleichem Namen (verschiedene ct_id)
+        //   bleiben beide erhalten.
+        const normName = (s: string) =>
+            s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+        const seenIds = new Set<string>();
+        const namesWithId = new Set<string>();
+        const people: { name: string; id: string }[] = [];
+        for (const p of mapped) {
+            if (!p.id) continue;
+            if (seenIds.has(p.id)) continue;
+            seenIds.add(p.id);
+            namesWithId.add(normName(p.name));
+            people.push(p);
+        }
+        const seenNoIdNames = new Set<string>();
+        for (const p of mapped) {
+            if (p.id) continue;
+            const nk = normName(p.name);
+            if (namesWithId.has(nk) || seenNoIdNames.has(nk)) continue;
+            seenNoIdNames.add(nk);
+            people.push(p);
+        }
+        people.sort((a, b) => a.name.localeCompare(b.name, 'de'));
         return json({ people });
     } catch (e: any) {
         console.error('GET /api/eligible-preachers failed:', e?.message || e);
