@@ -138,6 +138,31 @@ export async function POST({ request }) {
             await setConfig(pb, 'user_roles', { ...roleMap, [created.id]: role });
             return json({ success: true, id: created.id });
         }
+        // 0b) Passwort eines bestehenden Nutzers setzen/zurücksetzen.
+        if (body.action === 'setPassword') {
+            const userId = (body.userId || '').toString();
+            const password = (body.password || '').toString();
+            if (!userId) return json({ error: 'userId nötig' }, 400);
+            if (password.length < 8) {
+                return json(
+                    { error: 'Das Passwort muss mindestens 8 Zeichen haben.' }, 400);
+            }
+            try {
+                await pb.collection('users').update(userId, {
+                    password,
+                    passwordConfirm: password,
+                });
+            } catch (e: any) {
+                const detail = e?.response?.data ?? e?.data ?? null;
+                console.error('setPassword failed:', e?.message || e,
+                    detail ? JSON.stringify(detail) : '');
+                const msg = detail
+                    ? `${e?.message || 'Fehler'} – ${JSON.stringify(detail)}`
+                    : (e?.message || 'Passwort konnte nicht gesetzt werden');
+                return json({ error: msg }, 500);
+            }
+            return json({ success: true });
+        }
         // 1) Einzelne Rollenzuweisung.
         if (typeof body.userId === 'string' && typeof body.role === 'string') {
             const role = body.role as AppRole;
