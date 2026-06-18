@@ -56,7 +56,8 @@ export async function GET({ request }) {
         const filtered = memberNames.size === 0
             ? list // kein Mitgliederabgleich möglich -> alle zeigen
             : list.filter((u: any) =>
-                memberNames.has(norm(u.name)) || u.id === user.id);
+                memberNames.has(norm(u.name)) || u.id === user.id ||
+                roleMap[u.id] !== undefined); // explizit angelegte/zugewiesene
 
         const users = filtered.map((u: any) => ({
             id: u.id,
@@ -89,6 +90,54 @@ export async function POST({ request }) {
     }
 
     try {
+        // 0) Neuen Login-Benutzer anlegen (E-Mail + Initialpasswort + Rolle).
+        if (body.action === 'createUser') {
+            const email = (body.email || '').toString().trim().toLowerCase();
+            const name = (body.name || '').toString().trim();
+            const password = (body.password || '').toString();
+            const role = (body.role || 'prediger') as AppRole;
+            if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+                return json({ error: 'Bitte eine gültige E-Mail angeben.' }, 400);
+            }
+            if (password.length < 8) {
+                return json(
+                    { error: 'Das Passwort muss mindestens 8 Zeichen haben.' }, 400);
+            }
+            if (!['admin', 'leiter', 'prediger'].includes(role)) {
+                return json({ error: 'Unbekannte Rolle' }, 400);
+            }
+            // Bereits vorhanden?
+            try {
+                await pb.collection('users').getFirstListItem(`email="${email}"`);
+                return json(
+                    { error: 'Es gibt bereits einen Nutzer mit dieser E-Mail.' },
+                    409);
+            } catch (e: any) {
+                if (e?.status && e.status !== 404) throw e;
+            }
+            let created: any;
+            try {
+                created = await pb.collection('users').create({
+                    email,
+                    emailVisibility: true,
+                    password,
+                    passwordConfirm: password,
+                    name: name || email,
+                    role,
+                });
+            } catch (e: any) {
+                const detail = e?.response?.data ?? e?.data ?? null;
+                console.error('createUser failed:', e?.message || e,
+                    detail ? JSON.stringify(detail) : '');
+                const msg = detail
+                    ? `${e?.message || 'Anlegen fehlgeschlagen'} – ${JSON.stringify(detail)}`
+                    : (e?.message || 'Anlegen fehlgeschlagen');
+                return json({ error: msg }, 500);
+            }
+            // Rolle auch explizit in der Rollen-Map verankern.
+            await setConfig(pb, 'user_roles', { ...roleMap, [created.id]: role });
+            return json({ success: true, id: created.id });
+        }
         // 1) Einzelne Rollenzuweisung.
         if (typeof body.userId === 'string' && typeof body.role === 'string') {
             const role = body.role as AppRole;
