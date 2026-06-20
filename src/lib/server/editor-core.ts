@@ -187,24 +187,33 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
     // Spalten auf die tatsächlichen Gottesdienste begrenzen:
-    //  - Mehrteilige Termine (Titel mit „Teil") IMMER, an JEDEM Wochentag.
+    //  - Mehrteilige Termine IMMER, an JEDEM Wochentag (siehe isMultiPart).
     //  - Mittwoch (3) und Freitag (5): regulär.
     //  - Sonntag (0): 09:30 (vormittags) + EINE Nachmittagsspalte
     //      (16:00 = Sondergemeinschaft/Gemeindestunde, sonst 17:00 regulär).
     //  - andere Wochentage: nur echte Sondergottesdienste (Kalender 90).
     const wdOf = (d: string) => new Date(`${d}T12:00:00`).getDay();
-    const isMultiPart = (label: string) => /\bteil\b/i.test(label || '');
+    // „Mehrteilig" = derselbe Titel kommt am selben Tag mehrfach vor (z. B.
+    // „Tauffest" 08:00/09:30/14:00) ODER der Titel trägt einen „Teil"-Marker.
+    const normTitle = (l: string) => (l || '').trim().toLowerCase();
+    const titleDayCount = new Map<string, number>();
+    for (const s of slots) {
+        const k = `${s.date}|${normTitle(s.label)}`;
+        titleDayCount.set(k, (titleDayCount.get(k) || 0) + 1);
+    }
+    const isMultiPart = (s: any) =>
+        /\bteil\b/i.test((s.label || '').toString()) ||
+        (titleDayCount.get(`${s.date}|${normTitle(s.label)}`) || 0) >= 2;
     const kept = slots.filter((s: any) => {
         const wd = wdOf(s.date);
         const time = (s.time || '').toString();
-        // Mehrteilige Termine (Titel mit „Teil", z. B. „Tauffest (1./2./3.
-        // Teil)") bekommen IMMER je Teil eine eigene Spalte – unabhängig vom
-        // Wochentag (z. B. auch ein Tauffest am Samstag).
-        if (isMultiPart(s.label)) return true;
         // Am Sonntag bekommt ein Alsfeld-Gottesdienst NIE eine eigene Spalte
         // (die Predigt dort wird über den Dienst-Code „Als" zugewiesen).
         const text = `${s.label || ''} ${s.calendar || ''}`.toLowerCase();
         if (wd === 0 && text.includes('alsfeld')) return false;
+        // Mehrteilige Termine bekommen je Teil eine eigene Spalte – unabhängig
+        // vom Wochentag (z. B. auch ein Tauffest am Samstag).
+        if (isMultiPart(s)) return true;
         if (wd === 0) {
             return time === '09:30' || time === '16:00' || time === '17:00';
         }
