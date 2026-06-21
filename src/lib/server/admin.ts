@@ -1023,6 +1023,9 @@ const PLAN_PROMPT =
     + 'Ziel-Anzahlen als Tendenz und verteile fair. Beachte zusätzlich die '
     + 'Wünsche des Nutzers so gut wie möglich. Wenn ein Wunsch einer harten '
     + 'Regel widerspricht, hat die harte Regel Vorrang. '
+    + 'Manche Dienste kommen pro Tag höchstens EINMAL vor (z. B. Abendmahl, '
+    + 'Code „🍷") – setze sie nicht mehrfach am selben Datum. Das Feld „label" '
+    + 'eines Slots nennt den Anlass (z. B. „Tauffest"). '
     + 'Gib AUSSCHLIESSLICH gültiges JSON zurück (kein Markdown, keine Zäune): '
     + '{"assignments":[{"slotId":"","code":"","preacher":""}],"hinweise":""}. '
     + '„hinweise" = kurzer deutscher Hinweis, falls Wünsche nicht erfüllbar waren.';
