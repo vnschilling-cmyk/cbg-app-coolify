@@ -96,21 +96,19 @@ async function geminiCallParts(
     model: string,
     parts: any[],
     apiKey: string,
+    opts?: { think?: boolean },
 ): Promise<{ ok: boolean; status: number; text?: string; message?: string }> {
     const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     // thinkingBudget: 0 schaltet das „Denken" der 2.5-Modelle ab – für
     // Protokoll-Formatierung unnötig, spart Last (weniger 503) und Zeit.
+    // Für echte Planungs-Aufgaben (Dienstplan) think:true setzen.
+    const generationConfig: any = { temperature: 0.3 };
+    if (!opts?.think) generationConfig.thinkingConfig = { thinkingBudget: 0 };
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: {
-                temperature: 0.3,
-                thinkingConfig: { thinkingBudget: 0 },
-            },
-        }),
+        body: JSON.stringify({ contents: [{ parts }], generationConfig }),
     });
     let j: any = {};
     try { j = await res.json(); } catch { /* leere/ungültige Antwort */ }
@@ -1023,9 +1021,13 @@ const PLAN_PROMPT =
     + 'Ziel-Anzahlen als Tendenz und verteile fair. Beachte zusätzlich die '
     + 'Wünsche des Nutzers so gut wie möglich. Wenn ein Wunsch einer harten '
     + 'Regel widerspricht, hat die harte Regel Vorrang. '
-    + 'Manche Dienste kommen pro Tag höchstens EINMAL vor (z. B. Abendmahl, '
-    + 'Code „🍷") – setze sie nicht mehrfach am selben Datum. Das Feld „label" '
-    + 'eines Slots nennt den Anlass (z. B. „Tauffest"). '
+    + 'Ein „need" mit "oncePerDay":true (z. B. Abendmahl, Code „🍷") darf am '
+    + 'selben Datum NUR EINEM Slot zugewiesen werden – wähle GENAU EINEN '
+    + 'passenden Slot und lasse diesen Dienst an den anderen Slots desselben '
+    + 'Tages WEG. Richte dich dabei nach den Nutzerwünschen: nennt der Nutzer '
+    + 'eine Uhrzeit (z. B. „um 14 Uhr"), nimm den Slot mit genau dieser „time", '
+    + 'nicht einen Vormittags-Slot. Das Feld „label" nennt den Anlass (z. B. '
+    + '„Tauffest"). '
     + 'Gib AUSSCHLIESSLICH gültiges JSON zurück (kein Markdown, keine Zäune): '
     + '{"assignments":[{"slotId":"","code":"","preacher":""}],"hinweise":""}. '
     + '„hinweise" = kurzer deutscher Hinweis, falls Wünsche nicht erfüllbar waren.';
@@ -1057,7 +1059,8 @@ export async function geminiSuggestPlan(
     let lastMsg = 'Gemini nicht erreichbar';
     for (const model of chain) {
         for (let attempt = 1; attempt <= 2; attempt++) {
-            const r = await geminiCallParts(model, parts, apiKey);
+            const r = await geminiCallParts(model, parts, apiKey,
+                { think: true });
             if (r.ok) {
                 const j = parseJsonLoose(r.text || '') || {};
                 const raw = Array.isArray(j?.assignments) ? j.assignments : [];
