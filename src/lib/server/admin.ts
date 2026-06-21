@@ -1011,6 +1011,71 @@ export async function geminiAnalyzeUnterkunft(
     throw new Error(lastMsg);
 }
 
+/** System-Anweisung für den KI-Dienstplan-Vorschlag. */
+const PLAN_PROMPT =
+    'Du bist ein Assistent für die Erstellung eines Prediger-Dienstplans. '
+    + 'Du bekommst JSON mit „slots" (Termine; je Termin „needs": Liste aus '
+    + '{code, count, eligible:[Predigernamen]}) und „preachers" (mit „targets" '
+    + '= Ziel-Anzahl je Code als Tendenz). HARTE Regeln stecken bereits in den '
+    + '„eligible"-Listen: Wähle pro (slot, code) AUSSCHLIESSLICH Namen aus der '
+    + 'jeweiligen „eligible"-Liste. Pro Termin denselben Prediger NICHT mehrfach. '
+    + 'Erfülle je (slot, code) höchstens „count" Zuweisungen. Beachte die '
+    + 'Ziel-Anzahlen als Tendenz und verteile fair. Beachte zusätzlich die '
+    + 'Wünsche des Nutzers so gut wie möglich. Wenn ein Wunsch einer harten '
+    + 'Regel widerspricht, hat die harte Regel Vorrang. '
+    + 'Gib AUSSCHLIESSLICH gültiges JSON zurück (kein Markdown, keine Zäune): '
+    + '{"assignments":[{"slotId":"","code":"","preacher":""}],"hinweise":""}. '
+    + '„hinweise" = kurzer deutscher Hinweis, falls Wünsche nicht erfüllbar waren.';
+
+/**
+ * KI-Dienstplan-Vorschlag: wählt aus den mitgelieferten Kandidatenlisten.
+ * Liefert { assignments:[{slotId,code,preacher}], hinweise }.
+ */
+export async function geminiSuggestPlan(
+    context: any,
+    userPrompt: string,
+    apiKey: string,
+): Promise<{ assignments: any[]; hinweise: string }> {
+    if (!apiKey) throw new Error('Kein KI-Schlüssel konfiguriert.');
+    const parts = [
+        { text: PLAN_PROMPT },
+        { text: `--- KONTEXT (JSON) ---\n${JSON.stringify(context)}` },
+        {
+            text: `--- WÜNSCHE DES NUTZERS ---\n${(userPrompt || '').slice(0, 4000) || '(keine besonderen Wünsche)'}`,
+        },
+    ];
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCallParts(model, parts, apiKey);
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '') || {};
+                const raw = Array.isArray(j?.assignments) ? j.assignments : [];
+                const assignments = raw
+                    .map((a: any) => ({
+                        slotId: (a?.slotId ?? '').toString(),
+                        code: (a?.code ?? '').toString(),
+                        preacher: (a?.preacher ?? '').toString(),
+                    }))
+                    .filter((a: any) => a.slotId && a.code && a.preacher);
+                return { assignments, hinweise: (j?.hinweise ?? '').toString() };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
 export async function adminPb(): Promise<PocketBase> {
     const pb = new PocketBase(PB_URL);
