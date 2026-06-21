@@ -1017,6 +1017,8 @@ const PLAN_PROMPT =
     + '= Ziel-Anzahl je Code als Tendenz). HARTE Regeln stecken bereits in den '
     + '„eligible"-Listen: Wähle pro (slot, code) AUSSCHLIESSLICH Namen aus der '
     + 'jeweiligen „eligible"-Liste. Pro Termin denselben Prediger NICHT mehrfach. '
+    + 'Gib „code" IMMER exakt so zurück wie im „need" angegeben (auch Emojis '
+    + 'wie „🍷"); „codeLabels" erklärt nur die Bedeutung. '
     + 'Erfülle je (slot, code) höchstens „count" Zuweisungen. Beachte die '
     + 'Ziel-Anzahlen als Tendenz und verteile fair. Beachte zusätzlich die '
     + 'Wünsche des Nutzers so gut wie möglich. Wenn ein Wunsch einer harten '
