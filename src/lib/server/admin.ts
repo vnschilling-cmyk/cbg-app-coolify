@@ -1090,11 +1090,15 @@ const PROTOCOL_TOPS_PROMPT =
     + 'JSON um (für die Protokoll-Ablage als Tagesordnungspunkte). Gib '
     + 'AUSSCHLIESSLICH gültiges JSON zurück (kein Markdown, keine Zäune): '
     + '{"date":"yyyy-MM-dd","moderator":"","anwesend":"",'
-    + '"items":[{"title":"TOP-Titel","points":[{"text":"Absatz"}]}]}. '
+    + '"items":[{"title":"TOP-Titel","points":[{"speaker":"AE","text":"Beitrag"}]}]}. '
     + 'Jeder Tagesordnungspunkt (TOP) wird EIN „items"-Eintrag; „title" = die '
-    + 'TOP-Überschrift OHNE Nummer/„TOP n:". „points" = die Inhalte des TOP '
-    + '(Diskussion, Beschlüsse, Aufgaben) als ein oder mehrere Absätze '
-    + '({"text":"…"}). „date" = Sitzungsdatum als ISO (yyyy-MM-dd), „moderator" '
+    + 'TOP-Überschrift OHNE Nummer/„TOP n:". „points" = die Wortbeiträge des TOP '
+    + 'in chronologischer Reihenfolge als Chat-Dialog, je '
+    + '{"speaker":"Kürzel","text":"Beitrag"}. „speaker" = das Namenskürzel der '
+    + 'sprechenden Person (z. B. „AE", „VE"); „text" = der Beitrag OHNE das '
+    + 'vorangestellte Kürzel bzw. „VE:". Sprechen in einem Absatz MEHRERE, teile '
+    + 'in mehrere points (je Sprecher einen) auf. Ist kein Sprecher erkennbar, '
+    + '„speaker":"". „date" = Sitzungsdatum als ISO (yyyy-MM-dd), „moderator" '
     + 'und „anwesend" aus dem Kopf, falls vorhanden. Übernimm die Inhalte '
     + 'sinngemäß VOLLSTÄNDIG, erfinde nichts, kürze nicht weg. Auf Deutsch.';
 
@@ -1130,6 +1134,9 @@ export async function geminiProtocolToItems(
                         title: (it?.title ?? '').toString().trim(),
                         points: (Array.isArray(it?.points) ? it.points : [])
                             .map((p: any) => ({
+                                speaker: (typeof p === 'string'
+                                    ? ''
+                                    : (p?.speaker ?? '')).toString().trim(),
                                 text: (typeof p === 'string'
                                     ? p
                                     : (p?.text ?? '')).toString().trim(),

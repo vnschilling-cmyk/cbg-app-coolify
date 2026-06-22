@@ -40,6 +40,50 @@ export async function POST({ request, params }) {
 
         const date = (structured.date || rec.date || '').toString().slice(0, 10);
 
+        // Namenskürzel (z. B. „AE", „VE") → Person (Name + CT-Id) für die
+        // Sprecher-Pillen (Chat-Dialog). Quelle: members-Collection.
+        const stripSuffix = (s: string) =>
+            (s || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+        const initialsOf = (name: string) => {
+            const parts = stripSuffix(name).split(/\s+/).filter(Boolean);
+            if (!parts.length) return '';
+            const f = parts[0][0] || '';
+            const l = parts.length > 1 ? parts[parts.length - 1][0] : '';
+            return (f + l).toUpperCase();
+        };
+        const byInitials = new Map<string, { name: string; id: string }>();
+        const byName = new Map<string, { name: string; id: string }>();
+        try {
+            const members = await pb.collection('members').getFullList();
+            for (const m of members) {
+                const name = stripSuffix((m.name || '').toString());
+                if (!name) continue;
+                const entry = { name, id: (m.ct_id || '').toString() };
+                const ini = initialsOf(name);
+                if (ini && !byInitials.has(ini)) byInitials.set(ini, entry);
+                byName.set(name.toLowerCase(), entry);
+            }
+        } catch { /* ohne Mapping bleiben Beiträge ohne Pille */ }
+
+        const resolveSpeaker = (sp: string) => {
+            const s = (sp || '').replace(/:$/, '').trim();
+            if (!s) return null;
+            return byInitials.get(s.toUpperCase())
+                || byName.get(stripSuffix(s).toLowerCase())
+                || null;
+        };
+
+        // Punkte in {text, name?, id?} überführen (Sprecher → Pille).
+        const items = structured.items.map((it: any) => ({
+            title: it.title,
+            points: (Array.isArray(it.points) ? it.points : []).map((p: any) => {
+                const person = resolveSpeaker(p.speaker || '');
+                return person && person.id
+                    ? { text: p.text, name: person.name, id: person.id }
+                    : { text: p.text };
+            }),
+        }));
+
         await ensureAppConfig(pb);
         await ensureBruderratMeetings(pb);
         const v = await getConfig(pb, 'bruderrat_meetings');
@@ -56,7 +100,7 @@ export async function POST({ request, params }) {
             mode: 'top',
             moderator: structured.moderator || '',
             attendance: [],
-            items: structured.items,
+            items,
             importProtocolId: rec.id,
             importFileName: (rec.file_name || '').toString(),
             anwesendText: structured.anwesend || '',
