@@ -73,16 +73,22 @@ export async function POST({ request, params }) {
                 || null;
         };
 
-        // Punkte in {text, name?, id?} überführen (Sprecher → Pille).
-        const items = structured.items.map((it: any) => ({
-            title: it.title,
-            points: (Array.isArray(it.points) ? it.points : []).map((p: any) => {
-                const person = resolveSpeaker(p.speaker || '');
-                return person && person.id
-                    ? { text: p.text, name: person.name, id: person.id }
-                    : { text: p.text };
-            }),
-        }));
+        // Pro TOP EIN Punkt mit den Wortbeiträgen als Chat-Sprechblasen
+        // (discussion). Das Kürzel bleibt im Text; der Sprecher wird zusätzlich
+        // für den Avatar aufgelöst.
+        const items = structured.items.map((it: any) => {
+            const discussion = (Array.isArray(it.points) ? it.points : [])
+                .map((p: any) => {
+                    const person = resolveSpeaker(p.speaker || '');
+                    return {
+                        name: person ? person.name : '',
+                        id: person && person.id ? person.id : '',
+                        text: (p.text || '').toString(),
+                    };
+                })
+                .filter((d: any) => d.text);
+            return { title: it.title, points: [{ text: '', discussion }] };
+        });
 
         await ensureAppConfig(pb);
         await ensureBruderratMeetings(pb);
