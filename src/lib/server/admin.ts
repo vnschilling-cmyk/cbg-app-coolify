@@ -1085,7 +1085,7 @@ export async function geminiSuggestPlan(
 }
 
 /** Prompt: formatiertes Protokoll → strukturierte TOP-Items (für die Ablage). */
-const STRUCTURE_PROMPT =
+const PROTOCOL_TOPS_PROMPT =
     'Du wandelst ein bereits formatiertes Sitzungsprotokoll in strukturiertes '
     + 'JSON um (für die Protokoll-Ablage als Tagesordnungspunkte). Gib '
     + 'AUSSCHLIESSLICH gültiges JSON zurück (kein Markdown, keine Zäune): '
@@ -1108,7 +1108,7 @@ export async function geminiProtocolToItems(
 ): Promise<{ date: string; moderator: string; anwesend: string; items: any[] }> {
     if (!apiKey) throw new Error('Kein KI-Schlüssel konfiguriert.');
     const parts = [
-        { text: STRUCTURE_PROMPT },
+        { text: PROTOCOL_TOPS_PROMPT },
         { text: `--- PROTOKOLL ---\n${(text || '').slice(0, 1900000)}` },
     ];
     const chain = [
