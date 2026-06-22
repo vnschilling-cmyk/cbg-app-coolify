@@ -1084,6 +1084,75 @@ export async function geminiSuggestPlan(
     throw new Error(lastMsg);
 }
 
+/** Prompt: formatiertes Protokoll → strukturierte TOP-Items (für die Ablage). */
+const STRUCTURE_PROMPT =
+    'Du wandelst ein bereits formatiertes Sitzungsprotokoll in strukturiertes '
+    + 'JSON um (für die Protokoll-Ablage als Tagesordnungspunkte). Gib '
+    + 'AUSSCHLIESSLICH gültiges JSON zurück (kein Markdown, keine Zäune): '
+    + '{"date":"yyyy-MM-dd","moderator":"","anwesend":"",'
+    + '"items":[{"title":"TOP-Titel","points":[{"text":"Absatz"}]}]}. '
+    + 'Jeder Tagesordnungspunkt (TOP) wird EIN „items"-Eintrag; „title" = die '
+    + 'TOP-Überschrift OHNE Nummer/„TOP n:". „points" = die Inhalte des TOP '
+    + '(Diskussion, Beschlüsse, Aufgaben) als ein oder mehrere Absätze '
+    + '({"text":"…"}). „date" = Sitzungsdatum als ISO (yyyy-MM-dd), „moderator" '
+    + 'und „anwesend" aus dem Kopf, falls vorhanden. Übernimm die Inhalte '
+    + 'sinngemäß VOLLSTÄNDIG, erfinde nichts, kürze nicht weg. Auf Deutsch.';
+
+/**
+ * Strukturiert ein (überarbeitetes) Protokoll via Gemini in TOP-Items.
+ * Liefert { date, moderator, anwesend, items:[{title, points:[{text}]}] }.
+ */
+export async function geminiProtocolToItems(
+    text: string,
+    apiKey: string,
+): Promise<{ date: string; moderator: string; anwesend: string; items: any[] }> {
+    if (!apiKey) throw new Error('Kein KI-Schlüssel konfiguriert.');
+    const parts = [
+        { text: STRUCTURE_PROMPT },
+        { text: `--- PROTOKOLL ---\n${(text || '').slice(0, 1900000)}` },
+    ];
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCallParts(model, parts, apiKey, { think: true });
+            if (r.ok) {
+                const j = parseJsonLoose(r.text || '') || {};
+                const rawItems = Array.isArray(j?.items) ? j.items : [];
+                const items = rawItems
+                    .map((it: any) => ({
+                        title: (it?.title ?? '').toString().trim(),
+                        points: (Array.isArray(it?.points) ? it.points : [])
+                            .map((p: any) => ({
+                                text: (typeof p === 'string'
+                                    ? p
+                                    : (p?.text ?? '')).toString().trim(),
+                            }))
+                            .filter((p: any) => p.text),
+                    }))
+                    .filter((it: any) => it.title || it.points.length);
+                return {
+                    date: (j?.date ?? '').toString().slice(0, 10),
+                    moderator: (j?.moderator ?? '').toString().trim(),
+                    anwesend: (j?.anwesend ?? '').toString().trim(),
+                    items,
+                };
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** Admin-authentifizierte PocketBase-Instanz (wie im Sync). */
 export async function adminPb(): Promise<PocketBase> {
     const pb = new PocketBase(PB_URL);
