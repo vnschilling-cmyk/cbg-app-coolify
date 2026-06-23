@@ -17,11 +17,8 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 const TZ = 'Europe/Berlin';
 
-/** Plan-Code (Zelle) → ChurchTools-serviceId. Datum entscheidet bei „Als". */
-function serviceIdForCode(code: string, dateStr: string): number | null {
-    const date = new Date(dateStr);
-    const isWednesday = date.getDay() === 3;
-    const isSunday = date.getDay() === 0;
+/** Plan-Code (Zelle) → ChurchTools-serviceId. */
+function serviceIdForCode(code: string, _dateStr: string): number | null {
     switch (code) {
         case 'L':
             return 3;
@@ -41,8 +38,8 @@ function serviceIdForCode(code: string, dateStr: string): number | null {
         case 'BN':
             return 1;
         case 'Als':
-            if (isWednesday) return 91;
-            if (isSunday) return 1;
+            // Alsfeld-Predigt ist IMMER der CT-Predigt-Slot (Dienst 1) – auch am
+            // Mittwoch („Bibelstunde Alsfeld"). Früher fälschlich Mi → 91.
             return 1;
         case '🍷':
             return 3;
