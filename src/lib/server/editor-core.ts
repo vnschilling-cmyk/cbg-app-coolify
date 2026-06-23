@@ -238,6 +238,23 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
     }
     const visibleSlots = kept.filter((s: any) => !dropIds.has(s.id));
 
+    // Sonntage, an denen es TATSÄCHLICH einen Alsfeld-Gottesdienst gibt
+    // (diese Termine bekommen oben keine eigene Spalte, werden aber über den
+    // Dienst-Code „Als" in der Nachmittagsspalte eingeplant). Datengetrieben –
+    // ersetzt die frühere „nur 1. Sonntag"-Heuristik im Frontend.
+    const alsfeldSundayDates = Array.from(
+        new Set(
+            slots
+                .filter((s: any) => wdOf(s.date) === 0)
+                .filter((s: any) =>
+                    `${s.label || ''} ${s.calendar || ''}`
+                        .toLowerCase()
+                        .includes('alsfeld'),
+                )
+                .map((s: any) => s.date),
+        ),
+    ).sort();
+
     // Prediger aus PocketBase (mit allowed_services)
     let preachers: any[] = [];
     try {
@@ -395,6 +412,7 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
         formatting,
         serviceRules,
         specialFellowships,
+        alsfeldSundayDates,
         meta,
         fromDate,
         toDate,
