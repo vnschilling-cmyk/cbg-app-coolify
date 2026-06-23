@@ -55,6 +55,17 @@ function serviceIdForCode(code: string, _dateStr: string): number | null {
  */
 const MANAGED_SERVICE_IDS = new Set<number>([1, 3, 61, 88, 91, 94, 117]);
 
+/** ChurchTools-serviceId → lesbarer Dienstname (für Fehlermeldungen). */
+const SERVICE_NAMES: Record<number, string> = {
+    1: 'Predigt',
+    3: 'Leitung',
+    61: 'Verteiler',
+    88: 'Einleitung',
+    91: 'Bibelstunde/Leitung',
+    94: 'Gebetstunde/Leitung',
+    117: 'Abschluss',
+};
+
 /**
  * ChurchTools-serviceId → Plan-Code (Umkehrung von serviceIdForCode), so weit
  * eindeutig. Der Kalender disambiguiert Predigt/Alsfeld/Bad Neustadt. Mehrdeutig
@@ -538,12 +549,30 @@ export async function exportPlanData(
                     await client.setAssignment(eventId, serviceId, personId);
                     results.push(`OK: ${name} als ${code} für Event ${eventId}`);
                 } catch (e: any) {
-                    results.push(`ERROR: ${name} als ${code}: ${e.message}`);
+                    // Lesbar: Datum · Termin-Titel · Dienstname statt Event-Nr.
+                    const dateFmt = formatInTimeZone(
+                        new Date(slotEvent.startDate || datePart),
+                        TZ,
+                        'dd.MM.yyyy',
+                    );
+                    const evTitle = slotEvent.name || `Event ${eventId}`;
+                    const svc = SERVICE_NAMES[serviceId] || `Dienst ${serviceId}`;
+                    results.push(
+                        `ERROR: ${dateFmt} · ${evTitle} · ${svc} – ` +
+                            `${name} (${code}): kein freier Slot`,
+                    );
                 }
             }
         } catch (e: any) {
+            const dateFmt = formatInTimeZone(
+                new Date(slotEvent.startDate || datePart),
+                TZ,
+                'dd.MM.yyyy',
+            );
+            const evTitle = slotEvent.name || `Event ${eventId}`;
             results.push(
-                `ERROR: Event ${eventId} konnte nicht verarbeitet werden: ${e.message}`,
+                `ERROR: ${dateFmt} · ${evTitle}: konnte nicht verarbeitet ` +
+                    `werden (${e.message})`,
             );
         }
     }
