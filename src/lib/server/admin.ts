@@ -1296,6 +1296,8 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
     const extra = [
         { name: 'unterkunft', type: 'text' },
         { name: 'teilnehmer_beitrag', type: 'number' }, // Standardbeitrag/Person
+        // Budget-Planung: Soll-Betrag je Kategorie als { "<kategorie>": betrag }
+        { name: 'budget_plan', type: 'json', maxSize: 200000 },
     ];
     try {
         await pb.collections.getOne('freizeiten');
@@ -1320,20 +1322,30 @@ export async function ensureFreizeiten(pb: PocketBase): Promise<void> {
 
 /** Legt die `freizeit_ausgaben`-Collection an (Controlling). */
 export async function ensureFreizeitAusgaben(pb: PocketBase): Promise<void> {
-    try {
-        await pb.collections.getOne('freizeit_ausgaben');
-        return;
-    } catch (e: any) {
-        if (e?.status && e.status !== 404) throw e;
-    }
-    await createCollection(pb, 'freizeit_ausgaben', [
+    const fields = [
         { name: 'freizeit', type: 'text', required: true },
-        { name: 'kategorie', type: 'text' }, // Fahrkosten/Aktivitäten/Haus/…
+        { name: 'kategorie', type: 'text' }, // Fahrkosten/Unterkunft/Küche/…
         { name: 'bezeichnung', type: 'text' },
         { name: 'betrag', type: 'number' },
         { name: 'datum', type: 'text' }, // yyyy-MM-dd (optional)
         { name: 'sort_order', type: 'number' },
-    ]);
+        // Controlling-Ausbau: Status-Workflow, Lieferant, Beleg-Anhang
+        { name: 'status', type: 'text' }, // bestellt | offen | bezahlt (leer ⇒ bezahlt)
+        { name: 'bestellnummer', type: 'text' }, // Abgleich Bestellung↔Rechnung
+        { name: 'lieferant', type: 'text' }, // Freitext (kein Stammdatensatz)
+        // Beleg als Base64 im json-Feld (wie unterkunft_dokumente.pdf_b64)
+        { name: 'beleg_b64', type: 'json', maxSize: 12000000 },
+        { name: 'beleg_name', type: 'text' },
+        { name: 'beleg_typ', type: 'text' }, // MIME (application/pdf, image/jpeg …)
+    ];
+    try {
+        await pb.collections.getOne('freizeit_ausgaben');
+        await ensureFields(pb, 'freizeit_ausgaben', fields);
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'freizeit_ausgaben', fields);
 }
 
 /** Legt die `freizeit_teilnehmer`-Collection an (Teilnehmerliste). */
