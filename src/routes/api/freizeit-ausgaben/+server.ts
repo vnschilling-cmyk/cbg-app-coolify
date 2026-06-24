@@ -187,8 +187,15 @@ export const GET: RequestHandler = async ({ request, url }) => {
             perKategorie[k] = (perKategorie[k] || 0) + b;
         }
 
-        const unterkunft = await unterkunftKostenOf(pb, freizeit);
-        if (unterkunft.betrag > 0) {
+        // Berechnete Unterkunft zählt nur in die Bilanz, solange KEINE echte
+        // „Unterkunft"-Rechnung erfasst ist (sonst Doppelzählung). Mit erfasster
+        // Rechnung gilt diese als Ist, die Berechnung nur noch als Kalkulation.
+        const hatManuelleUnterkunft = ausgaben.some((a) =>
+            statusOf(a) !== 'bestellt' &&
+            (a.kategorie || '').toString() === 'Unterkunft');
+        const unterkunft: any = await unterkunftKostenOf(pb, freizeit);
+        unterkunft.inBilanz = unterkunft.betrag > 0 && !hatManuelleUnterkunft;
+        if (unterkunft.inBilanz) {
             perKategorie['Unterkunft'] =
                 (perKategorie['Unterkunft'] || 0) + unterkunft.betrag;
         }
@@ -205,7 +212,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
         } catch { /* kein Budget */ }
 
         const einnahmen = await einnahmenOf(pb, freizeit);
-        const gesamtkosten = offen + bezahlt + bestellt + unterkunft.betrag;
+        const gesamtkosten = offen + bezahlt + bestellt +
+            (unterkunft.inBilanz ? unterkunft.betrag : 0);
 
         // Liste ohne beleg_b64 (Performance); Flag, ob ein Beleg vorhanden ist.
         const list = ausgaben.map((a: any) => {
