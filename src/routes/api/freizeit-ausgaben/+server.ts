@@ -2,13 +2,14 @@ import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
 import {
     adminPb, ensureFreizeitAusgaben, ensureFreizeitTeilnehmer,
-    ensureFreizeiten, isJugendLeitung,
+    ensureFreizeiten, ensureUnterkuenfte, isJugendLeitung,
 } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
 
 const FIELDS = ['freizeit', 'kategorie', 'bezeichnung', 'betrag', 'datum',
-    'sort_order'];
+    'sort_order', 'status', 'bestellnummer', 'lieferant',
+    'beleg_b64', 'beleg_name', 'beleg_typ'];
 
 function pick(body: any): Record<string, unknown> {
     const out: Record<string, unknown> = {};
@@ -17,6 +18,9 @@ function pick(body: any): Record<string, unknown> {
 }
 
 const num = (v: any) => (typeof v === 'number' ? v : Number(v) || 0);
+const norm = (v: any) => (v ?? '').toString().trim().toLowerCase();
+/** Leerer/unbekannter Status zählt als „bezahlt" (Altdaten ohne Status). */
+const statusOf = (a: any) => norm(a.status) || 'bezahlt';
 
 /** Einnahmen aus den Teilnehmern (bezahlt · Betrag bzw. Standardbeitrag). */
 async function einnahmenOf(pb: any, freizeit: string): Promise<number> {
@@ -40,7 +44,121 @@ async function einnahmenOf(pb: any, freizeit: string): Promise<number> {
     }
 }
 
-/** GET /api/freizeit-ausgaben?freizeit=ID -> {ausgaben, perKategorie, summe, einnahmen, saldo, canEdit}. */
+/** Nächte zwischen zwei yyyy-MM-dd-Datumsangaben (>= 0). */
+function nightsBetween(von: any, bis: any): number {
+    const p = (s: any) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((s ?? '').toString());
+        return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null;
+    };
+    const a = p(von), b = p(bis);
+    if (a == null || b == null) return 0;
+    const d = Math.round((b - a) / 86400000);
+    return d > 0 ? d : 0;
+}
+
+/**
+ * Berechnet die Unterkunftskosten einer Freizeit automatisch aus den
+ * Preisfeldern der verknüpften Unterkunft, Nächten (von/bis) und Mitfahrern.
+ * Kaution zählt NICHT (rückerstattbar). Liefert Betrag + Aufschlüsselung.
+ */
+async function unterkunftKostenOf(pb: any, freizeit: string) {
+    const empty = { betrag: 0, naechte: 0, personen: 0, breakdown: [] as any[] };
+    let fz: any;
+    try {
+        await ensureFreizeiten(pb);
+        fz = await pb.collection('freizeiten').getOne(freizeit);
+    } catch { return empty; }
+    const ukId = (fz.unterkunft ?? '').toString();
+    if (!ukId) return empty;
+    let uk: any;
+    try {
+        await ensureUnterkuenfte(pb);
+        uk = await pb.collection('unterkuenfte').getOne(ukId);
+    } catch { return empty; }
+
+    const naechte = nightsBetween(fz.von, fz.bis);
+    let personen = 0;
+    try {
+        await ensureFreizeitTeilnehmer(pb);
+        const tn = await pb.collection('freizeit_teilnehmer').getFullList({
+            filter: `freizeit="${freizeit}"`,
+        });
+        personen = tn.filter((t: any) => num(t.mitfahren) === 1).length;
+    } catch { /* personen = 0 */ }
+
+    const grund = num(uk.grundpreis);
+    const proNacht = num(uk.preis_pro_nacht);
+    const proPerson = num(uk.preis_pro_person);
+    const einheit = (uk.preis_pro_person_einheit ?? '').toString().toLowerCase();
+    const proNachtPerson = einheit.includes('nacht');
+    const personFaktor = proNachtPerson ? personen * naechte : personen;
+
+    const breakdown: { label: string; betrag: number }[] = [];
+    if (grund > 0) breakdown.push({ label: 'Grundpreis', betrag: grund });
+    if (proNacht > 0 && naechte > 0) {
+        breakdown.push({
+            label: `${naechte} Nächte × ${proNacht.toFixed(2)} €`,
+            betrag: proNacht * naechte,
+        });
+    }
+    if (proPerson > 0 && personFaktor > 0) {
+        breakdown.push({
+            label: `${personen} Personen${proNachtPerson ? ` × ${naechte} Nächte` : ''}`
+                + ` × ${proPerson.toFixed(2)} €`,
+            betrag: proPerson * personFaktor,
+        });
+    }
+    // Nebenkosten: json-Liste [{ bezeichnung, betrag }] oder Zahlen.
+    let neben = uk.nebenkosten;
+    if (typeof neben === 'string') { try { neben = JSON.parse(neben); } catch { neben = null; } }
+    if (Array.isArray(neben)) {
+        for (const n of neben) {
+            const b = num(n?.betrag ?? n);
+            if (b > 0) {
+                breakdown.push({
+                    label: (n?.bezeichnung ?? 'Nebenkosten').toString(),
+                    betrag: b,
+                });
+            }
+        }
+    }
+    const betrag = breakdown.reduce((s, x) => s + num(x.betrag), 0);
+    return { betrag, naechte, personen, breakdown };
+}
+
+/**
+ * Abgleich Bestellung↔Rechnung: Eine „bestellt"-Position gilt als gedeckt,
+ * wenn ihre Bestellnummer einer „offen/bezahlt"-Position entspricht
+ * (→ nicht doppelt zählen). Schwacher Treffer (gleicher Lieferant + Betrag,
+ * keine Bestellnummer) ⇒ Duplikatverdacht (nur Hinweis).
+ */
+function reconcile(ausgaben: any[]) {
+    const covered = new Set<string>();
+    const orders = ausgaben.filter((a) => statusOf(a) === 'bestellt');
+    const invoices = ausgaben.filter((a) => statusOf(a) !== 'bestellt');
+    for (const o of orders) {
+        const bn = norm(o.bestellnummer);
+        if (bn && invoices.some((i) => norm(i.bestellnummer) === bn)) {
+            covered.add(o.id);
+        }
+    }
+    const dup: { a: string; b: string; lieferant: string; betrag: number }[] = [];
+    for (let i = 0; i < invoices.length; i++) {
+        for (let j = i + 1; j < invoices.length; j++) {
+            const a = invoices[i], b = invoices[j];
+            if (norm(a.bestellnummer) || norm(b.bestellnummer)) continue;
+            if (!norm(a.lieferant) || norm(a.lieferant) !== norm(b.lieferant)) continue;
+            const av = num(a.betrag), bv = num(b.betrag);
+            if (av <= 0) continue;
+            if (Math.abs(av - bv) <= Math.max(1, av * 0.005)) {
+                dup.push({ a: a.id, b: b.id, lieferant: (a.lieferant ?? '').toString(), betrag: av });
+            }
+        }
+    }
+    return { covered, dup };
+}
+
+/** GET /api/freizeit-ausgaben?freizeit=ID -> Controlling-Übersicht (v2). */
 export const GET: RequestHandler = async ({ request, url }) => {
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
@@ -53,20 +171,62 @@ export const GET: RequestHandler = async ({ request, url }) => {
             filter: `freizeit="${freizeit}"`,
             sort: 'kategorie,created',
         });
+
+        const { covered, dup } = reconcile(ausgaben);
         const perKategorie: Record<string, number> = {};
-        let summe = 0;
+        let bestellt = 0, offen = 0, bezahlt = 0;
         for (const a of ausgaben) {
+            const b = num(a.betrag);
+            const s = statusOf(a);
+            if (s === 'bestellt') {
+                if (!covered.has(a.id)) bestellt += b; // gedeckte nicht zählen
+                continue;
+            }
+            if (s === 'offen') offen += b; else bezahlt += b;
             const k = (a.kategorie || 'Sonstiges').toString();
-            perKategorie[k] = (perKategorie[k] || 0) + num(a.betrag);
-            summe += num(a.betrag);
+            perKategorie[k] = (perKategorie[k] || 0) + b;
         }
+
+        const unterkunft = await unterkunftKostenOf(pb, freizeit);
+        if (unterkunft.betrag > 0) {
+            perKategorie['Unterkunft'] =
+                (perKategorie['Unterkunft'] || 0) + unterkunft.betrag;
+        }
+
+        // Soll-Budget aus freizeiten.budget_plan.
+        let budget: Record<string, number> = {};
+        try {
+            const fz = await pb.collection('freizeiten').getOne(freizeit);
+            let bp: any = fz.budget_plan;
+            if (typeof bp === 'string') { try { bp = JSON.parse(bp); } catch { bp = null; } }
+            if (bp && typeof bp === 'object' && !Array.isArray(bp)) {
+                for (const [k, v] of Object.entries(bp)) budget[k] = num(v);
+            }
+        } catch { /* kein Budget */ }
+
         const einnahmen = await einnahmenOf(pb, freizeit);
+        const gesamtkosten = offen + bezahlt + bestellt + unterkunft.betrag;
+
+        // Liste ohne beleg_b64 (Performance); Flag, ob ein Beleg vorhanden ist.
+        const list = ausgaben.map((a: any) => {
+            const { beleg_b64, ...rest } = a;
+            return {
+                ...rest,
+                hat_beleg: !!((a.beleg_name ?? '').toString() || (beleg_b64 ?? '').toString()),
+            };
+        });
+
         return json({
-            ausgaben,
+            ausgaben: list,
             perKategorie,
-            summe,
+            unterkunft,
+            budget,
+            kpis: { bestellt, offen, bezahlt },
+            duplikatVerdacht: dup,
             einnahmen,
-            saldo: einnahmen - summe,
+            summe: gesamtkosten, // Rückwärtskompat (frühere Bedeutung: Ausgaben gesamt)
+            gesamtkosten,
+            saldo: einnahmen - gesamtkosten,
             canEdit: await isJugendLeitung(user),
         });
     } catch (e: any) {
