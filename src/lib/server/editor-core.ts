@@ -487,6 +487,46 @@ export async function exportPlanData(
     // die appointmentId fälschlich als Event-ID zu verwenden (sonst 404).
     const eventByApptDate = await buildEventByApptDate(client, gridData, results);
 
+    // Bad Neustadt (Kalender 68) hat KEINE eigene Spalte – der Code „BN" steht
+    // in der Grünberg-Spalte, gehört aber in den Bad-Neustadt-Termin. Map
+    // Datum → echtes BN-Event aufbauen, um „BN" dorthin zu schreiben.
+    const bnEventByDate = new Map<string, any>();
+    try {
+        const dates = Object.keys(gridData)
+            .map((k) => (k as string).split('-').slice(1).join('-'))
+            .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+            .sort();
+        if (dates.length) {
+            const from = dates[0];
+            const to = format(
+                addDays(new Date(dates[dates.length - 1]), 1),
+                'yyyy-MM-dd',
+            );
+            const bnAppts = await client.getAppointments([68], from, to);
+            for (const a of bnAppts) {
+                const apptId = a.base?.id ?? a.appointment?.base?.id ?? a.id;
+                const sd = a.calculated?.startDate || a.base?.startDate;
+                if (apptId == null || !sd) continue;
+                const d = formatInTimeZone(new Date(sd), TZ, 'yyyy-MM-dd');
+                const ev = eventByApptDate.get(`${apptId}-${d}`);
+                if (ev) bnEventByDate.set(d, ev);
+            }
+        }
+    } catch (e: any) {
+        results.push(`Hinweis: Bad-Neustadt-Termine nicht ladbar (${e.message})`);
+    }
+
+    // eventServices je Event nur einmal laden (Cache; auch für umgeroutete Codes).
+    const bookingsCache = new Map<number, any[]>();
+    const bookingsFor = async (evId: number): Promise<any[]> => {
+        let b = bookingsCache.get(evId);
+        if (!b) {
+            b = await client.getEventServices(evId);
+            bookingsCache.set(evId, b);
+        }
+        return b;
+    };
+
     for (const [slotId, slotAssignments] of Object.entries(gridData)) {
         if (!slotAssignments || typeof slotAssignments !== 'object') continue;
 
@@ -504,41 +544,64 @@ export async function exportPlanData(
         const eventId = slotEvent.id;
 
         try {
-            const existingBookings = await client.getEventServices(eventId);
+            // SICHERHEIT (2026-06-07): rein ADDITIV – leere Zellen löschen NICHT.
+            const existingBookings = await bookingsFor(eventId);
 
             for (const [name, code] of Object.entries(
                 slotAssignments as Record<string, string>,
             )) {
-                if (code === '-' || code === 'X') continue;
+                if (code === '-' || code === 'X' || code === '') continue;
 
                 const personId = preacherMap.get(name.trim());
                 if (!personId) {
-                    if (code !== '')
-                        results.push(`SKIP: ${name} (Keine CT-ID gefunden)`);
+                    results.push(`SKIP: ${name} (Keine CT-ID gefunden)`);
                     continue;
                 }
 
-                const personsBookings = existingBookings.filter(
-                    (b) => String(b.personId) === String(personId),
-                );
-
-                // SICHERHEIT (2026-06-07): Der Export löscht vorerst NICHTS
-                // mehr — er ist rein ADDITIV. Die frühere Lösch-Logik hat
-                // bestehende CT-Zuweisungen entfernt, sobald eine Zelle leer
-                // war oder die Person anderswo eingetragen war (auch in Diensten
-                // außerhalb des Prediger-Plans, z.B. Reinigung). Bis die
-                // Reichweite sauber begrenzt ist, werden ausschließlich gefüllte
-                // Zellen als bestätigte Zuweisung geschrieben.
-                if (code === '') continue; // leere Zelle: NICHT mehr löschen
-
-                const serviceId = serviceIdForCode(code, datePart);
+                // serviceId bestimmen. Gemeindestunde hat keinen Predigt-Slot →
+                // Code 1 ⇒ Einleitung (88, „Predigt 1"), 2 ⇒ Abschluss (117).
+                let serviceId = serviceIdForCode(code, datePart);
+                const isGm = (slotEvent.name || '')
+                    .toLowerCase()
+                    .includes('gemeindestunde');
+                if (isGm) {
+                    if (code === '1') serviceId = 88;
+                    else if (code === '2') serviceId = 117;
+                }
                 if (!serviceId) {
                     results.push(`SKIP: Code ${code} konnte nicht zugeordnet werden`);
                     continue;
                 }
 
-                const sameService = personsBookings.find(
-                    (b) => String(b.serviceId) === String(serviceId),
+                // „BN" gehört in den Bad-Neustadt-Termin (Kalender 68), nicht in
+                // die Grünberg-Spalte, in der der Code steht.
+                let targetEvent = slotEvent;
+                if (code === 'BN') {
+                    const bn = bnEventByDate.get(datePart);
+                    if (!bn) {
+                        const dFmt = formatInTimeZone(
+                            new Date(slotEvent.startDate || datePart),
+                            TZ,
+                            'dd.MM.yyyy',
+                        );
+                        results.push(
+                            `ERROR: ${dFmt} · Bad Neustadt – ${name} (BN): ` +
+                                `kein Bad-Neustadt-Termin in CT gefunden`,
+                        );
+                        continue;
+                    }
+                    targetEvent = bn;
+                }
+                const targetEventId = targetEvent.id;
+                const targetBookings =
+                    targetEvent === slotEvent
+                        ? existingBookings
+                        : await bookingsFor(targetEventId);
+
+                const sameService = targetBookings.find(
+                    (b: any) =>
+                        String(b.personId) === String(personId) &&
+                        String(b.serviceId) === String(serviceId),
                 );
                 if (sameService && sameService.isAccepted) {
                     results.push(`X: ${name} ist bereits als ${code} eingetragen`);
@@ -546,16 +609,18 @@ export async function exportPlanData(
                 }
 
                 try {
-                    await client.setAssignment(eventId, serviceId, personId);
-                    results.push(`OK: ${name} als ${code} für Event ${eventId}`);
+                    await client.setAssignment(targetEventId, serviceId, personId);
+                    results.push(
+                        `OK: ${name} als ${code} für Event ${targetEventId}`,
+                    );
                 } catch (e: any) {
                     // Lesbar: Datum · Termin-Titel · Dienstname statt Event-Nr.
                     const dateFmt = formatInTimeZone(
-                        new Date(slotEvent.startDate || datePart),
+                        new Date(targetEvent.startDate || datePart),
                         TZ,
                         'dd.MM.yyyy',
                     );
-                    const evTitle = slotEvent.name || `Event ${eventId}`;
+                    const evTitle = targetEvent.name || `Event ${targetEventId}`;
                     const svc = SERVICE_NAMES[serviceId] || `Dienst ${serviceId}`;
                     results.push(
                         `ERROR: ${dateFmt} · ${evTitle} · ${svc} – ` +
