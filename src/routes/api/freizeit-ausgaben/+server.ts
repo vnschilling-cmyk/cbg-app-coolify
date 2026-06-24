@@ -248,16 +248,11 @@ export const GET: RequestHandler = async ({ request, url }) => {
             canEdit,
         });
     } catch (e: any) {
+        // Volle Details nur ins Server-Log; an den Client nur der Schritt-Marker.
         console.error('GET /api/freizeit-ausgaben failed:', step, e?.message || e,
-            e?.status, JSON.stringify(e?.data || e?.response || {}));
-        // DIAGNOSE (temporär): Schritt + PB-Detail mitsenden.
-        return json({
-            error: e?.message || 'Fehler',
-            step,
-            status: e?.status,
-            data: e?.data ?? e?.response ?? null,
-            where: (e?.stack || '').split('\n').slice(0, 4),
-        }, 500);
+            'status=', e?.status, 'data=', JSON.stringify(e?.data || e?.response || {}),
+            (e?.stack || '').split('\n').slice(0, 4).join(' | '));
+        return json({ error: e?.message || 'Fehler', step }, 500);
     }
 };
 
