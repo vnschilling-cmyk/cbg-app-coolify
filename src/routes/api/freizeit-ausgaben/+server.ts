@@ -164,13 +164,18 @@ export const GET: RequestHandler = async ({ request, url }) => {
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
     const freizeit = url.searchParams.get('freizeit') || '';
     if (!freizeit) return json({ error: 'freizeit nötig' }, 400);
+    let step = 'start';
     try {
+        step = 'adminPb';
         const pb = await adminPb();
+        step = 'ensure';
         await ensureFreizeitAusgaben(pb);
+        step = 'getFullList';
         const ausgaben = await pb.collection('freizeit_ausgaben').getFullList({
             filter: `freizeit="${freizeit}"`,
             sort: 'kategorie,created',
         });
+        step = 'compute';
 
         const { covered, dup } = reconcile(ausgaben);
         const perKategorie: Record<string, number> = {};
@@ -193,6 +198,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
         const hatManuelleUnterkunft = ausgaben.some((a) =>
             statusOf(a) !== 'bestellt' &&
             (a.kategorie || '').toString() === 'Unterkunft');
+        step = 'unterkunft';
         const unterkunft: any = await unterkunftKostenOf(pb, freizeit);
         unterkunft.inBilanz = unterkunft.betrag > 0 && !hatManuelleUnterkunft;
         if (unterkunft.inBilanz) {
@@ -211,9 +217,13 @@ export const GET: RequestHandler = async ({ request, url }) => {
             }
         } catch { /* kein Budget */ }
 
+        step = 'einnahmen';
         const einnahmen = await einnahmenOf(pb, freizeit);
         const gesamtkosten = offen + bezahlt + bestellt +
             (unterkunft.inBilanz ? unterkunft.betrag : 0);
+        step = 'jugendleitung';
+        const canEdit = await isJugendLeitung(user);
+        step = 'response';
 
         // Liste ohne beleg_b64 (Performance); Flag, ob ein Beleg vorhanden ist.
         const list = ausgaben.map((a: any) => {
@@ -235,11 +245,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
             summe: gesamtkosten, // Rückwärtskompat (frühere Bedeutung: Ausgaben gesamt)
             gesamtkosten,
             saldo: einnahmen - gesamtkosten,
-            canEdit: await isJugendLeitung(user),
+            canEdit,
         });
     } catch (e: any) {
-        console.error('GET /api/freizeit-ausgaben failed:', e?.message || e);
-        return json({ error: e?.message || 'Fehler' }, 500);
+        // Volle Details nur ins Server-Log; an den Client nur der Schritt-Marker.
+        console.error('GET /api/freizeit-ausgaben failed:', step, e?.message || e,
+            'status=', e?.status, 'data=', JSON.stringify(e?.data || e?.response || {}),
+            (e?.stack || '').split('\n').slice(0, 4).join(' | '));
+        return json({ error: e?.message || 'Fehler', step }, 500);
     }
 };
 

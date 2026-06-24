@@ -100,6 +100,63 @@ function codeForService(
     }
 }
 
+type SvcInfo = { ctServiceId: number | null; routeCalendarId: number | null };
+interface SvcMap {
+    byCode: Map<string, SvcInfo>;
+    managedServiceIds: Set<number>;
+}
+
+/** Liest `app_config.value` für einen Key direkt aus PocketBase (null = fehlt). */
+async function readConfig(pb: PocketBase, key: string): Promise<any> {
+    try {
+        const rec = await pb
+            .collection('app_config')
+            .getFirstListItem(`key="${key}"`);
+        return rec.value ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Dienst-Art-Verknüpfung (Code → CT-serviceId + Ziel-Kalender) aus
+ * `app_config.service_types`. Fehlt die Config oder ein Feld, wird aus den
+ * Hardcode-Tabellen (`serviceIdForCode` + BN→68/Als→65) gefüllt → erster Deploy
+ * verhält sich exakt wie bisher.
+ */
+async function loadServiceTypeConfig(pb: PocketBase): Promise<SvcMap> {
+    const byCode = new Map<string, SvcInfo>();
+    const cfg = await readConfig(pb, 'service_types');
+    if (cfg && typeof cfg === 'object') {
+        for (const [code, v] of Object.entries(cfg as Record<string, any>)) {
+            if (!v || typeof v !== 'object') continue;
+            byCode.set(code, {
+                ctServiceId:
+                    typeof v.ctServiceId === 'number' ? v.ctServiceId : null,
+                routeCalendarId:
+                    typeof v.routeCalendarId === 'number'
+                        ? v.routeCalendarId
+                        : null,
+            });
+        }
+    }
+    // Standard-Codes ohne (vollständigen) Config-Eintrag aus Hardcode backfillen.
+    const seedCodes = ['🍷', 'V', 'L', '1', '2', 'BN', 'Als', 'BS', 'GS', 'T'];
+    for (const code of seedCodes) {
+        if (!byCode.has(code)) {
+            byCode.set(code, {
+                ctServiceId: serviceIdForCode(code, ''),
+                routeCalendarId: code === 'BN' ? 68 : code === 'Als' ? 65 : null,
+            });
+        }
+    }
+    const managedServiceIds = new Set<number>([...MANAGED_SERVICE_IDS]);
+    for (const info of byCode.values()) {
+        if (info.ctServiceId != null) managedServiceIds.add(info.ctServiceId);
+    }
+    return { byCode, managedServiceIds };
+}
+
 /** Baut die Map `appointmentId-datum → CT-Event (inkl. eventServices)`. */
 async function buildEventByApptDate(
     client: ChurchToolsClient,
@@ -487,34 +544,49 @@ export async function exportPlanData(
     // die appointmentId fälschlich als Event-ID zu verwenden (sonst 404).
     const eventByApptDate = await buildEventByApptDate(client, gridData, results);
 
-    // Bad Neustadt (Kalender 68) hat KEINE eigene Spalte – der Code „BN" steht
-    // in der Grünberg-Spalte, gehört aber in den Bad-Neustadt-Termin. Map
-    // Datum → echtes BN-Event aufbauen, um „BN" dorthin zu schreiben.
-    const bnEventByDate = new Map<string, any>();
-    try {
-        const dates = Object.keys(gridData)
-            .map((k) => (k as string).split('-').slice(1).join('-'))
-            .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
-            .sort();
-        if (dates.length) {
-            const from = dates[0];
-            const to = format(
-                addDays(new Date(dates[dates.length - 1]), 1),
-                'yyyy-MM-dd',
-            );
-            const bnAppts = await client.getAppointments([68], from, to);
-            for (const a of bnAppts) {
-                const apptId = a.base?.id ?? a.appointment?.base?.id ?? a.id;
-                const sd = a.calculated?.startDate || a.base?.startDate;
-                if (apptId == null || !sd) continue;
-                const d = formatInTimeZone(new Date(sd), TZ, 'yyyy-MM-dd');
-                const ev = eventByApptDate.get(`${apptId}-${d}`);
-                if (ev) bnEventByDate.set(d, ev);
+    // Dienst-Art-Verknüpfung (Code → CT-serviceId + Ziel-Kalender).
+    const svc = await loadServiceTypeConfig(pb);
+
+    // Datumsbereich des Grids (zum Laden der Routing-Kalender).
+    const gridDates = Object.keys(gridData)
+        .map((k) => (k as string).split('-').slice(1).join('-'))
+        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .sort();
+    const rangeFrom = gridDates[0];
+    const rangeTo = gridDates.length
+        ? format(addDays(new Date(gridDates[gridDates.length - 1]), 1), 'yyyy-MM-dd')
+        : undefined;
+
+    // Codes mit `routeCalendarId` gehören NICHT in das Spalten-Event, sondern in
+    // den gleichdatierten Termin DIESES Kalenders (z. B. BN→68, Als→65). Map je
+    // Kalender lazy aufbauen (Datum → CT-Event).
+    const routeCache = new Map<number, Map<string, any>>();
+    const routeEventsFor = async (calId: number): Promise<Map<string, any>> => {
+        const cached = routeCache.get(calId);
+        if (cached) return cached;
+        const m = new Map<string, any>();
+        if (rangeFrom && rangeTo) {
+            try {
+                const appts = await client.getAppointments(
+                    [calId],
+                    rangeFrom,
+                    rangeTo,
+                );
+                for (const a of appts) {
+                    const apptId = a.base?.id ?? a.appointment?.base?.id ?? a.id;
+                    const sd = a.calculated?.startDate || a.base?.startDate;
+                    if (apptId == null || !sd) continue;
+                    const d = formatInTimeZone(new Date(sd), TZ, 'yyyy-MM-dd');
+                    const ev = eventByApptDate.get(`${apptId}-${d}`);
+                    if (ev) m.set(d, ev);
+                }
+            } catch (e: any) {
+                results.push(`Hinweis: Kalender ${calId} nicht ladbar (${e.message})`);
             }
         }
-    } catch (e: any) {
-        results.push(`Hinweis: Bad-Neustadt-Termine nicht ladbar (${e.message})`);
-    }
+        routeCache.set(calId, m);
+        return m;
+    };
 
     // eventServices je Event nur einmal laden (Cache; auch für umgeroutete Codes).
     const bookingsCache = new Map<number, any[]>();
@@ -558,9 +630,9 @@ export async function exportPlanData(
                     continue;
                 }
 
-                // serviceId bestimmen. Gemeindestunde hat keinen Predigt-Slot →
-                // Code 1 ⇒ Einleitung (88, „Predigt 1"), 2 ⇒ Abschluss (117).
-                let serviceId = serviceIdForCode(code, datePart);
+                // serviceId aus der Dienst-Art-Verknüpfung. Gemeindestunde hat
+                // keinen Predigt-Slot → Code 1 ⇒ Einleitung (88), 2 ⇒ Abschluss (117).
+                let serviceId = svc.byCode.get(code)?.ctServiceId ?? null;
                 const isGm = (slotEvent.name || '')
                     .toLowerCase()
                     .includes('gemeindestunde');
@@ -573,24 +645,27 @@ export async function exportPlanData(
                     continue;
                 }
 
-                // „BN" gehört in den Bad-Neustadt-Termin (Kalender 68), nicht in
-                // die Grünberg-Spalte, in der der Code steht.
+                // Codes mit Ziel-Kalender (z. B. BN→68, Als→65) in den
+                // gleichdatierten Termin DIESES Kalenders schreiben statt in das
+                // Spalten-Event.
                 let targetEvent = slotEvent;
-                if (code === 'BN') {
-                    const bn = bnEventByDate.get(datePart);
-                    if (!bn) {
+                const routeCal = svc.byCode.get(code)?.routeCalendarId ?? null;
+                if (routeCal != null) {
+                    const m = await routeEventsFor(routeCal);
+                    const ev = m.get(datePart);
+                    if (!ev) {
                         const dFmt = formatInTimeZone(
                             new Date(slotEvent.startDate || datePart),
                             TZ,
                             'dd.MM.yyyy',
                         );
                         results.push(
-                            `ERROR: ${dFmt} · Bad Neustadt – ${name} (BN): ` +
-                                `kein Bad-Neustadt-Termin in CT gefunden`,
+                            `ERROR: ${dFmt} · Kalender ${routeCal} – ` +
+                                `${name} (${code}): kein passender Termin in CT gefunden`,
                         );
                         continue;
                     }
-                    targetEvent = bn;
+                    targetEvent = ev;
                 }
                 const targetEventId = targetEvent.id;
                 const targetBookings =
@@ -668,6 +743,7 @@ export async function computeExportDeletions(
 ): Promise<DeletionCandidate[]> {
     const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, userToken);
+    const svc = await loadServiceTypeConfig(pb);
 
     const preachersRaw = await pb.collection('members').getFullList();
     const ctIdByName = new Map<string, string>(); // Name → ct_id
@@ -698,7 +774,6 @@ export async function computeExportDeletions(
         const ev = eventByApptDate.get(slotId);
         if (!ev) continue;
         const eventId = ev.id;
-        const datePart = slotId.split('-').slice(1).join('-');
 
         // Was das Grid je Person (ct_id) WILL: Menge der gewünschten serviceIds.
         const desiredByCtId = new Map<string, Set<number>>();
@@ -708,7 +783,7 @@ export async function computeExportDeletions(
             if (code === '' || code === '-' || code === 'X') continue;
             const ctId = ctIdByName.get(name.trim());
             if (!ctId) continue;
-            const sid = serviceIdForCode(code, datePart);
+            const sid = svc.byCode.get(code)?.ctServiceId ?? null;
             if (sid == null) continue;
             if (!desiredByCtId.has(ctId)) desiredByCtId.set(ctId, new Set());
             desiredByCtId.get(ctId)!.add(sid);
@@ -725,7 +800,7 @@ export async function computeExportDeletions(
         for (const b of existing) {
             if (b.personId == null) continue;
             const sid = Number(b.serviceId);
-            if (!MANAGED_SERVICE_IDS.has(sid)) continue; // nur Plan-Dienste
+            if (!svc.managedServiceIds.has(sid)) continue; // nur Plan-Dienste
             const ctId = String(b.personId);
             if (!preacherCtIds.has(ctId)) continue; // nur Plan-Prediger
             const wanted = desiredByCtId.get(ctId);
@@ -807,6 +882,7 @@ export async function computeImport(
 ): Promise<ImportCandidate[]> {
     const userToken = user?.ct_api_key || CHURCHTOOLS_TOKEN;
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, userToken);
+    const svc = await loadServiceTypeConfig(pb);
 
     const preachersRaw = await pb.collection('members').getFullList();
     const nameByCtId = new Map<string, string>();
@@ -850,7 +926,7 @@ export async function computeImport(
         for (const es of ev.eventServices || []) {
             if (es.personId == null) continue;
             const sid = Number(es.serviceId);
-            if (!MANAGED_SERVICE_IDS.has(sid)) continue;
+            if (!svc.managedServiceIds.has(sid)) continue;
             const newCode = codeForService(sid, cal, date);
             if (!newCode) continue;
             const serviceName = svcName.get(sid) || `Dienst ${sid}`;
@@ -873,7 +949,8 @@ export async function computeImport(
             const currentCode = gridData[slotId]?.[name] ?? '';
             if (currentCode) {
                 // Gleiche CT-serviceId → unverändert (z. B. Grid '2' vs CT-Predigt).
-                if (serviceIdForCode(currentCode, date) === sid) continue;
+                if ((svc.byCode.get(currentCode)?.ctServiceId ?? null) === sid)
+                    continue;
                 out.push({
                     slotId,
                     date,
