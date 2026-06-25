@@ -44,11 +44,19 @@ async function einnahmenOf(pb: any, freizeit: string): Promise<number> {
     }
 }
 
-/** Nächte zwischen zwei yyyy-MM-dd-Datumsangaben (>= 0). */
+/**
+ * Nächte zwischen zwei Datumsangaben (>= 0). Akzeptiert sowohl ISO
+ * `yyyy-MM-dd` als auch deutsches `dd.MM.yyyy` (so speichert das Frontend
+ * von/bis tatsächlich).
+ */
 function nightsBetween(von: any, bis: any): number {
     const p = (s: any) => {
-        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((s ?? '').toString());
-        return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null;
+        const str = (s ?? '').toString().trim();
+        let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str);
+        if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+        m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(str); // dd.MM.yyyy
+        if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1]);
+        return null;
     };
     const a = p(von), b = p(bis);
     if (a == null || b == null) return 0;
@@ -160,49 +168,36 @@ function reconcile(ausgaben: any[]) {
 
 /** GET /api/freizeit-ausgaben?freizeit=ID -> Controlling-Übersicht (v2). */
 export const GET: RequestHandler = async ({ request, url }) => {
-    // Deploy-/Health-Marker (kein PB-Zugriff): zum Erkennen, welcher Code live ist.
-    if (url.searchParams.get('ping')) return json({ pong: 'robust-2' });
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
     const freizeit = url.searchParams.get('freizeit') || '';
     if (!freizeit) return json({ error: 'freizeit nötig' }, 400);
-    let step = 'start';
     try {
-        step = 'adminPb';
         const pb = await adminPb();
-        step = 'ensure';
         await ensureFreizeitAusgaben(pb);
-        // Liste robust laden: mehrere Strategien probieren (mit/ohne Sort,
-        // getList). Auf dieser PocketBase schlägt der sortierte getFullList
-        // teils fehl; dann greift eine der Folgestrategien. Zur Not [].
-        step = 'getFullList';
+        // Liste laden: der SORTIERTE getFullList schlägt auf dieser PocketBase
+        // fehl – daher ohne Sort laden (Fallback getList) und in JS sortieren.
         const col: any = pb.collection('freizeit_ausgaben');
         const flt = `freizeit="${freizeit}"`;
-        const strategies: { id: string; run: () => Promise<any[]> }[] = [
-            { id: 'full+sort', run: () => col.getFullList({ filter: flt, sort: 'kategorie,created' }) },
-            { id: 'full', run: () => col.getFullList({ filter: flt }) },
-            { id: 'full+batch', run: () => col.getFullList(200, { filter: flt }) },
-            { id: 'getList', run: () => col.getList(1, 500, { filter: flt }).then((r: any) => r.items) },
-            { id: 'full-nofilter', run: () => col.getFullList().then((all: any[]) => all.filter((a) => (a.freizeit ?? '').toString() === freizeit)) },
-        ];
         let ausgaben: any[] = [];
-        let listStrategy = 'none';
-        for (const s of strategies) {
+        try {
+            ausgaben = await col.getFullList({ filter: flt });
+        } catch (e1: any) {
+            console.error('getFullList freizeit_ausgaben failed, fallback getList:',
+                e1?.message || e1);
             try {
-                ausgaben = await s.run();
-                listStrategy = s.id;
-                break;
-            } catch (eList: any) {
-                console.error(`list strategy ${s.id} failed:`, eList?.message || eList, eList?.status);
+                ausgaben = (await col.getList(1, 500, { filter: flt })).items;
+            } catch (e2: any) {
+                console.error('getList freizeit_ausgaben failed (degraded to []):',
+                    e2?.message || e2);
             }
         }
-        // In JS sortieren (Kategorie, dann created), damit die Reihenfolge stabil
-        // bleibt, falls die Strategie ohne Sort gegriffen hat.
         ausgaben.sort((a, b) => {
-            const k = (a.kategorie || '').toString().localeCompare((b.kategorie || '').toString());
-            return k !== 0 ? k : (a.created || '').toString().localeCompare((b.created || '').toString());
+            const k = (a.kategorie || '').toString()
+                .localeCompare((b.kategorie || '').toString());
+            return k !== 0 ? k
+                : (a.created || '').toString().localeCompare((b.created || '').toString());
         });
-        step = 'compute';
 
         const { covered, dup } = reconcile(ausgaben);
         const perKategorie: Record<string, number> = {};
@@ -225,7 +220,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
         const hatManuelleUnterkunft = ausgaben.some((a) =>
             statusOf(a) !== 'bestellt' &&
             (a.kategorie || '').toString() === 'Unterkunft');
-        step = 'unterkunft';
         const unterkunft: any = await unterkunftKostenOf(pb, freizeit);
         unterkunft.inBilanz = unterkunft.betrag > 0 && !hatManuelleUnterkunft;
         if (unterkunft.inBilanz) {
@@ -244,13 +238,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
             }
         } catch { /* kein Budget */ }
 
-        step = 'einnahmen';
         const einnahmen = await einnahmenOf(pb, freizeit);
         const gesamtkosten = offen + bezahlt + bestellt +
             (unterkunft.inBilanz ? unterkunft.betrag : 0);
-        step = 'jugendleitung';
         const canEdit = await isJugendLeitung(user);
-        step = 'response';
 
         // Liste ohne beleg_b64 (Performance); Flag, ob ein Beleg vorhanden ist.
         const list = ausgaben.map((a: any) => {
@@ -273,14 +264,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
             gesamtkosten,
             saldo: einnahmen - gesamtkosten,
             canEdit,
-            _listStrategy: listStrategy, // temporär: welche Listen-Strategie griff
         });
     } catch (e: any) {
-        // Volle Details nur ins Server-Log; an den Client nur der Schritt-Marker.
-        console.error('GET /api/freizeit-ausgaben failed:', step, e?.message || e,
-            'status=', e?.status, 'data=', JSON.stringify(e?.data || e?.response || {}),
-            (e?.stack || '').split('\n').slice(0, 4).join(' | '));
-        return json({ error: e?.message || 'Fehler', step }, 500);
+        console.error('GET /api/freizeit-ausgaben failed:', e?.message || e);
+        return json({ error: e?.message || 'Fehler' }, 500);
     }
 };
 
