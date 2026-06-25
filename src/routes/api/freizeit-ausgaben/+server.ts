@@ -161,7 +161,7 @@ function reconcile(ausgaben: any[]) {
 /** GET /api/freizeit-ausgaben?freizeit=ID -> Controlling-Übersicht (v2). */
 export const GET: RequestHandler = async ({ request, url }) => {
     // Deploy-/Health-Marker (kein PB-Zugriff): zum Erkennen, welcher Code live ist.
-    if (url.searchParams.get('ping')) return json({ pong: 'robust-1' });
+    if (url.searchParams.get('ping')) return json({ pong: 'robust-2' });
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
     const freizeit = url.searchParams.get('freizeit') || '';
@@ -172,20 +172,36 @@ export const GET: RequestHandler = async ({ request, url }) => {
         const pb = await adminPb();
         step = 'ensure';
         await ensureFreizeitAusgaben(pb);
-        // getFullList abgesichert: Wenn die Collection (noch) kaputt ist, lädt
-        // der Tab leer statt hart 500. Die Reparatur in ensureFreizeitAusgaben
-        // greift dann beim nächsten Aufruf.
+        // Liste robust laden: mehrere Strategien probieren (mit/ohne Sort,
+        // getList). Auf dieser PocketBase schlägt der sortierte getFullList
+        // teils fehl; dann greift eine der Folgestrategien. Zur Not [].
         step = 'getFullList';
+        const col: any = pb.collection('freizeit_ausgaben');
+        const flt = `freizeit="${freizeit}"`;
+        const strategies: { id: string; run: () => Promise<any[]> }[] = [
+            { id: 'full+sort', run: () => col.getFullList({ filter: flt, sort: 'kategorie,created' }) },
+            { id: 'full', run: () => col.getFullList({ filter: flt }) },
+            { id: 'full+batch', run: () => col.getFullList(200, { filter: flt }) },
+            { id: 'getList', run: () => col.getList(1, 500, { filter: flt }).then((r: any) => r.items) },
+            { id: 'full-nofilter', run: () => col.getFullList().then((all: any[]) => all.filter((a) => (a.freizeit ?? '').toString() === freizeit)) },
+        ];
         let ausgaben: any[] = [];
-        try {
-            ausgaben = await pb.collection('freizeit_ausgaben').getFullList({
-                filter: `freizeit="${freizeit}"`,
-                sort: 'kategorie,created',
-            });
-        } catch (eList: any) {
-            console.error('getFullList freizeit_ausgaben failed (degraded to []):',
-                eList?.message || eList, eList?.status);
+        let listStrategy = 'none';
+        for (const s of strategies) {
+            try {
+                ausgaben = await s.run();
+                listStrategy = s.id;
+                break;
+            } catch (eList: any) {
+                console.error(`list strategy ${s.id} failed:`, eList?.message || eList, eList?.status);
+            }
         }
+        // In JS sortieren (Kategorie, dann created), damit die Reihenfolge stabil
+        // bleibt, falls die Strategie ohne Sort gegriffen hat.
+        ausgaben.sort((a, b) => {
+            const k = (a.kategorie || '').toString().localeCompare((b.kategorie || '').toString());
+            return k !== 0 ? k : (a.created || '').toString().localeCompare((b.created || '').toString());
+        });
         step = 'compute';
 
         const { covered, dup } = reconcile(ausgaben);
@@ -257,6 +273,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
             gesamtkosten,
             saldo: einnahmen - gesamtkosten,
             canEdit,
+            _listStrategy: listStrategy, // temporär: welche Listen-Strategie griff
         });
     } catch (e: any) {
         // Volle Details nur ins Server-Log; an den Client nur der Schritt-Marker.
