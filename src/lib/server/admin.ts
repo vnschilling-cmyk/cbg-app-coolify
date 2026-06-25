@@ -1344,29 +1344,19 @@ export async function ensureFreizeitAusgaben(pb: PocketBase): Promise<void> {
     try {
         const col: any = await pb.collections.getOne('freizeit_ausgaben');
         // Reparatur: ein früher (fehlerhaft) als json angelegtes `beleg_b64`
-        // entfernen – sonst bleibt die Collection kaputt. Danach sauber als Text
-        // nachlegen.
-        const cur: any[] = col.fields || col.schema || [];
-        const isSys = (f: any) =>
-            f.system || ['id', 'created', 'updated'].includes(f.name);
-        const bad = cur.find((f) => f.name === 'beleg_b64' && f.type !== 'text');
-        if (bad) {
-            const kept = cur.filter((f) => f.name !== 'beleg_b64');
+        // entfernen – sonst bleibt die Collection kaputt (getFullList -> 500).
+        // Das GANZE Collection-Objekt formattreu zurückschreiben (nur das eine
+        // Feld herausgenommen), das ist robuster als ein selbstgebautes Schema.
+        const arr: any[] = col.fields || col.schema || [];
+        const idx = arr.findIndex(
+            (f) => f.name === 'beleg_b64' && f.type !== 'text');
+        if (idx >= 0) {
+            arr.splice(idx, 1); // mutiert col.fields/col.schema in place
             try {
-                await pb.collections.update(col.id, { fields: kept });
-            } catch {
-                const schema = kept
-                    .filter((f) => !isSys(f))
-                    .map((f) => {
-                        const { name, type, required, ...rest } = f;
-                        return { name, type, required: !!required, options: rest };
-                    });
-                try {
-                    await pb.collections.update(col.id, { schema });
-                } catch (e2: any) {
-                    console.error('repair freizeit_ausgaben (drop json beleg_b64) failed:',
-                        e2?.message || e2);
-                }
+                await pb.collections.update(col.id, col);
+            } catch (e2: any) {
+                console.error('repair freizeit_ausgaben (drop json beleg_b64) failed:',
+                    e2?.message || e2);
             }
         }
         await ensureFields(pb, 'freizeit_ausgaben', fields);

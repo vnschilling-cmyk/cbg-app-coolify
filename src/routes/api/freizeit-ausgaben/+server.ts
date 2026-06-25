@@ -160,6 +160,8 @@ function reconcile(ausgaben: any[]) {
 
 /** GET /api/freizeit-ausgaben?freizeit=ID -> Controlling-Übersicht (v2). */
 export const GET: RequestHandler = async ({ request, url }) => {
+    // Deploy-/Health-Marker (kein PB-Zugriff): zum Erkennen, welcher Code live ist.
+    if (url.searchParams.get('ping')) return json({ pong: 'robust-1' });
     const { user } = await pbFromRequest(request);
     if (!user) return json({ error: 'Nicht autorisiert' }, 401);
     const freizeit = url.searchParams.get('freizeit') || '';
@@ -170,11 +172,20 @@ export const GET: RequestHandler = async ({ request, url }) => {
         const pb = await adminPb();
         step = 'ensure';
         await ensureFreizeitAusgaben(pb);
+        // getFullList abgesichert: Wenn die Collection (noch) kaputt ist, lädt
+        // der Tab leer statt hart 500. Die Reparatur in ensureFreizeitAusgaben
+        // greift dann beim nächsten Aufruf.
         step = 'getFullList';
-        const ausgaben = await pb.collection('freizeit_ausgaben').getFullList({
-            filter: `freizeit="${freizeit}"`,
-            sort: 'kategorie,created',
-        });
+        let ausgaben: any[] = [];
+        try {
+            ausgaben = await pb.collection('freizeit_ausgaben').getFullList({
+                filter: `freizeit="${freizeit}"`,
+                sort: 'kategorie,created',
+            });
+        } catch (eList: any) {
+            console.error('getFullList freizeit_ausgaben failed (degraded to []):',
+                eList?.message || eList, eList?.status);
+        }
         step = 'compute';
 
         const { covered, dup } = reconcile(ausgaben);
