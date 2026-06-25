@@ -146,15 +146,33 @@ export class ChurchToolsClient {
         eventId: string | number,
         serviceId: string | number,
         personId: string | number,
+        slotIndex: number | null = null,
     ) {
         const services = await this.getEventServices(eventId);
         const sid = String(serviceId);
+        // Hat ein Event mehrere gleichartige Slots (z. B. „Predigt 1"/„Predigt 2"),
+        // unterscheidet ChurchTools sie per `index` (1-basiert; Einzel-Dienst: null).
+        // Mit `slotIndex` wird gezielt diese Instanz gefüllt statt „erster freier".
+        const idxOf = (s: any) =>
+            s.index != null ? Number(s.index) : s.counter != null ? Number(s.counter) : null;
+        const idxMatch = (s: any) => slotIndex == null || idxOf(s) === Number(slotIndex);
         const target =
             services.find(
                 (s) =>
                     String(s.personId) === String(personId) &&
-                    String(s.serviceId) === sid,
-            ) || services.find((s) => s.personId == null && String(s.serviceId) === sid);
+                    String(s.serviceId) === sid &&
+                    idxMatch(s),
+            ) ||
+            services.find(
+                (s) => s.personId == null && String(s.serviceId) === sid && idxMatch(s),
+            ) ||
+            // Fallback: kein Slot mit genau diesem Index (z. B. Einzel-Dienst) →
+            // erster freier dieser serviceId, damit nichts hängen bleibt.
+            (slotIndex != null
+                ? services.find(
+                      (s) => s.personId == null && String(s.serviceId) === sid,
+                  )
+                : undefined);
         if (!target) {
             throw new Error(
                 `Kein freier Slot für Dienst ${serviceId} im Event ${eventId}`,

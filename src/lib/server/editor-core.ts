@@ -100,7 +100,11 @@ function codeForService(
     }
 }
 
-type SvcInfo = { ctServiceId: number | null; routeCalendarId: number | null };
+type SvcInfo = {
+    ctServiceId: number | null;
+    ctServiceIndex: number | null;
+    routeCalendarId: number | null;
+};
 interface SvcMap {
     byCode: Map<string, SvcInfo>;
     managedServiceIds: Set<number>;
@@ -133,6 +137,10 @@ async function loadServiceTypeConfig(pb: PocketBase): Promise<SvcMap> {
             byCode.set(code, {
                 ctServiceId:
                     typeof v.ctServiceId === 'number' ? v.ctServiceId : null,
+                ctServiceIndex:
+                    typeof v.ctServiceIndex === 'number'
+                        ? v.ctServiceIndex
+                        : null,
                 routeCalendarId:
                     typeof v.routeCalendarId === 'number'
                         ? v.routeCalendarId
@@ -141,11 +149,14 @@ async function loadServiceTypeConfig(pb: PocketBase): Promise<SvcMap> {
         }
     }
     // Standard-Codes ohne (vollständigen) Config-Eintrag aus Hardcode backfillen.
+    // Predigt 1/2 (Code „1"/„2") zielen je auf eventService.index 1/2.
     const seedCodes = ['🍷', 'V', 'L', '1', '2', 'BN', 'Als', 'BS', 'GS', 'T'];
+    const idxSeed: Record<string, number> = { '1': 1, '2': 2 };
     for (const code of seedCodes) {
         if (!byCode.has(code)) {
             byCode.set(code, {
                 ctServiceId: serviceIdForCode(code, ''),
+                ctServiceIndex: idxSeed[code] ?? null,
                 routeCalendarId: code === 'BN' ? 68 : code === 'Als' ? 65 : null,
             });
         }
@@ -633,10 +644,16 @@ export async function exportPlanData(
                 // serviceId aus der Dienst-Art-Verknüpfung. Gemeindestunde hat
                 // keinen Predigt-Slot → Code 1 ⇒ Einleitung (88), 2 ⇒ Abschluss (117).
                 let serviceId = svc.byCode.get(code)?.ctServiceId ?? null;
+                // Welche Instanz des CT-Dienstes (eventService.index): z. B. Code
+                // „1" → Predigt 1, „2" → Predigt 2. null = erster freier Slot.
+                let slotIndex = svc.byCode.get(code)?.ctServiceIndex ?? null;
                 const isGm = (slotEvent.name || '')
                     .toLowerCase()
                     .includes('gemeindestunde');
                 if (isGm) {
+                    // Gemeindestunde hat eigene Einzel-Dienste (Einleitung/Abschluss)
+                    // ohne Instanz-Nummerierung → kein gezielter Index.
+                    slotIndex = null;
                     if (code === '1') serviceId = 88;
                     else if (code === '2') serviceId = 117;
                 }
@@ -676,7 +693,9 @@ export async function exportPlanData(
                 const sameService = targetBookings.find(
                     (b: any) =>
                         String(b.personId) === String(personId) &&
-                        String(b.serviceId) === String(serviceId),
+                        String(b.serviceId) === String(serviceId) &&
+                        (slotIndex == null ||
+                            Number(b.index ?? b.counter) === Number(slotIndex)),
                 );
                 if (sameService && sameService.isAccepted) {
                     results.push(`X: ${name} ist bereits als ${code} eingetragen`);
@@ -684,7 +703,12 @@ export async function exportPlanData(
                 }
 
                 try {
-                    await client.setAssignment(targetEventId, serviceId, personId);
+                    await client.setAssignment(
+                        targetEventId,
+                        serviceId,
+                        personId,
+                        slotIndex,
+                    );
                     results.push(
                         `OK: ${name} als ${code} für Event ${targetEventId}`,
                     );
