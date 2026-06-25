@@ -1333,13 +1333,42 @@ export async function ensureFreizeitAusgaben(pb: PocketBase): Promise<void> {
         { name: 'status', type: 'text' }, // bestellt | offen | bezahlt (leer ⇒ bezahlt)
         { name: 'bestellnummer', type: 'text' }, // Abgleich Bestellung↔Rechnung
         { name: 'lieferant', type: 'text' }, // Freitext (kein Stammdatensatz)
-        // Beleg als Base64 im json-Feld (wie unterkunft_dokumente.pdf_b64)
-        { name: 'beleg_b64', type: 'json', maxSize: 12000000 },
+        // Beleg als Base64-DataURL in einem TEXT-Feld. WICHTIG: KEIN json-Feld –
+        // die hiesige PocketBase macht die Collection mit einem json-Feld
+        // unquerybar (getFullList -> 500). Text ist unbegrenzt (wie
+        // protocols.original_b64).
+        { name: 'beleg_b64', type: 'text' },
         { name: 'beleg_name', type: 'text' },
         { name: 'beleg_typ', type: 'text' }, // MIME (application/pdf, image/jpeg …)
     ];
     try {
-        await pb.collections.getOne('freizeit_ausgaben');
+        const col: any = await pb.collections.getOne('freizeit_ausgaben');
+        // Reparatur: ein früher (fehlerhaft) als json angelegtes `beleg_b64`
+        // entfernen – sonst bleibt die Collection kaputt. Danach sauber als Text
+        // nachlegen.
+        const cur: any[] = col.fields || col.schema || [];
+        const isSys = (f: any) =>
+            f.system || ['id', 'created', 'updated'].includes(f.name);
+        const bad = cur.find((f) => f.name === 'beleg_b64' && f.type !== 'text');
+        if (bad) {
+            const kept = cur.filter((f) => f.name !== 'beleg_b64');
+            try {
+                await pb.collections.update(col.id, { fields: kept });
+            } catch {
+                const schema = kept
+                    .filter((f) => !isSys(f))
+                    .map((f) => {
+                        const { name, type, required, ...rest } = f;
+                        return { name, type, required: !!required, options: rest };
+                    });
+                try {
+                    await pb.collections.update(col.id, { schema });
+                } catch (e2: any) {
+                    console.error('repair freizeit_ausgaben (drop json beleg_b64) failed:',
+                        e2?.message || e2);
+                }
+            }
+        }
         await ensureFields(pb, 'freizeit_ausgaben', fields);
         return;
     } catch (e: any) {
