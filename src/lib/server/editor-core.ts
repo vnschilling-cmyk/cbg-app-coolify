@@ -506,6 +506,7 @@ export async function savePlanData(
         hidden_preachers?: unknown;
         hidden_slots?: unknown;
         extra_slots?: unknown;
+        open_slots?: unknown;
     },
 ) {
     // Manuelle Spalten (extra/ausgeblendet) ohne PB-Schemaänderung im
@@ -515,10 +516,12 @@ export async function savePlanData(
     // ablegen – das persistiert zuverlässig, ohne PB-Schemafeld.
     if (body.hidden_slots !== undefined ||
         body.extra_slots !== undefined ||
+        body.open_slots !== undefined ||
         body.hidden_preachers !== undefined) {
         data.__meta = {
             hiddenSlots: body.hidden_slots ?? [],
             extraSlots: body.extra_slots ?? [],
+            openSlots: body.open_slots ?? [],
             hiddenPreachers: body.hidden_preachers ?? [],
         };
     }
