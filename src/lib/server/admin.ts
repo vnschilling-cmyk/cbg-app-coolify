@@ -1009,6 +1009,58 @@ export async function geminiAnalyzeUnterkunft(
     throw new Error(lastMsg);
 }
 
+/** System-Anweisung für die Rohtext-Aufbereitung (Diktat → Beschreibung). */
+const TIDY_TEXT_PROMPT =
+    'Du bekommst einen kurzen, diktierten Rohtext auf Deutsch. Wandle ihn in '
+    + 'einen prägnanten, gut lesbaren Beschreibungstext (2–5 Sätze, sachlich, '
+    + 'ohne Ich-Perspektive, ohne Füllwörter, keine Aufzählungen mit Bullet-'
+    + 'Points). Behalte alle Fakten bei; erfinde NICHTS. Korrigiere '
+    + 'offensichtliche Erkennungsfehler und Rechtschreibung. Antworte AUS'
+    + 'SCHLIESSLICH mit dem fertigen Text – kein Vorspann, keine Anführungs'
+    + 'zeichen, kein Markdown.';
+
+/**
+ * Kurzen Roh-/Diktat-Text per Gemini in eine saubere Beschreibung überführen.
+ * `kontext` (optional) gibt dem Modell einen Hinweis, worum es geht – z. B.
+ * „Beschreibung des Bereichs Küche einer Freizeit-Unterkunft".
+ * Ohne Key: Rohtext bleibt unverändert (kein Absturz).
+ */
+export async function geminiTidyText(
+    text: string,
+    apiKey: string,
+    kontext?: string,
+): Promise<string> {
+    const clean = (text || '').trim();
+    if (!clean) return '';
+    if (!apiKey) return clean;
+    const ctx = (kontext || '').trim();
+    const prompt = ctx
+        ? `${TIDY_TEXT_PROMPT}\n\nKontext: ${ctx}\n\n--- ROHTEXT ---\n${clean}`
+        : `${TIDY_TEXT_PROMPT}\n\n--- ROHTEXT ---\n${clean}`;
+    const chain = [
+        (env.GEMINI_MODEL || '').trim(),
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-flash-latest',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
+
+    let lastMsg = 'Gemini nicht erreichbar';
+    for (const model of chain) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const r = await geminiCall(model, prompt, apiKey);
+            if (r.ok) {
+                const out = (r.text || '').trim();
+                return out || clean;
+            }
+            lastMsg = r.message || lastMsg;
+            const transient = r.status === 503 || r.status === 429;
+            if (!transient) break;
+            if (attempt < 2) await sleep(1500);
+        }
+    }
+    throw new Error(lastMsg);
+}
+
 /** System-Anweisung für den KI-Dienstplan-Vorschlag. */
 const PLAN_PROMPT =
     'Du bist ein Assistent für die Erstellung eines Prediger-Dienstplans. '

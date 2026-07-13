@@ -34,11 +34,18 @@ export const GET: RequestHandler = async ({ request, params }) => {
         let ausflugsziele: any[] = [];
         try {
             await ensureUnterkunftAusflug(pb);
+            // Ohne server-seitigen Sort laden (kann in PB nach Schema-Änderungen
+            // 500en). In JS nach sort_order / created sortieren.
             ausflugsziele = await pb
                 .collection('unterkunft_ausflugsziele').getFullList({
                     filter: `unterkunft="${params.id}"`,
-                    sort: 'sort_order,created',
                 });
+            ausflugsziele.sort((a: any, b: any) => {
+                const sa = Number(a?.sort_order ?? 0);
+                const sb = Number(b?.sort_order ?? 0);
+                if (sa !== sb) return sa - sb;
+                return `${a?.created ?? ''}`.localeCompare(`${b?.created ?? ''}`);
+            });
         } catch (e: any) {
             console.error('unterkunft_ausflugsziele read failed:', e?.message || e);
         }
