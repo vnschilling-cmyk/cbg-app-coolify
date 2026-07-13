@@ -308,7 +308,26 @@ export function alterAusGeburtstag(geb: string): number | null {
  *   juengste, aelteste, verteilung: [{ label, count }] }.
  */
 export async function loadJugendStatistik(user: any) {
-    const memberIds = await loadGroupPersonIds(user, JUGEND_GROUP_ID);
+    // Mitglieder der Jugendgruppe – mit Diagnose (roh-Anzahl, evtl. Fehler),
+    // um „0 Mitglieder" (leere Antwort vs. Berechtigungsfehler) zu unterscheiden.
+    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    const memberIds = new Set<string>();
+    let rawMemberCount = 0;
+    let groupError = '';
+    try {
+        const r = await client.request(
+            `groups/${JUGEND_GROUP_ID}/members?limit=300`);
+        const arr: any[] = r?.data || [];
+        rawMemberCount = arr.length;
+        for (const m of arr) {
+            const pid = m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
+            if (pid != null) memberIds.add(String(pid));
+        }
+    } catch (e: any) {
+        groupError = e?.message || String(e);
+    }
+
     const bdays = await loadPersonsBirthdayMap(user);
 
     const ages: number[] = [];
@@ -344,6 +363,15 @@ export async function loadJugendStatistik(user: any) {
         juengste: n ? ages[0] : 0,
         aelteste: n ? ages[n - 1] : 0,
         verteilung,
+        // Temporäre Diagnose (warum evtl. 0 Mitglieder).
+        _debug: {
+            gruppe: JUGEND_GROUP_ID,
+            rawMemberCount,
+            memberIds: memberIds.size,
+            groupError,
+            geburtstageGesamt: bdays.size,
+            tokenQuelle: user?.ct_api_key ? 'user' : 'env',
+        },
     };
 }
 
