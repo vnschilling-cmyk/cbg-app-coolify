@@ -24,9 +24,16 @@ export const GET: RequestHandler = async ({ request, params }) => {
         let bilder: any[] = [];
         try {
             await ensureUnterkunftGalerie(pb);
+            // Ohne server-seitigen Sort laden (kann in PB 500en) und in JS
+            // sortieren – sonst blieben gespeicherte Bilder unsichtbar.
             bilder = await pb.collection('unterkunft_galerie').getFullList({
                 filter: `unterkunft="${params.id}"`,
-                sort: 'sort_order,created',
+            });
+            bilder.sort((a: any, b: any) => {
+                const sa = Number(a?.sort_order ?? 0);
+                const sb = Number(b?.sort_order ?? 0);
+                if (sa !== sb) return sa - sb;
+                return `${a?.created ?? ''}`.localeCompare(`${b?.created ?? ''}`);
             });
         } catch (e: any) {
             console.error('unterkunft_galerie read failed:', e?.message || e);
