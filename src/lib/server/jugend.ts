@@ -289,6 +289,64 @@ export async function loadPersonsBirthdayMap(
     return map;
 }
 
+/** Alter in Jahren aus yyyy-MM-dd (Geburtstag dieses Jahr berücksichtigt). */
+export function alterAusGeburtstag(geb: string): number | null {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(geb || '');
+    if (!m) return null;
+    const today = new Date();
+    let a = today.getFullYear() - Number(m[1]);
+    const mm = Number(m[2]);
+    const dd = Number(m[3]);
+    if (today.getMonth() + 1 < mm ||
+        (today.getMonth() + 1 === mm && today.getDate() < dd)) a--;
+    return a >= 0 && a < 120 ? a : null;
+}
+
+/**
+ * Alters-Statistik der CT-Jugendgruppe (19) aus den Geburtstagseinträgen.
+ * Rückgabe: { mitglieder, mitGeburtstag, ohneGeburtstag, durchschnittsalter,
+ *   juengste, aelteste, verteilung: [{ label, count }] }.
+ */
+export async function loadJugendStatistik(user: any) {
+    const memberIds = await loadGroupPersonIds(user, JUGEND_GROUP_ID);
+    const bdays = await loadPersonsBirthdayMap(user);
+
+    const ages: number[] = [];
+    let ohneGeburtstag = 0;
+    for (const id of memberIds) {
+        const a = alterAusGeburtstag(bdays.get(String(id)) || '');
+        if (a == null) ohneGeburtstag++;
+        else ages.push(a);
+    }
+    ages.sort((a, b) => a - b);
+    const n = ages.length;
+    const durchschnittsalter = n
+        ? Math.round((ages.reduce((s, a) => s + a, 0) / n) * 10) / 10
+        : 0;
+
+    const buckets: { label: string; min: number; max: number }[] = [
+        { label: 'bis 12', min: 0, max: 12 },
+        { label: '13–15', min: 13, max: 15 },
+        { label: '16–18', min: 16, max: 18 },
+        { label: '19–21', min: 19, max: 21 },
+        { label: '22+', min: 22, max: 200 },
+    ];
+    const verteilung = buckets.map((b) => ({
+        label: b.label,
+        count: ages.filter((a) => a >= b.min && a <= b.max).length,
+    }));
+
+    return {
+        mitglieder: memberIds.size,
+        mitGeburtstag: n,
+        ohneGeburtstag,
+        durchschnittsalter,
+        juengste: n ? ages[0] : 0,
+        aelteste: n ? ages[n - 1] : 0,
+        verteilung,
+    };
+}
+
 /**
  * Personenliste zum Zuweisen im Jugend-Dienstplan: ALLE männlichen Mitglieder
  * (Status „Mitglied") + weibliche Personen, die als Klavierspieler markiert sind
