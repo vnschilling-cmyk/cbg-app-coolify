@@ -3,6 +3,7 @@ import { json, preflight, pbFromRequest } from '$lib/server/api';
 import {
     adminPb, ensureUnterkuenfte, ensureUnterkunftGalerie,
     ensureUnterkunftAusflug, isJugendLeitung, pickUnterkunft,
+    unterkunftGesamtnote,
 } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
@@ -80,8 +81,13 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
     try {
         const pb = await adminPb();
         await ensureUnterkuenfte(pb);
-        const rec = await pb.collection('unterkuenfte')
-            .update(params.id!, pickUnterkunft(body));
+        const patch = pickUnterkunft(body);
+        // Note aus dem GESAMTEN Datensatz (bestehende Sterne + dieses Update)
+        // berechnen. Sonst setzt ein Teil-Update OHNE Sterne (z. B. nur eine
+        // Beschreibung) die Note faelschlich auf 0.
+        const existing = await pb.collection('unterkuenfte').getOne(params.id!);
+        patch.gesamtnote = unterkunftGesamtnote({ ...existing, ...patch });
+        const rec = await pb.collection('unterkuenfte').update(params.id!, patch);
         return json({ unterkunft: rec });
     } catch (e: any) {
         console.error('PATCH /api/unterkuenfte/:id failed:', e?.message || e);

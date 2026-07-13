@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
 import {
     adminPb, ensureUnterkuenfte, isJugendLeitung, pickUnterkunft,
+    unterkunftGesamtnote,
 } from '$lib/server/admin';
 
 export const OPTIONS: RequestHandler = async () => preflight();
@@ -13,8 +14,17 @@ export const GET: RequestHandler = async ({ request }) => {
     try {
         const pb = await adminPb();
         await ensureUnterkuenfte(pb);
-        const list = await pb.collection('unterkuenfte').getFullList({
-            sort: '-gesamtnote,name',
+        // Ohne server-seitigen Sort laden (kann in PB 500en) und die Note je
+        // Datensatz frisch aus den Sternen (r_*) berechnen -> selbstheilend,
+        // auch wenn ein gespeichertes `gesamtnote` mal veraltet/0 war.
+        const list = await pb.collection('unterkuenfte').getFullList();
+        for (const r of list as any[]) {
+            r.gesamtnote = unterkunftGesamtnote(r);
+        }
+        list.sort((a: any, b: any) => {
+            const d = Number(b.gesamtnote ?? 0) - Number(a.gesamtnote ?? 0);
+            if (d !== 0) return d;
+            return `${a.name ?? ''}`.localeCompare(`${b.name ?? ''}`);
         });
         return json({ unterkuenfte: list, canEdit: await isJugendLeitung(user) });
     } catch (e: any) {
