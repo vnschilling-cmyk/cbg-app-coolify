@@ -1963,9 +1963,40 @@ export function permsForRole(
 }
 
 /**
- * Darf der Nutzer Dienstpläne bearbeiten? Admins immer, sonst nur Rollen mit
- * gesetztem `dienstplaner`-Recht. Fällt bei Fehlern offen aus (kein Lockout,
- * falls der Backend-Admin nicht erreichbar ist).
+ * Effektive Rechte EINES Nutzers: ein Per-User-Override (`user_perms`) gewinnt
+ * über die Rolle; Admins haben immer vollen Zugriff. Ohne Override greifen die
+ * Rechte der Rolle (`permsForRole`).
+ */
+export function permsForUser(
+    userId: string,
+    role: AppRole,
+    rolePerms: Record<string, Partial<RolePerms>> | null,
+    userPerms: Record<string, Partial<RolePerms>> | null,
+): RolePerms {
+    if (role === 'admin') return DEFAULT_ROLE_PERMS.admin;
+    const o = userPerms?.[userId];
+    if (o) {
+        // Per-User-Override: exakt das Gespeicherte (Alt-Schlüssel migriert),
+        // OHNE jugend-Zwang – volle Kontrolle je Person.
+        const menus = Array.isArray(o.menus)
+            ? [...new Set(o.menus.map((m) =>
+                (m === 'besprechungen' ? 'bruderrat' : m)))]
+            : [];
+        return {
+            menus,
+            churchtools: o.churchtools === true,
+            berechtigungen: o.berechtigungen === true,
+            konfiguration: o.konfiguration === true,
+            dienstplaner: o.dienstplaner === true,
+        };
+    }
+    return permsForRole(role, rolePerms);
+}
+
+/**
+ * Darf der Nutzer Dienstpläne bearbeiten? Admins immer, sonst nur Nutzer mit
+ * gesetztem `dienstplaner`-Recht (Per-User-Override vor Rolle). Fällt bei
+ * Fehlern offen aus (kein Lockout, falls der Backend-Admin nicht erreichbar ist).
  */
 export async function canEditPlans(
     user: { id: string; role?: string } | null,
@@ -1975,9 +2006,11 @@ export async function canEditPlans(
         const pb = await adminPb();
         const roleMap = (await getConfig(pb, 'user_roles')) || {};
         const rolePerms = (await getConfig(pb, 'role_perms')) || {};
+        const userPerms = (await getConfig(pb, 'user_perms')) || {};
         const role = effectiveRole(user.id, user.role, roleMap);
         if (role === 'admin') return true;
-        return permsForRole(role, rolePerms).dienstplaner === true;
+        return permsForUser(user.id, role, rolePerms, userPerms)
+            .dienstplaner === true;
     } catch {
         return true;
     }

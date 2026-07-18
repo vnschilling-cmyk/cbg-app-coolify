@@ -66,9 +66,11 @@ export async function GET({ request }) {
             role: effectiveRole(u.id, u.role, roleMap),
         }));
         const rolePerms = (await getConfig(pb, 'role_perms')) || {};
+        const userPerms = (await getConfig(pb, 'user_perms')) || {};
         return json({
             users,
             rolePerms,
+            userPerms,
             defaults: DEFAULT_ROLE_PERMS,
             menuKeys: MENU_KEYS,
         });
@@ -161,6 +163,34 @@ export async function POST({ request }) {
                     : (e?.message || 'Passwort konnte nicht gesetzt werden');
                 return json({ error: msg }, 500);
             }
+            return json({ success: true });
+        }
+        // 0c) Rechte pro Person setzen/entfernen (Override vor der Rolle).
+        //     perms=null -> Override entfernen (zurück zur Rolle).
+        if (body.action === 'setUserPerms') {
+            const userId = (body.userId || '').toString();
+            if (!userId) return json({ error: 'userId nötig' }, 400);
+            const cur: Record<string, unknown> =
+                (await getConfig(pb, 'user_perms')) || {};
+            if (body.perms === null || body.perms === undefined) {
+                delete cur[userId];
+                await setConfig(pb, 'user_perms', cur);
+                return json({ success: true });
+            }
+            const p = body.perms || {};
+            const menus = Array.isArray(p.menus)
+                ? p.menus.map((m: any) => m.toString())
+                    .filter((m: string) => (MENU_KEYS as readonly string[])
+                        .includes(m))
+                : [];
+            cur[userId] = {
+                menus,
+                churchtools: p.churchtools === true,
+                berechtigungen: p.berechtigungen === true,
+                konfiguration: p.konfiguration === true,
+                dienstplaner: p.dienstplaner === true,
+            };
+            await setConfig(pb, 'user_perms', cur);
             return json({ success: true });
         }
         // 1) Einzelne Rollenzuweisung.
