@@ -402,6 +402,14 @@ export async function loadJugendStatistik(_user: any) {
     const schnitt = (xs: number[]) => xs.length
         ? Math.round((xs.reduce((s, a) => s + a, 0) / xs.length) * 10) / 10
         : 0;
+    // Median (xs muss aufsteigend sortiert sein).
+    const median = (xs: number[]) => {
+        if (!xs.length) return 0;
+        const mid = Math.floor(xs.length / 2);
+        return xs.length % 2
+            ? xs[mid]
+            : Math.round(((xs[mid - 1] + xs[mid]) / 2) * 10) / 10;
+    };
 
     const maenn = rows.filter((r) => r.sexId === SEX_MALE);
     const weib = rows.filter((r) => r.sexId === SEX_FEMALE);
@@ -433,6 +441,7 @@ export async function loadJugendStatistik(_user: any) {
     return {
         gesamt: n,
         durchschnittsalter: schnitt(ages),
+        medianalter: median(ages),
         durchschnittAlle: schnitt(alleAges),
         juengste: n ? ages[0] : 0,
         aelteste: n ? ages[n - 1] : 0,
