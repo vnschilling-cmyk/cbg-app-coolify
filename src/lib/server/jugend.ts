@@ -8,6 +8,7 @@
  */
 import { ChurchToolsClient } from '$lib/server/churchtools';
 import { CHURCHTOOLS_TOKEN, CHURCHTOOLS_BASE_URL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { format, addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -316,9 +317,13 @@ const JUGEND_LEITER_ROLE_IDS = new Set([9, 10]);
  *   verteilung: [{ label, count }] }.
  */
 export async function loadJugendStatistik(_user: any) {
-    // Immer der Server-Token (Vollzugriff), damit Gruppe 19 sichtbar ist.
-    const serverUser = { ct_api_key: CHURCHTOOLS_TOKEN };
-    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, CHURCHTOOLS_TOKEN);
+    // Server-Token (Vollzugriff), damit die restricted-Gruppe 19 sichtbar ist.
+    // Laufzeit-Env zuerst ($env/dynamic) – der Build-Zeit-Wert ($env/static)
+    // kann leer sein, wenn Coolify die Variable nur zur Laufzeit setzt.
+    const ctToken = env.CHURCHTOOLS_TOKEN || CHURCHTOOLS_TOKEN;
+    const ctBase = env.CHURCHTOOLS_BASE_URL || CHURCHTOOLS_BASE_URL;
+    const serverUser = { ct_api_key: ctToken };
+    const client = new ChurchToolsClient(ctBase, ctToken);
 
     // Gruppenmitglieder inkl. Rolle (um Leitung auszuschließen).
     const members: { id: string; roleId: number }[] = [];
@@ -337,6 +342,9 @@ export async function loadJugendStatistik(_user: any) {
     } catch (e) {
         console.error('Jugend-Statistik: Gruppe laden fehlgeschlagen', e);
     }
+    console.log('Jugend-Statistik:', members.length,
+        'Mitglieder | Token gesetzt:', !!ctToken,
+        '| Quelle:', env.CHURCHTOOLS_TOKEN ? 'dynamic' : 'static');
 
     const bdays = await loadPersonsBirthdayMap(serverUser);
 
