@@ -200,17 +200,28 @@ export async function loadJugendReinigungsplan(
 }
 
 /**
- * Mitglieder der CT-Gruppe „Jugend" (19) als [{name, id}] – für Zuweisungen
- * in Freizeit-Checklisten u. ä. (Schnellauswahl).
+ * CT-Client mit Server-Token (Vollzugriff). Nötig für `restricted`-Gruppen
+ * (z. B. 19/228/136): der eingeschränkte User-Token liefert dort still 200 +
+ * leere Liste (kein 403). Laufzeit-Env ($env/dynamic) zuerst – der Build-Zeit-
+ * Wert ($env/static) kann leer sein, wenn Coolify die Variable nur zur Laufzeit
+ * setzt (gleiches Muster wie loadJugendStatistik).
  */
-export async function loadJugendGroupMembers(user: any) {
-    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
-    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+function serverClient(): ChurchToolsClient {
+    const token = env.CHURCHTOOLS_TOKEN || CHURCHTOOLS_TOKEN;
+    const base = env.CHURCHTOOLS_BASE_URL || CHURCHTOOLS_BASE_URL;
+    return new ChurchToolsClient(base, token);
+}
+
+/**
+ * Mitglieder der CT-Gruppe „Jugend" (19) als [{name, id}] – für Zuweisungen
+ * in Freizeit-Checklisten u. ä. (Schnellauswahl). Server-Token, da Gruppe 19
+ * `restricted` ist (User-Token → stille leere Liste).
+ */
+export async function loadJugendGroupMembers(_user: any) {
+    const client = serverClient();
     const out: { name: string; id: string }[] = [];
     try {
-        const r = await client.request(
-            `groups/${JUGEND_GROUP_ID}/members?limit=200`);
-        for (const m of (r.data || [])) {
+        for (const m of await client.getGroupMembers(JUGEND_GROUP_ID)) {
             const p = m.person;
             if (isArchived(p)) continue;
             const da = p?.domainAttributes;
@@ -227,17 +238,18 @@ export async function loadJugendGroupMembers(user: any) {
     return { people: out };
 }
 
-/** Personen-IDs (als Set) der Mitglieder einer CT-Gruppe. */
+/**
+ * Personen-IDs (als Set) der Mitglieder einer CT-Gruppe. Server-Token, da u. a.
+ * für `restricted`-Gruppen (z. B. 228 „Jugend Wortdienst") genutzt.
+ */
 export async function loadGroupPersonIds(
-    user: any,
+    _user: any,
     groupId: number,
 ): Promise<Set<string>> {
-    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
-    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    const client = serverClient();
     const ids = new Set<string>();
     try {
-        const r = await client.request(`groups/${groupId}/members?limit=300`);
-        for (const m of (r.data || [])) {
+        for (const m of await client.getGroupMembers(groupId)) {
             const pid = m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
             if (pid != null) ids.add(String(pid));
         }
@@ -326,24 +338,17 @@ export async function loadJugendStatistik(_user: any) {
     const client = new ChurchToolsClient(ctBase, ctToken);
 
     // Gruppenmitglieder inkl. Rolle (um Leitung auszuschließen).
-    // ChurchTools erlaubt max. limit=100 (darüber 400) -> paginieren.
     const members: { id: string; roleId: number }[] = [];
     try {
-        for (let page = 1; page <= 10; page++) {
-            const r = await client.request(
-                `groups/${JUGEND_GROUP_ID}/members?limit=100&page=${page}`);
-            const arr: any[] = r?.data || [];
-            for (const m of arr) {
-                const pid =
-                    m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
-                if (pid != null) {
-                    members.push({
-                        id: String(pid),
-                        roleId: Number(m.groupTypeRoleId ?? 0),
-                    });
-                }
+        for (const m of await client.getGroupMembers(JUGEND_GROUP_ID)) {
+            const pid =
+                m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
+            if (pid != null) {
+                members.push({
+                    id: String(pid),
+                    roleId: Number(m.groupTypeRoleId ?? 0),
+                });
             }
-            if (arr.length < 100) break;
         }
     } catch (e) {
         console.error('Jugend-Statistik: Gruppe laden fehlgeschlagen', e);
@@ -409,16 +414,14 @@ export async function loadJugendStatistik(_user: any) {
  * (Status „Mitglied") + weibliche Personen, die als Klavierspieler markiert sind
  * (Mitglied der CT-Gruppe „Klavierspieler", id 136). Rückgabe { people:[{name,id}] }.
  */
-export async function loadJugendPeople(user: any) {
-    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
-    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+export async function loadJugendPeople(_user: any) {
+    // Server-Token: die Klavierspieler-Gruppe (136) ist `restricted`.
+    const client = serverClient();
 
     // Klavierspieler-Gruppe: personIds sammeln (für die weibliche Ausnahme).
     const pianistIds = new Set<string>();
     try {
-        const r = await client.request(
-            `groups/${KLAVIERSPIELER_GROUP_ID}/members?limit=200`);
-        for (const m of (r.data || [])) {
+        for (const m of await client.getGroupMembers(KLAVIERSPIELER_GROUP_ID)) {
             const pid = m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
             if (pid != null) pianistIds.add(String(pid));
         }

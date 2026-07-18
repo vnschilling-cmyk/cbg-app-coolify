@@ -1795,9 +1795,8 @@ export async function isJugendLeitung(
             roles.filter((r) => r.isLeader === true || r.type === 'leader')
                 .map((r) => Number(r.groupTypeRoleId ?? r.id)));
 
-        const mem: any = await client.request(
-            `groups/${JUGEND_GROUP_ID}/members?limit=200`);
-        for (const m of (mem.data || [])) {
+        const mem = await client.getGroupMembers(JUGEND_GROUP_ID);
+        for (const m of mem) {
             const pid = String(m.personId ?? m.person?.domainIdentifier ?? '');
             if (pid !== String(personId)) continue;
             const rid = Number(m.groupTypeRoleId ?? m.groupMemberRoleId ?? -1);

@@ -92,12 +92,20 @@ export class ChurchToolsClient {
     }
 
     /**
-     * Fetch persons within a specific group.
+     * Fetch persons within a specific group. ChurchTools erlaubt max. limit=100
+     * (darüber 400 Bad Request), daher in 100er-Seiten laden und zusammenführen.
+     * Wirft bei API-Fehlern – der Aufrufer entscheidet über den Fallback.
      */
-    async getGroupMembers(groupId: string): Promise<any[]> {
-        const data = await this.request(`groups/${groupId}/members?limit=100`);
-        // Typically ChurchTools returns an array of member objects which contain person details
-        return data.data || [];
+    async getGroupMembers(groupId: string | number): Promise<any[]> {
+        const out: any[] = [];
+        for (let page = 1; page <= 20; page++) {
+            const data = await this.request(
+                `groups/${groupId}/members?limit=100&page=${page}`);
+            const batch: any[] = data.data || [];
+            out.push(...batch);
+            if (batch.length < 100) break;
+        }
+        return out;
     }
 
     /**
