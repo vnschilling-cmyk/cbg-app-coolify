@@ -326,18 +326,24 @@ export async function loadJugendStatistik(_user: any) {
     const client = new ChurchToolsClient(ctBase, ctToken);
 
     // Gruppenmitglieder inkl. Rolle (um Leitung auszuschließen).
+    // ChurchTools erlaubt max. limit=100 (darüber 400) -> paginieren.
     const members: { id: string; roleId: number }[] = [];
     try {
-        const r = await client.request(
-            `groups/${JUGEND_GROUP_ID}/members?limit=300`);
-        for (const m of (r?.data || [])) {
-            const pid = m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
-            if (pid != null) {
-                members.push({
-                    id: String(pid),
-                    roleId: Number(m.groupTypeRoleId ?? 0),
-                });
+        for (let page = 1; page <= 10; page++) {
+            const r = await client.request(
+                `groups/${JUGEND_GROUP_ID}/members?limit=100&page=${page}`);
+            const arr: any[] = r?.data || [];
+            for (const m of arr) {
+                const pid =
+                    m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
+                if (pid != null) {
+                    members.push({
+                        id: String(pid),
+                        roleId: Number(m.groupTypeRoleId ?? 0),
+                    });
+                }
             }
+            if (arr.length < 100) break;
         }
     } catch (e) {
         console.error('Jugend-Statistik: Gruppe laden fehlgeschlagen', e);
