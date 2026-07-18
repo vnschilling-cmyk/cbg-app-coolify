@@ -318,24 +318,47 @@ export function alterAusGeburtstag(geb: string): number | null {
 /** Leiter/Co-Leiter der Jugendgruppe (groupTypeRoleId) – aus dem Schnitt raus. */
 const JUGEND_LEITER_ROLE_IDS = new Set([9, 10]);
 
+/** Die Jugend beginnt ab 16 – jüngere werden komplett ignoriert. */
+const JUGEND_MIN_ALTER = 16;
+
+/** Map CT-Personen-ID -> { age, sexId } für die Statistik (Server-Client). */
+async function loadPersonsAgeSexMap(
+    client: ChurchToolsClient,
+): Promise<Map<string, { age: number | null; sexId: number }>> {
+    const map = new Map<string, { age: number | null; sexId: number }>();
+    try {
+        for (let page = 1; page <= 20; page++) {
+            const r = await client.request(`persons?page=${page}&limit=100`);
+            const batch: any[] = r.data || [];
+            for (const p of batch) {
+                const id = String(p.domainIdentifier ?? p.id ?? '');
+                if (!id) continue;
+                map.set(id, {
+                    age: alterAusGeburtstag(
+                        (p.birthday || p.domainAttributes?.birthday || '')
+                            .toString()),
+                    sexId: Number(p.sexId ?? 0),
+                });
+            }
+            if (batch.length < 100) break;
+        }
+    } catch (e) {
+        console.error('Jugend-Statistik: Personen laden fehlgeschlagen', e);
+    }
+    return map;
+}
+
 /**
- * Alters-Statistik der CT-Jugendgruppe (19) aus den Geburtstagseinträgen.
- * Nur TEILNEHMER fließen in den Schnitt; Leiter/Co-Leiter werden separat
- * gezählt, nicht eingerechnet. Nutzt den Server-Token (CHURCHTOOLS_TOKEN),
- * weil die Gruppe „restricted" ist und der eingeschränkte User-Token sie
- * evtl. nicht sehen darf.
- * Rückgabe: { mitglieder, teilnehmer, leitung, mitGeburtstag, ohneGeburtstag,
- *   durchschnittsalter, durchschnittAlle, juengste, aelteste,
- *   verteilung: [{ label, count }] }.
+ * KPI-Statistik der CT-Jugendgruppe (19) ab 16 Jahren aus den ChurchTools-
+ * Geburtstags- und Geschlechtsdaten. Nur TEILNEHMER (ohne Leitung), unter 16
+ * wird komplett ignoriert. Server-Token, da die Gruppe „restricted" ist.
+ * Rückgabe: { gesamt, durchschnittsalter, durchschnittAlle, juengste, aelteste,
+ *   maennlich:{anzahl,durchschnitt}, weiblich:{anzahl,durchschnitt},
+ *   verteilung:[{label,gesamt,m,w}], aktivsteGruppe, teilnehmer, leitung,
+ *   ohneGeburtstag, minAlter }.
  */
 export async function loadJugendStatistik(_user: any) {
-    // Server-Token (Vollzugriff), damit die restricted-Gruppe 19 sichtbar ist.
-    // Laufzeit-Env zuerst ($env/dynamic) – der Build-Zeit-Wert ($env/static)
-    // kann leer sein, wenn Coolify die Variable nur zur Laufzeit setzt.
-    const ctToken = env.CHURCHTOOLS_TOKEN || CHURCHTOOLS_TOKEN;
-    const ctBase = env.CHURCHTOOLS_BASE_URL || CHURCHTOOLS_BASE_URL;
-    const serverUser = { ct_api_key: ctToken };
-    const client = new ChurchToolsClient(ctBase, ctToken);
+    const client = serverClient();
 
     // Gruppenmitglieder inkl. Rolle (um Leitung auszuschließen).
     const members: { id: string; roleId: number }[] = [];
@@ -353,59 +376,80 @@ export async function loadJugendStatistik(_user: any) {
     } catch (e) {
         console.error('Jugend-Statistik: Gruppe laden fehlgeschlagen', e);
     }
-    console.log('Jugend-Statistik:', members.length,
-        'Mitglieder | Token gesetzt:', !!ctToken,
-        '| Quelle:', env.CHURCHTOOLS_TOKEN ? 'dynamic' : 'static');
 
-    const bdays = await loadPersonsBirthdayMap(serverUser);
+    // Alter + Geschlecht je Person.
+    const info = await loadPersonsAgeSexMap(client);
 
     const teilnehmer = members.filter(
         (m) => !JUGEND_LEITER_ROLE_IDS.has(m.roleId));
     const leitung = members.length - teilnehmer.length;
 
-    const ages: number[] = [];
+    // Nur Teilnehmer AB 16 mit Geburtsdatum; jüngere komplett ignorieren.
+    const rows: { age: number; sexId: number }[] = [];
     let ohneGeburtstag = 0;
     for (const m of teilnehmer) {
-        const a = alterAusGeburtstag(bdays.get(m.id) || '');
-        if (a == null) ohneGeburtstag++;
-        else ages.push(a);
+        const age = info.get(m.id)?.age ?? null;
+        if (age == null) {
+            ohneGeburtstag++;
+            continue;
+        }
+        if (age < JUGEND_MIN_ALTER) continue;
+        rows.push({ age, sexId: info.get(m.id)?.sexId ?? 0 });
     }
-    ages.sort((a, b) => a - b);
+
+    const ages = rows.map((r) => r.age).sort((a, b) => a - b);
     const n = ages.length;
     const schnitt = (xs: number[]) => xs.length
         ? Math.round((xs.reduce((s, a) => s + a, 0) / xs.length) * 10) / 10
         : 0;
-    const durchschnittsalter = schnitt(ages);
 
-    // Schnitt inkl. Leitung – nur zur Info.
-    const allAges = members
-        .map((m) => alterAusGeburtstag(bdays.get(m.id) || ''))
-        .filter((a): a is number => a != null);
-    const durchschnittAlle = schnitt(allAges);
+    const maenn = rows.filter((r) => r.sexId === SEX_MALE);
+    const weib = rows.filter((r) => r.sexId === SEX_FEMALE);
 
     const buckets: { label: string; min: number; max: number }[] = [
-        { label: 'bis 12', min: 0, max: 12 },
-        { label: '13–15', min: 13, max: 15 },
         { label: '16–18', min: 16, max: 18 },
         { label: '19–21', min: 19, max: 21 },
-        { label: '22+', min: 22, max: 200 },
+        { label: '22–25', min: 22, max: 25 },
+        { label: '26+', min: 26, max: 200 },
     ];
-    const verteilung = buckets.map((b) => ({
-        label: b.label,
-        count: ages.filter((a) => a >= b.min && a <= b.max).length,
-    }));
+    const verteilung = buckets.map((b) => {
+        const inB = rows.filter((r) => r.age >= b.min && r.age <= b.max);
+        return {
+            label: b.label,
+            gesamt: inB.length,
+            m: inB.filter((r) => r.sexId === SEX_MALE).length,
+            w: inB.filter((r) => r.sexId === SEX_FEMALE).length,
+        };
+    });
+    const aktivste = verteilung.reduce(
+        (best, v) => (v.gesamt > best.gesamt ? v : best),
+        { label: '', gesamt: 0 } as { label: string; gesamt: number });
+
+    // Schnitt inkl. Leitung (ab 16) – nur zur Info.
+    const alleAges = members
+        .map((m) => info.get(m.id)?.age ?? null)
+        .filter((a): a is number => a != null && a >= JUGEND_MIN_ALTER);
 
     return {
-        mitglieder: members.length,
-        teilnehmer: teilnehmer.length,
-        leitung,
-        mitGeburtstag: n,
-        ohneGeburtstag,
-        durchschnittsalter,
-        durchschnittAlle,
+        gesamt: n,
+        durchschnittsalter: schnitt(ages),
+        durchschnittAlle: schnitt(alleAges),
         juengste: n ? ages[0] : 0,
         aelteste: n ? ages[n - 1] : 0,
+        maennlich: {
+            anzahl: maenn.length,
+            durchschnitt: schnitt(maenn.map((r) => r.age)),
+        },
+        weiblich: {
+            anzahl: weib.length,
+            durchschnitt: schnitt(weib.map((r) => r.age)),
+        },
         verteilung,
+        aktivsteGruppe: aktivste.gesamt > 0 ? aktivste.label : '',
+        teilnehmer: teilnehmer.length,
+        leitung,
+        ohneGeburtstag,
+        minAlter: JUGEND_MIN_ALTER,
     };
 }
 
