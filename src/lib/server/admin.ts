@@ -313,6 +313,84 @@ export const DEFAULT_ROLE_PERMS: Record<AppRole, RolePerms> = {
     },
 };
 
+// ── Bereichs-/Stufen-Rechtemodell (Phase 1) ─────────────────────────────────
+/** Zugriffs-Bereiche (Jugend fein aufgeteilt). Reihenfolge = Anzeige. */
+export const ACCESS_AREAS = [
+    'dienstplaene',
+    'gottesdienstleitung',
+    'bruderrat',
+    'jugend_dienstplan',
+    'jugend_reinigung',
+    'jugend_freizeiten',
+    'jugend_unterkuenfte',
+    'jugend_statistik',
+    'verwaltung',
+] as const;
+export type AccessArea = (typeof ACCESS_AREAS)[number];
+/** Stufen je Bereich; Abwesenheit = kein Zugriff. */
+export type AccessLevel = 'ansehen' | 'bearbeiten';
+
+const JUGEND_AREAS: AccessArea[] = [
+    'jugend_dienstplan', 'jugend_reinigung', 'jugend_freizeiten',
+    'jugend_unterkuenfte', 'jugend_statistik',
+];
+
+/** Vorlagen: füllen die Auswahl vor, danach pro Person frei anpassbar. */
+export const DEFAULT_ACCESS_PRESETS: Record<string, Record<string, AccessLevel>> = {
+    Vollzugriff: Object.fromEntries(
+        ACCESS_AREAS.map((a) => [a, 'bearbeiten'])) as Record<string, AccessLevel>,
+    Prediger: { dienstplaene: 'bearbeiten', gottesdienstleitung: 'bearbeiten' },
+    Jugend: Object.fromEntries(
+        JUGEND_AREAS.map((a) => [a, 'bearbeiten'])) as Record<string, AccessLevel>,
+    Bruderrat: { bruderrat: 'bearbeiten' },
+};
+
+/**
+ * Effektiver Bereichs-Zugriff eines Nutzers als { area: level }.
+ * Admin → alles „bearbeiten". Sonst: expliziter Per-User-Zugriff (`user_access`)
+ * vor der Rückwärts-Ableitung aus dem alten Menü-/Flag-Modell (kein Lockout).
+ */
+export function accessForUser(
+    userId: string,
+    role: AppRole,
+    userAccess: Record<string, Record<string, string>> | null,
+    rolePerms: Record<string, Partial<RolePerms>> | null,
+    userPerms: Record<string, Partial<RolePerms>> | null,
+): Record<string, AccessLevel> {
+    const out: Record<string, AccessLevel> = {};
+    if (role === 'admin') {
+        for (const a of ACCESS_AREAS) out[a] = 'bearbeiten';
+        return out;
+    }
+    const explicit = userAccess?.[userId];
+    if (explicit && typeof explicit === 'object') {
+        for (const a of ACCESS_AREAS) {
+            const lvl = explicit[a];
+            if (lvl === 'ansehen' || lvl === 'bearbeiten') out[a] = lvl;
+        }
+        return out;
+    }
+    // Ableitung aus dem alten Modell (Menüs + Flags) – erhält bisherige Sicht.
+    const p = permsForUser(userId, role, rolePerms, userPerms);
+    if (p.menus.includes('prediger')) {
+        out.dienstplaene = p.dienstplaner ? 'bearbeiten' : 'ansehen';
+    }
+    if (p.menus.includes('gottesdienstleitung')) {
+        out.gottesdienstleitung = 'bearbeiten';
+    }
+    if (p.menus.includes('bruderrat')) out.bruderrat = 'bearbeiten';
+    if (p.menus.includes('jugend')) {
+        for (const a of JUGEND_AREAS) out[a] = 'ansehen';
+    }
+    if (p.menus.includes('einstellungen')) {
+        out.verwaltung =
+            (p.konfiguration || p.berechtigungen || p.churchtools)
+                ? 'bearbeiten'
+                : 'ansehen';
+    }
+    return out;
+}
+
 /** Einfache, kollisionsarme ID (für JSON-Datensätze in app_config). */
 export function genId(): string {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);

@@ -10,6 +10,7 @@ import {
     getConfig,
     effectiveRole,
     permsForUser,
+    accessForUser,
 } from '$lib/server/admin';
 import { ChurchToolsClient } from '$lib/server/churchtools';
 import { env } from '$env/dynamic/private';
@@ -26,6 +27,7 @@ export async function GET({ request }) {
         const roleMap = (await getConfig(pb, 'user_roles')) || {};
         const rolePerms = (await getConfig(pb, 'role_perms')) || {};
         const userPerms = (await getConfig(pb, 'user_perms')) || {};
+        const userAccess = (await getConfig(pb, 'user_access')) || {};
         const role = effectiveRole(user.id, user.role, roleMap);
 
         // CT-Personen-ID für den Avatar: zuerst schneller Namens-Treffer in
@@ -74,6 +76,8 @@ export async function GET({ request }) {
             role,
             personId,
             perms: permsForUser(user.id, role, rolePerms, userPerms),
+            access: accessForUser(
+                user.id, role, userAccess, rolePerms, userPerms),
         });
     } catch (e: any) {
         // Fallback: ohne Backend-Admin keine Einschränkung (kein Lockout).

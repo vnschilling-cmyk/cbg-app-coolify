@@ -15,6 +15,8 @@ import {
     effectiveRole,
     DEFAULT_ROLE_PERMS,
     MENU_KEYS,
+    ACCESS_AREAS,
+    DEFAULT_ACCESS_PRESETS,
     type AppRole,
 } from '$lib/server/admin';
 
@@ -67,12 +69,17 @@ export async function GET({ request }) {
         }));
         const rolePerms = (await getConfig(pb, 'role_perms')) || {};
         const userPerms = (await getConfig(pb, 'user_perms')) || {};
+        const userAccess = (await getConfig(pb, 'user_access')) || {};
         return json({
             users,
             rolePerms,
             userPerms,
             defaults: DEFAULT_ROLE_PERMS,
             menuKeys: MENU_KEYS,
+            // Bereichs-/Stufen-Modell (Phase 1)
+            userAccess,
+            areas: ACCESS_AREAS,
+            presets: DEFAULT_ACCESS_PRESETS,
         });
     } catch (e: any) {
         return json({ error: e?.message || 'Fehler beim Laden' }, 500);
@@ -191,6 +198,28 @@ export async function POST({ request }) {
                 dienstplaner: p.dienstplaner === true,
             };
             await setConfig(pb, 'user_perms', cur);
+            return json({ success: true });
+        }
+        // 0d) Bereichs-Zugriff pro Person setzen/entfernen (Stufen-Modell).
+        //     access=null -> zurück zur Ableitung/Rolle.
+        if (body.action === 'setUserAccess') {
+            const userId = (body.userId || '').toString();
+            if (!userId) return json({ error: 'userId nötig' }, 400);
+            const cur: Record<string, unknown> =
+                (await getConfig(pb, 'user_access')) || {};
+            if (body.access === null || body.access === undefined) {
+                delete cur[userId];
+                await setConfig(pb, 'user_access', cur);
+                return json({ success: true });
+            }
+            const a = body.access || {};
+            const clean: Record<string, string> = {};
+            for (const area of ACCESS_AREAS) {
+                const lvl = a[area];
+                if (lvl === 'ansehen' || lvl === 'bearbeiten') clean[area] = lvl;
+            }
+            cur[userId] = clean;
+            await setConfig(pb, 'user_access', cur);
             return json({ success: true });
         }
         // 1) Einzelne Rollenzuweisung.
