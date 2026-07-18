@@ -1858,6 +1858,17 @@ export async function isJugendLeitung(
         const role = effectiveRole(user.id, user.role, roleMap);
         if (role === 'admin') return true;
 
+        // Bereichs-Modell: Jugend-Schreibrecht (ein Jugend-Bereich auf
+        // „bearbeiten") gilt als Jugendleitung – zusätzlich zur CT-Gruppe.
+        const rolePerms = (await getConfig(pb, 'role_perms')) || {};
+        const userPerms = (await getConfig(pb, 'user_perms')) || {};
+        const userAccess = (await getConfig(pb, 'user_access')) || {};
+        const acc = accessForUser(
+            user.id, role, userAccess, rolePerms, userPerms);
+        const jugendWrite = ['jugend_dienstplan', 'jugend_reinigung',
+            'jugend_freizeiten', 'jugend_unterkuenfte'];
+        if (jugendWrite.some((a) => acc[a] === 'bearbeiten')) return true;
+
         const personId = await resolvePersonId(pb, user);
         if (!personId) return false;
 

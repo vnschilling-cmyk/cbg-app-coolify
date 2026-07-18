@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { canEditPlans } from '$lib/server/admin';
+import { canEditPlans, isJugendLeitung } from '$lib/server/admin';
 import { loadJugendReinigungsplan } from '$lib/server/jugend';
 
 export const OPTIONS: RequestHandler = async () => preflight();
@@ -17,7 +17,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
             url.searchParams.get('from') || undefined,
             url.searchParams.get('to') || undefined,
         );
-        return json({ ...data, canEdit: await canEditPlans(user) });
+        const canEdit =
+            (await canEditPlans(user)) || (await isJugendLeitung(user));
+        return json({ ...data, canEdit });
     } catch (e: any) {
         console.error('API jugend-reinigung failed:', e);
         return json({ error: e?.message || 'Fehler' }, 500);

@@ -4,7 +4,7 @@
  * freien Slot dieser serviceId danach automatisch wieder an. Nur Planer/Admin.
  */
 import { json, preflight, pbFromRequest } from '$lib/server/api';
-import { canEditPlans } from '$lib/server/admin';
+import { canEditPlans, isJugendLeitung } from '$lib/server/admin';
 import { ChurchToolsClient } from '$lib/server/churchtools';
 import { env } from '$env/dynamic/private';
 
@@ -13,7 +13,8 @@ export const OPTIONS = async () => preflight();
 export async function POST({ request }) {
     const { user } = await pbFromRequest(request);
     if (!user) return json({ success: false, error: 'Unauthorized' }, 401);
-    if (!(await canEditPlans(user))) {
+    // Dienstplaner/Admin ODER Jugendleitung (Reinigung/Jugend-Dienste).
+    if (!((await canEditPlans(user)) || (await isJugendLeitung(user)))) {
         return json(
             { success: false, error: 'Keine Berechtigung, Dienste zu ändern' },
             403);
