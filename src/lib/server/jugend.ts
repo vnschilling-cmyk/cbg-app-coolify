@@ -312,6 +312,18 @@ export async function loadJugendStatistik(user: any) {
     // um „0 Mitglieder" (leere Antwort vs. Berechtigungsfehler) zu unterscheiden.
     const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
     const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
+    // Wem gehört der laufende Token? (whoami) – klärt Berechtigungsfragen.
+    let tokenPerson = '';
+    try {
+        const w: any = await client.request('whoami');
+        const wp = w?.data || w;
+        tokenPerson =
+            `${wp?.firstName || ''} ${wp?.lastName || ''}`.trim() +
+            ` (#${wp?.id ?? '?'})`;
+    } catch (e: any) {
+        tokenPerson = 'whoami-Fehler: ' + (e?.message || String(e));
+    }
+
     const memberIds = new Set<string>();
     let rawMemberCount = 0;
     let groupError = '';
@@ -366,6 +378,7 @@ export async function loadJugendStatistik(user: any) {
         // Temporäre Diagnose (warum evtl. 0 Mitglieder).
         _debug: {
             gruppe: JUGEND_GROUP_ID,
+            tokenPerson,
             rawMemberCount,
             memberIds: memberIds.size,
             groupError,
