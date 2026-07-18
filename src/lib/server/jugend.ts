@@ -219,7 +219,10 @@ function serverClient(): ChurchToolsClient {
  */
 export async function loadJugendGroupMembers(_user: any) {
     const client = serverClient();
-    const out: { name: string; id: string }[] = [];
+    // roleId (groupTypeRoleId) additiv mitgeben: 9=Leiter, 10=Co-Leiter,
+    // 8=Teilnehmer, 42=Teilnehmer 2. Aufrufer können damit z. B. Leiter
+    // ausblenden (Reinigung).
+    const out: { name: string; id: string; roleId: number }[] = [];
     try {
         for (const m of await client.getGroupMembers(JUGEND_GROUP_ID)) {
             const p = m.person;
@@ -229,7 +232,9 @@ export async function loadJugendGroupMembers(_user: any) {
                 ? `${da.firstName || ''} ${da.lastName || ''}`.trim()
                 : (p?.title || '').toString();
             const id = String(m.personId ?? p?.domainIdentifier ?? '');
-            if (name && id) out.push({ name, id });
+            if (name && id) {
+                out.push({ name, id, roleId: Number(m.groupTypeRoleId ?? 0) });
+            }
         }
     } catch (e) {
         console.error('Jugend: Gruppenmitglieder laden fehlgeschlagen', e);
