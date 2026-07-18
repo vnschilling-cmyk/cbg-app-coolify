@@ -302,58 +302,67 @@ export function alterAusGeburtstag(geb: string): number | null {
     return a >= 0 && a < 120 ? a : null;
 }
 
+/** Leiter/Co-Leiter der Jugendgruppe (groupTypeRoleId) – aus dem Schnitt raus. */
+const JUGEND_LEITER_ROLE_IDS = new Set([9, 10]);
+
 /**
  * Alters-Statistik der CT-Jugendgruppe (19) aus den Geburtstagseinträgen.
- * Rückgabe: { mitglieder, mitGeburtstag, ohneGeburtstag, durchschnittsalter,
- *   juengste, aelteste, verteilung: [{ label, count }] }.
+ * Nur TEILNEHMER fließen in den Schnitt; Leiter/Co-Leiter werden separat
+ * gezählt, nicht eingerechnet. Nutzt den Server-Token (CHURCHTOOLS_TOKEN),
+ * weil die Gruppe „restricted" ist und der eingeschränkte User-Token sie
+ * evtl. nicht sehen darf.
+ * Rückgabe: { mitglieder, teilnehmer, leitung, mitGeburtstag, ohneGeburtstag,
+ *   durchschnittsalter, durchschnittAlle, juengste, aelteste,
+ *   verteilung: [{ label, count }] }.
  */
-export async function loadJugendStatistik(user: any) {
-    // Mitglieder der Jugendgruppe – mit Diagnose (roh-Anzahl, evtl. Fehler),
-    // um „0 Mitglieder" (leere Antwort vs. Berechtigungsfehler) zu unterscheiden.
-    const token = user?.ct_api_key || CHURCHTOOLS_TOKEN;
-    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, token);
-    // Wem gehört der laufende Token? (whoami) – klärt Berechtigungsfragen.
-    let tokenPerson = '';
-    try {
-        const w: any = await client.request('whoami');
-        const wp = w?.data || w;
-        tokenPerson =
-            `${wp?.firstName || ''} ${wp?.lastName || ''}`.trim() +
-            ` (#${wp?.id ?? '?'})`;
-    } catch (e: any) {
-        tokenPerson = 'whoami-Fehler: ' + (e?.message || String(e));
-    }
+export async function loadJugendStatistik(_user: any) {
+    // Immer der Server-Token (Vollzugriff), damit Gruppe 19 sichtbar ist.
+    const serverUser = { ct_api_key: CHURCHTOOLS_TOKEN };
+    const client = new ChurchToolsClient(CHURCHTOOLS_BASE_URL, CHURCHTOOLS_TOKEN);
 
-    const memberIds = new Set<string>();
-    let rawMemberCount = 0;
-    let groupError = '';
+    // Gruppenmitglieder inkl. Rolle (um Leitung auszuschließen).
+    const members: { id: string; roleId: number }[] = [];
     try {
         const r = await client.request(
             `groups/${JUGEND_GROUP_ID}/members?limit=300`);
-        const arr: any[] = r?.data || [];
-        rawMemberCount = arr.length;
-        for (const m of arr) {
+        for (const m of (r?.data || [])) {
             const pid = m.personId ?? m.person?.domainIdentifier ?? m.person?.id;
-            if (pid != null) memberIds.add(String(pid));
+            if (pid != null) {
+                members.push({
+                    id: String(pid),
+                    roleId: Number(m.groupTypeRoleId ?? 0),
+                });
+            }
         }
-    } catch (e: any) {
-        groupError = e?.message || String(e);
+    } catch (e) {
+        console.error('Jugend-Statistik: Gruppe laden fehlgeschlagen', e);
     }
 
-    const bdays = await loadPersonsBirthdayMap(user);
+    const bdays = await loadPersonsBirthdayMap(serverUser);
+
+    const teilnehmer = members.filter(
+        (m) => !JUGEND_LEITER_ROLE_IDS.has(m.roleId));
+    const leitung = members.length - teilnehmer.length;
 
     const ages: number[] = [];
     let ohneGeburtstag = 0;
-    for (const id of memberIds) {
-        const a = alterAusGeburtstag(bdays.get(String(id)) || '');
+    for (const m of teilnehmer) {
+        const a = alterAusGeburtstag(bdays.get(m.id) || '');
         if (a == null) ohneGeburtstag++;
         else ages.push(a);
     }
     ages.sort((a, b) => a - b);
     const n = ages.length;
-    const durchschnittsalter = n
-        ? Math.round((ages.reduce((s, a) => s + a, 0) / n) * 10) / 10
+    const schnitt = (xs: number[]) => xs.length
+        ? Math.round((xs.reduce((s, a) => s + a, 0) / xs.length) * 10) / 10
         : 0;
+    const durchschnittsalter = schnitt(ages);
+
+    // Schnitt inkl. Leitung – nur zur Info.
+    const allAges = members
+        .map((m) => alterAusGeburtstag(bdays.get(m.id) || ''))
+        .filter((a): a is number => a != null);
+    const durchschnittAlle = schnitt(allAges);
 
     const buckets: { label: string; min: number; max: number }[] = [
         { label: 'bis 12', min: 0, max: 12 },
@@ -368,23 +377,16 @@ export async function loadJugendStatistik(user: any) {
     }));
 
     return {
-        mitglieder: memberIds.size,
+        mitglieder: members.length,
+        teilnehmer: teilnehmer.length,
+        leitung,
         mitGeburtstag: n,
         ohneGeburtstag,
         durchschnittsalter,
+        durchschnittAlle,
         juengste: n ? ages[0] : 0,
         aelteste: n ? ages[n - 1] : 0,
         verteilung,
-        // Temporäre Diagnose (warum evtl. 0 Mitglieder).
-        _debug: {
-            gruppe: JUGEND_GROUP_ID,
-            tokenPerson,
-            rawMemberCount,
-            memberIds: memberIds.size,
-            groupError,
-            geburtstageGesamt: bdays.size,
-            tokenQuelle: user?.ct_api_key ? 'user' : 'env',
-        },
     };
 }
 
