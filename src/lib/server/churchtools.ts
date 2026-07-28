@@ -207,6 +207,35 @@ export class ChurchToolsClient {
     }
 
     /**
+     * Setzt die Slot-Anzahl (`count`) eines Dienstes an einem Event via
+     * PUT /events/{id}/eventservices. WICHTIG: Dieser PUT ersetzt die komplette
+     * Dienst-Liste – daher werden die Counts ALLER vorhandenen Dienste
+     * mit-übergeben; nur der Ziel-Dienst wird auf `count` gesetzt. Damit lassen
+     * sich Extra-Plätze anlegen (count+1) oder wieder abbauen (count-1).
+     */
+    async setServiceSlotCount(
+        eventId: string | number,
+        serviceId: string | number,
+        count: number,
+    ) {
+        const services = await this.getEventServices(eventId);
+        const counts = new Map<string, number>();
+        for (const s of services) {
+            const sid = String(s.serviceId);
+            counts.set(sid, (counts.get(sid) ?? 0) + 1);
+        }
+        counts.set(String(serviceId), Math.max(0, Math.floor(count)));
+        const body = [...counts.entries()].map(([sid, c]) => ({
+            serviceId: Number(sid),
+            count: c,
+        }));
+        return await this.request(`events/${eventId}/eventservices`, {
+            method: 'PUT',
+            body: JSON.stringify(body),
+        });
+    }
+
+    /**
      * Sync data to Pocketbase (conceptual logic)
      */
     async syncToPocketbase() {
