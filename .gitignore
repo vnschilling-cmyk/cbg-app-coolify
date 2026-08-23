@@ -21,3 +21,15 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Debug-Dumps / Logs (reproduzierbar, teils mit Personendaten)
+*_utf8.txt
+*_utf8.json
+check_results*.txt
+netstat_*.txt
+pb_debug_results.log
+groups_response.json
+members.json
+appointments.json
+calendars.json
+one_member.json
