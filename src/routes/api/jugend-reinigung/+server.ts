@@ -8,7 +8,7 @@ export const OPTIONS: RequestHandler = async () => preflight();
 /** GET /api/jugend-reinigung?from=&to= -> Reinigungsplan (Kalender 86, Dienst 113). */
 export const GET: RequestHandler = async ({ request, url }) => {
     const { user, pb } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ error: 'Nicht autorisiert' }, 401);
     }
     try {

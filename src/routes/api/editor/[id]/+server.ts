@@ -7,7 +7,7 @@ export const OPTIONS: RequestHandler = async () => preflight();
 /** GET /api/editor/{id} -> komplette Editor-Daten für die Flutter-App. */
 export const GET: RequestHandler = async ({ params, request }) => {
     const { pb, user } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ error: 'Nicht autorisiert' }, 401);
     }
     try {

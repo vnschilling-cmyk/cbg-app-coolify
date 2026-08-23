@@ -7,7 +7,7 @@ export const OPTIONS: RequestHandler = async () => preflight();
 /** GET /api/birthdays -> Geburtstage aller Mitglieder in der aktuellen Woche. */
 export const GET: RequestHandler = async ({ request }) => {
     const { user, pb } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ error: 'Nicht autorisiert' }, 401);
     }
     try {

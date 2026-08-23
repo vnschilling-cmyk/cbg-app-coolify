@@ -47,7 +47,10 @@ export async function pbFromRequest(
         const res = await pb.collection('users').authRefresh();
         return { pb, user: res.record };
     } catch {
-        // Token ggf. abgelaufen/ungültig – pb behält den Token, user bleibt leer.
-        return { pb, user: pb.authStore.record };
+        // Token ungültig, abgelaufen oder PocketBase nicht erreichbar: Token
+        // verwerfen. `authStore.isValid` prüft nur die exp-Claim im JWT, NICHT
+        // die Signatur – ein selbst gebautes Token gälte sonst als gültig.
+        pb.authStore.clear();
+        return { pb, user: null };
     }
 }
