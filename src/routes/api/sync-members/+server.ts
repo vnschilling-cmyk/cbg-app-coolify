@@ -24,8 +24,8 @@ export const OPTIONS = async () => preflight();
 
 export async function POST({ request }) {
     // Auth via Bearer-Token (Flutter-App) statt Cookie.
-    const { pb: caller } = await pbFromRequest(request);
-    if (!caller.authStore.isValid) {
+    const { pb: caller, user } = await pbFromRequest(request);
+    if (!user) {
         return json({ success: false, message: 'Unauthorized' }, 401);
     }
 

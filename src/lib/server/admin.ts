@@ -2101,6 +2101,7 @@ export async function canEditPlans(
         return permsForUser(user.id, role, rolePerms, userPerms)
             .dienstplaner === true;
     } catch {
-        return true;
+        // Rechteprüfung fehlgeschlagen -> kein Schreibrecht (fail-closed).
+        return false;
     }
 }

@@ -8,7 +8,7 @@ export const OPTIONS: RequestHandler = async () => preflight();
 /** GET /api/ct-calendars -> Liste aller Termin-Kalender aus ChurchTools. */
 export const GET: RequestHandler = async ({ request }) => {
     const { user, pb } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ error: 'Nicht autorisiert' }, 401);
     }
     try {

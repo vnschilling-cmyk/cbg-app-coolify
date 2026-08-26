@@ -7,7 +7,7 @@ export const OPTIONS: RequestHandler = async () => preflight();
 /** GET /api/leadership?from=&to= -> Zusammenfassung für die Gottesdienstleitung. */
 export const GET: RequestHandler = async ({ request, url }) => {
     const { user, pb } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ error: 'Nicht autorisiert' }, 401);
     }
     try {

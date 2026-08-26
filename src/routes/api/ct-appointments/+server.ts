@@ -25,7 +25,7 @@ function normalize(it: any) {
 /** GET /api/ct-appointments?ids=1,2&from=&to= -> Termine der Kalender. */
 export const GET: RequestHandler = async ({ request, url }) => {
     const { user, pb } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ error: 'Nicht autorisiert' }, 401);
     }
     try {

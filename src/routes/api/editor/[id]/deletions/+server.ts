@@ -12,7 +12,7 @@ export const OPTIONS: RequestHandler = async () => preflight();
  */
 export const POST: RequestHandler = async ({ request }) => {
     const { pb, user } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ success: false, error: 'Nicht autorisiert', deletions: [] }, 401);
     }
 

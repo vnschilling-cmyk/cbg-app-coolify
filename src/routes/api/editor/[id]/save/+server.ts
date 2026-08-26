@@ -8,7 +8,7 @@ export const OPTIONS: RequestHandler = async () => preflight();
 /** POST /api/editor/{id}/save -> Grid-Daten speichern. */
 export const POST: RequestHandler = async ({ params, request }) => {
     const { pb, user } = await pbFromRequest(request);
-    if (!pb.authStore.isValid) {
+    if (!user) {
         return json({ success: false, error: 'Nicht autorisiert' }, 401);
     }
     if (!(await canEditPlans(user))) {
