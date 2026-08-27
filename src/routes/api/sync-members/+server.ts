@@ -4,6 +4,7 @@ import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
 import { json, preflight, pbFromRequest } from '$lib/server/api';
+import { canUseChurchTools } from '$lib/server/admin';
 
 // ENV variables should be loaded from $env/dynamic/private or process.env depending on setup
 // utilizing env from $env/dynamic/private for runtime env vars
@@ -27,6 +28,13 @@ export async function POST({ request }) {
     const { pb: caller, user } = await pbFromRequest(request);
     if (!user) {
         return json({ success: false, message: 'Unauthorized' }, 401);
+    }
+    // Der Sync schreibt als PB-Admin die members-Collection – nur für Nutzer
+    // mit ChurchTools-Recht. Bisher lag der Schutz allein in der Flutter-UI
+    // (`perms.isAdmin || perms.churchtools`), der Endpunkt war für jeden
+    // angemeldeten Nutzer auslösbar.
+    if (!(await canUseChurchTools(user))) {
+        return json({ success: false, message: 'Forbidden' }, 403);
     }
 
     // Optional: nur eine bestimmte Gruppe synchronisieren ({ groupId }).
