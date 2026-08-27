@@ -3,7 +3,7 @@ import { writable } from 'svelte/store';
 import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
 import { dev } from '$app/environment';
 
-export const pb = new PocketBase(PUBLIC_POCKETBASE_URL || 'https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io');
+export const pb = new PocketBase(PUBLIC_POCKETBASE_URL || 'https://db.dienst.cbgg.de');
 
 if (typeof document !== 'undefined') {
     pb.authStore.loadFromCookie(document.cookie);
