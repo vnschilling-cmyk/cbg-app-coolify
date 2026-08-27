@@ -280,13 +280,37 @@ export async function loadEditorData(pb: PocketBase, user: any, planId: string) 
     const isMultiPart = (s: any) =>
         /\bteil\b/i.test((s.label || '').toString()) ||
         (titleDayCount.get(`${s.date}|${normTitle(s.label)}`) || 0) >= 2;
+    // Sonntage mit einem Grünberg-Nachmittagsdienst = ein Nicht-Alsfeld-Termin
+    // um 16:00 (Gemeindestunde/Sondergemeinschaft) oder 17:00 (regulär). Nur an
+    // diesen Tagen wird die Alsfeld-Predigt in die vorhandene Nachmittagsspalte
+    // gefaltet (Dienst-Code „Als"). Fehlt ein solcher Dienst, ist Alsfeld
+    // eigenständig und behält seine eigene 16:00-Spalte.
+    const gruenbergAfternoonSundays = new Set<string>(
+        slots
+            .filter((s: any) => wdOf(s.date) === 0)
+            .filter((s: any) => {
+                const t = (s.time || '').toString();
+                return t === '16:00' || t === '17:00';
+            })
+            .filter(
+                (s: any) =>
+                    !`${s.label || ''} ${s.calendar || ''}`
+                        .toLowerCase()
+                        .includes('alsfeld'),
+            )
+            .map((s: any) => s.date),
+    );
     const kept = slots.filter((s: any) => {
         const wd = wdOf(s.date);
         const time = (s.time || '').toString();
-        // Am Sonntag bekommt ein Alsfeld-Gottesdienst NIE eine eigene Spalte
-        // (die Predigt dort wird über den Dienst-Code „Als" zugewiesen).
+        // Sonntags-Alsfeld wird in die Grünberger Nachmittagsspalte gefaltet
+        // (Dienst-Code „Als"), SOFERN es an dem Tag einen Grünberg-Nachmittags-
+        // dienst gibt. Ohne solchen Dienst ist Alsfeld eigenständig und behält
+        // seine eigene 16:00-Spalte.
         const text = `${s.label || ''} ${s.calendar || ''}`.toLowerCase();
-        if (wd === 0 && text.includes('alsfeld')) return false;
+        if (wd === 0 && text.includes('alsfeld')) {
+            return !gruenbergAfternoonSundays.has(s.date);
+        }
         // Mehrteilige Termine bekommen je Teil eine eigene Spalte – unabhängig
         // vom Wochentag (z. B. auch ein Tauffest am Samstag).
         if (isMultiPart(s)) return true;
