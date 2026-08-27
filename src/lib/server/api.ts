@@ -9,7 +9,7 @@ import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
 
 const PB_URL =
     PUBLIC_POCKETBASE_URL ||
-    'https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io';
+    'https://db.dienst.cbgg.de';
 
 export const corsHeaders: Record<string, string> = {
     'Access-Control-Allow-Origin': '*',

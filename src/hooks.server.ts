@@ -10,7 +10,7 @@ if (dev) {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
-    event.locals.pb = new PocketBase(PUBLIC_POCKETBASE_URL || 'https://pocketbase-cbg-app-coolify.195.201.231.49.nip.io');
+    event.locals.pb = new PocketBase(PUBLIC_POCKETBASE_URL || 'https://db.dienst.cbgg.de');
 
     // Load authStore from cookie
     event.locals.pb.authStore.loadFromCookie(event.request.headers.get('cookie') || '');
