@@ -637,6 +637,15 @@
         .filter((s): s is Slot => s !== null);
 
       // Deduplicate: Use composite key (date + time + label) to preserve all unique events
+      // Sonntage mit einem Grünberg-Nachmittagsdienst (Nicht-Alsfeld 16:00/17:00).
+      // Nur dort wird Alsfeld in die Nachmittagsspalte gefaltet; sonst behält
+      // Alsfeld seine eigene 16:00-Spalte. Spiegelt editor-core.ts.
+      const gruenbergAfternoonSundays = new Set<string>(
+        transformed
+          .filter((s) => isSunday(s.date) && (s.time === "16:00" || s.time === "17:00"))
+          .filter((s) => !s.label.toLowerCase().includes("alsfeld"))
+          .map((s) => format(s.date, "yyyy-MM-dd")),
+      );
       const seenKeys = new Set<string>();
       const deduped: Slot[] = [];
       for (const slot of transformed) {
@@ -657,8 +666,15 @@
           }
         }
 
-        // Filter out Sunday Alsfeld events
-        if (isSunday(slot.date) && slot.label.toLowerCase().includes('alsfeld')) continue;
+        // Sonntags-Alsfeld nur weglassen, wenn es an dem Tag einen Grünberg-
+        // Nachmittagsdienst gibt (dann wird Alsfeld über den Code „Als" dort
+        // gefaltet). Ohne solchen Dienst bleibt Alsfeld eine eigene 16:00-Spalte.
+        if (
+          isSunday(slot.date) &&
+          slot.label.toLowerCase().includes("alsfeld") &&
+          gruenbergAfternoonSundays.has(format(slot.date, "yyyy-MM-dd"))
+        )
+          continue;
 
         deduped.push(slot);
       }
