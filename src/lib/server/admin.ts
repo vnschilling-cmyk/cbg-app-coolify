@@ -2085,7 +2085,7 @@ export function permsForUser(
 /**
  * Darf der Nutzer Dienstpläne bearbeiten? Admins immer, sonst nur Nutzer mit
  * gesetztem `dienstplaner`-Recht (Per-User-Override vor Rolle). Fällt bei
- * Fehlern offen aus (kein Lockout, falls der Backend-Admin nicht erreichbar ist).
+ * Fehlern geschlossen aus (kein Schreibrecht).
  */
 export async function canEditPlans(
     user: { id: string; role?: string } | null,
@@ -2102,6 +2102,33 @@ export async function canEditPlans(
             .dienstplaner === true;
     } catch {
         // Rechteprüfung fehlgeschlagen -> kein Schreibrecht (fail-closed).
+        return false;
+    }
+}
+
+/**
+ * Darf der Nutzer ChurchTools-Aktionen auslösen (z. B. Mitglieder-Sync)?
+ * Admins immer, sonst nur Nutzer mit gesetztem `churchtools`-Recht
+ * (Per-User-Override vor Rolle). Fällt bei Fehlern geschlossen aus.
+ *
+ * Entspricht der Sichtbarkeit in der Flutter-App (`perms.isAdmin ||
+ * perms.churchtools`), die bisher der einzige Schutz war.
+ */
+export async function canUseChurchTools(
+    user: { id: string; role?: string } | null,
+): Promise<boolean> {
+    if (!user) return false;
+    try {
+        const pb = await adminPb();
+        const roleMap = (await getConfig(pb, 'user_roles')) || {};
+        const rolePerms = (await getConfig(pb, 'role_perms')) || {};
+        const userPerms = (await getConfig(pb, 'user_perms')) || {};
+        const role = effectiveRole(user.id, user.role, roleMap);
+        if (role === 'admin') return true;
+        return permsForUser(user.id, role, rolePerms, userPerms)
+            .churchtools === true;
+    } catch {
+        // Rechteprüfung fehlgeschlagen -> kein Zugriff (fail-closed).
         return false;
     }
 }
