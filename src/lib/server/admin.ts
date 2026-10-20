@@ -324,6 +324,7 @@ export const ACCESS_AREAS = [
     'jugend_freizeiten',
     'jugend_unterkuenfte',
     'jugend_statistik',
+    'gemeinden',
     'verwaltung',
 ] as const;
 export type AccessArea = (typeof ACCESS_AREAS)[number];
@@ -382,6 +383,9 @@ export function accessForUser(
     if (p.menus.includes('jugend')) {
         for (const a of JUGEND_AREAS) out[a] = 'ansehen';
     }
+    // Gemeindeverzeichnis: ohne expliziten Zugriff für alle lesbar;
+    // bearbeiten nur mit ausdrücklich gesetzter Stufe (oder als Admin).
+    out.gemeinden = 'ansehen';
     if (p.menus.includes('einstellungen')) {
         out.verwaltung =
             (p.konfiguration || p.berechtigungen || p.churchtools)
@@ -1317,10 +1321,11 @@ async function createCollection(
     pb: PocketBase,
     name: string,
     fields: any[],
+    rules: Record<string, string | null> = _AUTH_RULES,
 ): Promise<void> {
     try {
         await pb.collections.create({
-            name, type: 'base', fields, ..._AUTH_RULES,
+            name, type: 'base', fields, ...rules,
         });
         return;
     } catch (eNew: any) {
@@ -1331,7 +1336,7 @@ async function createCollection(
         });
         try {
             await pb.collections.create({
-                name, type: 'base', schema, ..._AUTH_RULES,
+                name, type: 'base', schema, ...rules,
             });
         } catch (eOld: any) {
             console.error(
@@ -1617,6 +1622,54 @@ export async function ensureUnterkunftAusflug(pb: PocketBase): Promise<void> {
         { name: 'kategorie', type: 'text' },
         { name: 'sort_order', type: 'number' },
     ]);
+}
+
+/** Felder der `gemeinden`-Collection (Gemeindeverzeichnis). */
+const GEMEINDE_FIELDS = [
+    { name: 'name', type: 'text', required: true },
+    { name: 'bund', type: 'text' },
+    { name: 'strasse', type: 'text' },
+    { name: 'plz', type: 'text' },
+    { name: 'ort', type: 'text' },
+    { name: 'bundesland', type: 'text' },
+    { name: 'lat', type: 'number' },
+    { name: 'lng', type: 'number' },
+    // '' = noch nicht ermittelt, 'ok' = Adresse, 'ort' = nur PLZ/Ort,
+    // 'fehler' = nicht gefunden.
+    { name: 'geo_status', type: 'text' },
+    { name: 'gottesdienst', type: 'text' },
+    { name: 'telefon', type: 'text' },
+    { name: 'email', type: 'text' },
+    { name: 'website', type: 'text' },
+    { name: 'notiz', type: 'text' },
+    { name: 'geprueft_am', type: 'text' }, // yyyy-MM-dd
+    // Kontaktpersonen [{name, rolle, telefon, email, notiz, einwilligung}].
+    { name: 'kontakte', type: 'json', maxSize: 200000 },
+    // Kinder-/Jugendarbeit {ansprechperson, treffen, alter, angebote, notiz}.
+    { name: 'kinder', type: 'json', maxSize: 50000 },
+    { name: 'jugend', type: 'json', maxSize: 50000 },
+];
+
+/**
+ * Legt die `gemeinden`-Collection an. Schreiben direkt über PocketBase ist
+ * gesperrt (nur Superuser) – Änderungen laufen ausschließlich über die API,
+ * die das Bearbeitungsrecht prüft.
+ */
+export async function ensureGemeinden(pb: PocketBase): Promise<void> {
+    try {
+        await pb.collections.getOne('gemeinden');
+        await ensureFields(pb, 'gemeinden', GEMEINDE_FIELDS);
+        return;
+    } catch (e: any) {
+        if (e?.status && e.status !== 404) throw e;
+    }
+    await createCollection(pb, 'gemeinden', GEMEINDE_FIELDS, {
+        listRule: '@request.auth.id != ""',
+        viewRule: '@request.auth.id != ""',
+        createRule: null,
+        updateRule: null,
+        deleteRule: null,
+    });
 }
 
 /** Legt die `freizeit_agenda`-Collection an (Tagesablauf / Bucket-Agenda). */
