@@ -132,6 +132,69 @@ export async function geocodeAddress(
     return { lat: 0, lng: 0, status: 'fehler' };
 }
 
+// ── Fahrstrecken ────────────────────────────────────────────────────────────
+// OSRM-Instanz von FOSSGIS (OpenStreetMap-Daten). Nutzungsregeln: max. eine
+// Anfrage pro Sekunde, keine Massenabfragen – pro Umkreissuche genügt eine
+// Tabellen-Anfrage für alle Treffer.
+const OSRM_TABLE = 'https://routing.openstreetmap.de/routed-car/table/v1/driving';
+const MAX_ZIELE = 80;
+let lastRoute = 0;
+const routeCache = new Map<string, { km: number; min: number } | null>();
+
+export type Ziel = { id: string; lat: number; lng: number };
+
+/**
+ * Fahrstrecke (km) und Fahrzeit (min) mit dem Auto vom Startpunkt zu jedem
+ * Ziel. Nicht erreichbare Ziele fehlen im Ergebnis.
+ */
+export async function fahrstrecken(
+    lat: number, lng: number, ziele: Ziel[],
+): Promise<Record<string, { km: number; min: number }>> {
+    const out: Record<string, { km: number; min: number }> = {};
+    const start = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+    const offen: Ziel[] = [];
+    for (const z of ziele.slice(0, MAX_ZIELE)) {
+        const key = `${start}>${z.lat.toFixed(5)},${z.lng.toFixed(5)}`;
+        if (routeCache.has(key)) {
+            const hit = routeCache.get(key);
+            if (hit) out[z.id] = hit;
+        } else {
+            offen.push(z);
+        }
+    }
+    if (!offen.length) return out;
+
+    const wait = lastRoute + 1100 - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastRoute = Date.now();
+
+    const coords = [[lng, lat], ...offen.map((z) => [z.lng, z.lat])]
+        .map(([x, y]) => `${x.toFixed(5)},${y.toFixed(5)}`)
+        .join(';');
+    const url = `${OSRM_TABLE}/${coords}?sources=0&annotations=duration,distance`;
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    if (!res.ok) throw new Error(`Routing ${res.status}`);
+    const data: any = await res.json();
+    if (data?.code !== 'Ok') throw new Error(`Routing ${data?.code ?? 'Fehler'}`);
+    const dist: (number | null)[] = data.distances?.[0] ?? [];
+    const dur: (number | null)[] = data.durations?.[0] ?? [];
+
+    if (routeCache.size > 20000) routeCache.clear();
+    offen.forEach((z, i) => {
+        const d = dist[i + 1];
+        const t = dur[i + 1];
+        const key = `${start}>${z.lat.toFixed(5)},${z.lng.toFixed(5)}`;
+        if (d == null || t == null) {
+            routeCache.set(key, null);
+            return;
+        }
+        const r = { km: Math.round(d / 100) / 10, min: Math.round(t / 60) };
+        routeCache.set(key, r);
+        out[z.id] = r;
+    });
+    return out;
+}
+
 const placeCache = new Map<string, { label: string; lat: number; lng: number }[]>();
 
 /** Ortssuche für die Umkreissuche (freier Text: Ort, PLZ, Adresse). */
